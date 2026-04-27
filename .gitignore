@@ -1,0 +1,35 @@
+# STM32CubeIDE build output
+Debug/
+Release/
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+*.o
+*.d
+*.su
+*.cyclo
+
+# STM32CubeIDE / CubeMX metadata
+.settings/
+.cproject
+.project
+*.launch
+*.bak
+*.mxproject
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Arduino build
+build/
+.theia/
+
+# OS
+.DS_Store
+Thumbs.db

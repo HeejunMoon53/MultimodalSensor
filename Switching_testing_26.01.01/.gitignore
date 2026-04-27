@@ -1,0 +1,31 @@
+# Build output
+Debug/
+Release/
+
+# STM32CubeIDE settings
+.settings/
+
+# IDE project metadata (선택: 팀 공유 시 포함할 수도 있음)
+.cproject
+.project
+*.launch
+
+# STM32CubeMX backup
+*.bak
+
+# Object/dependency files
+*.o
+*.d
+*.su
+*.cyclo
+
+# Binary output
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+
+# OS
+.DS_Store
+Thumbs.db
