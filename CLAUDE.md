@@ -1,6 +1,12 @@
 # CLAUDE.md
  
 
+## Git 워크플로우
+
+작업이 마무리될 때마다 커밋 여부를 물어본다. 커밋 시 변경 내용을 간결하게 요약한 메시지로 `git add . → git commit → git push`를 순서대로 실행한다.
+
+---
+
 ## Repository Overview
 
 This repo contains two independent sub-projects for multimodal sensor research:
