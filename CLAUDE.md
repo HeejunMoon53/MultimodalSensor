@@ -7,12 +7,63 @@
 
 ---
 
-## Repository Overview
+## 프로젝트 개요
 
-This repo contains two independent sub-projects for multimodal sensor research:
+**연구 제목**: Embedded AI-Driven Soft Multimodal Single-Electrode Sensor for Proximity, Tactile, and 2D-Strain Sensing
 
-1. **`Switching_testing_26.01.01/`** — STM32G473CBT6 firmware (STM32CubeIDE) for a TDM multimodal sensor PCB that simultaneously measures DC resistance, TENG voltage, and inductance (resonant frequency) across up to 4 sensor channels.
-2. **`26.03.10_Tensile_Tester/`** — Python GUI + Arduino firmware for a 5-axis stepping motor positioning stage used as a tensile tester.
+**연구자**: 문희준 (HeeJun Moon) | BioRobotics & Control Lab (BiRC), 고려대학교 기계공학과
+
+---
+
+### 연구 배경 및 동기
+
+- 로봇공학·인간-기계 상호작용 발전으로 인간과 유사한 촉각 인식 능력이 요구됨
+- 유연 센서는 굴곡 접촉·대형 변형·웨어러블 응용에 적합하나, 기존 멀티모달 센서는 **신호 결합(Signal Coupling)** 문제로 독립 측정이 어려움
+- 기존 디커플링 방법(재료 설계·구조 설계·AI 기반)은 고가 장비 의존, 복잡한 구조, 대규모 데이터 필요 등 한계가 있음
+- 기존 인덕티브 센서 연구는 최대 2가지 모달리티(L/R 조합)만 측정 가능하며 LCR 미터 등 대형 계측 장비 필요
+
+### 핵심 아이디어
+
+단일 전극 소프트 인덕티브 센서에서 **인덕턴스(L), DC 저항(R_DC), TENG 전압(V)** 3가지 신호를 ~1ms 주기(TDM)로 동시 측정하고, PINN(Physics Informed Neural Network) 기반 Edge-AI로 실시간 디커플링한다.
+
+| 측정 신호 | 포함 정보 |
+|---|---|
+| 인덕턴스 (L) | 인장 변형 + 근접 거리 |
+| DC 저항 (R_DC) | 인장 변형 (도미넌트) |
+| TENG 전압 (V) | 접촉 감지 |
+
+### 주요 혁신 포인트
+
+- 연속적 사전-사후 접촉 공간 인식 (평면형·신축성 진정한 단일 전극)
+- 독립적 임베디드 구현 (PC 불필요, STM32 단독 동작)
+- PINN으로 발산 없는 디커플링 + 물리 제약 기반 데이터 효율 극대화
+
+### 연구 진행 단계
+
+| 단계 | 내용 | 상태 |
+|---|---|---|
+| Part 1 | 센서 제작, PCB 설계, 소프트웨어 개발, 테스트 플랫폼 구축 | ✅ 완료 |
+| Part 2 | 복합 신호 취득, 신호 디커플링 분석, 데이터셋 설계, 모델 학습 | 🔄 진행 중 |
+| Part 3 | Edge-AI 임베딩, 실시간 추론, 응용 시나리오, 최종 통합 | ⏳ 예정 |
+
+### 현재 결과 요약
+
+- DC 저항(R)은 인장 변형에 지배적으로 반응, 인덕턴스(L)는 인장+근접 모두에 민감
+- ∇L(d,ε)와 ∇R(d,ε) 그래디언트가 선형 독립 → 디커플링 수학적으로 가능함을 확인
+- 해석적 역산은 야코비안 특이점·비선형성으로 한계 → PINN 솔루션으로 해결 예정
+- PINN Loss: `Loss_Total = Loss_Data + λ·Loss_Physics`
+
+### 향후 계획
+
+- PINN 모델 학습·평가 → STM32 Edge-AI 임베딩
+- 응용: 크롤링 로봇 자가 인지·자가 충전 / 터치리스 인터페이스 / 로봇 안전 센서
+
+---
+
+### 하위 프로젝트 구성
+
+1. **`Switching_testing_26.01.01/`** — STM32G473CBT6 펌웨어 (STM32CubeIDE): TDM 방식으로 DC 저항, TENG 전압, 인덕턴스를 최대 4채널 동시 측정
+2. **`26.03.10_Tensile_Tester/`** — Python GUI + Arduino 펌웨어: 5축 스테핑 모터 포지셔닝 스테이지 (데이터 취득용 커스텀 인장 시험기)
 
 ---
 
