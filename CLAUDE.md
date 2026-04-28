@@ -1,5 +1,7 @@
 # CLAUDE.md
- 
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 
 ## Git 워크플로우
 
@@ -77,9 +79,11 @@
 - **Serial monitor**: USART2 at 115200 baud (PA2/PA3). `printf` is redirected to USART2 via `_write()` in `main.c`.
 
 ### Python GUI (`26.03.10_Tensile_Tester/`)
-```bash
-pip install pyserial
+```powershell
+pip install pyserial pyqt5 pyqtgraph openpyxl numpy
 python "26.03.10_Tensile_Tester/Positioning_Stage_Controller_V3.2.py"
+# 동기화 데이터 취득 UI (STM32 + Arduino 통합)
+python "26.03.10_Tensile_Tester/SyncAcquisition_UI.py"
 ```
 
 ### Arduino Firmware
