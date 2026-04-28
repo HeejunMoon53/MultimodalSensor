@@ -510,7 +510,7 @@ class MainWindow(QMainWindow):
         inp_lay = QGridLayout(inp_grp)
 
         self.cb_mode = QComboBox()
-        self.cb_mode.addItems(["대칭 이동 (Symmetric)", "개별 이동 (Individual)", "대기 (Delay)"])
+        self.cb_mode.addItems(["대칭 이동 (Symmetric)", "개별 속도 (Individual)", "동기 이동 (Synchronized)", "대기 (Delay)"])
         self.cb_mode.currentIndexChanged.connect(self._update_seq_inputs)
         inp_lay.addWidget(QLabel("동작 유형:"), 0, 0)
         inp_lay.addWidget(self.cb_mode, 0, 1, 1, 3)
@@ -557,35 +557,57 @@ class MainWindow(QMainWindow):
         return w
 
     def _update_seq_inputs(self):
-        # 동적 입력 위젯 초기화
         for i in reversed(range(self.seq_input_layout.count())):
-            self.seq_input_layout.itemAt(i).widget().deleteLater()
+            w = self.seq_input_layout.itemAt(i).widget()
+            if w: w.deleteLater()
 
         mode = self.cb_mode.currentIndex()
         self._seq_spins = {}
         lay = self.seq_input_layout
 
-        if mode == 0:  # 대칭
+        if mode == 0:  # 대칭 이동
             for col, (label, key) in enumerate([("총 X (mm)", "tot_x"), ("총 Y (mm)", "tot_y"), ("Z (mm)", "z")]):
                 lay.addWidget(QLabel(label), 0, col*2)
                 sp = QDoubleSpinBox(); sp.setRange(-500, 500); sp.setSingleStep(1)
                 lay.addWidget(sp, 0, col*2+1)
                 self._seq_spins[key] = sp
-            lay.addWidget(QLabel("속도 (mm/s)"), 1, 0)
+            lbl = QLabel("최대 속도 (mm/s)")
+            lbl.setToolTip("가장 긴 축 기준 — 나머지 축 비례 감속으로 동시 완료")
+            lay.addWidget(lbl, 1, 0)
             sp = QDoubleSpinBox(); sp.setRange(0.1, 50); sp.setValue(5.0)
             lay.addWidget(sp, 1, 1)
             self._seq_spins["speed"] = sp
 
-        elif mode == 1:  # 개별
+        elif mode == 1:  # 개별 속도 — 축마다 거리 + 속도 독립 설정
+            lay.addWidget(QLabel("축"),        0, 0)
+            lay.addWidget(QLabel("거리 (mm)"), 0, 1)
+            lay.addWidget(QLabel("속도 (mm/s)"), 0, 2)
             for i, ax in enumerate(AXES):
-                lay.addWidget(QLabel(f"{ax} (mm)"), i//3, (i%3)*2)
+                lay.addWidget(QLabel(ax), i+1, 0)
+                sp_d = QDoubleSpinBox(); sp_d.setRange(-500, 500); sp_d.setSingleStep(1)
+                lay.addWidget(sp_d, i+1, 1)
+                sp_s = QDoubleSpinBox(); sp_s.setRange(0.1, 50); sp_s.setValue(5.0)
+                lay.addWidget(sp_s, i+1, 2)
+                self._seq_spins[ax]          = sp_d
+                self._seq_spins[f"{ax}_spd"] = sp_s
+
+        elif mode == 2:  # 동기 이동 — 전체 시간 또는 전체 속도 기준으로 자동 비례
+            lay.addWidget(QLabel("축"),        0, 0)
+            lay.addWidget(QLabel("거리 (mm)"), 0, 1)
+            for i, ax in enumerate(AXES):
+                lay.addWidget(QLabel(ax), i+1, 0)
                 sp = QDoubleSpinBox(); sp.setRange(-500, 500); sp.setSingleStep(1)
-                lay.addWidget(sp, i//3, (i%3)*2+1)
+                lay.addWidget(sp, i+1, 1)
                 self._seq_spins[ax] = sp
-            lay.addWidget(QLabel("속도 (mm/s)"), 2, 0)
-            sp = QDoubleSpinBox(); sp.setRange(0.1, 50); sp.setValue(5.0)
-            lay.addWidget(sp, 2, 1)
-            self._seq_spins["speed"] = sp
+            row = len(AXES) + 1
+            lay.addWidget(QLabel("동기 기준"), row, 0)
+            cb = QComboBox(); cb.addItems(["총 시간 (s)", "최대 속도 (mm/s)"])
+            lay.addWidget(cb, row, 1)
+            self._seq_spins["sync_cb"] = cb
+            lay.addWidget(QLabel("값"), row+1, 0)
+            sp_v = QDoubleSpinBox(); sp_v.setRange(0.01, 9999); sp_v.setValue(5.0); sp_v.setSingleStep(1.0)
+            lay.addWidget(sp_v, row+1, 1)
+            self._seq_spins["sync_val"] = sp_v
 
         else:  # 대기
             lay.addWidget(QLabel("대기 시간 (ms)"), 0, 0)
@@ -597,20 +619,48 @@ class MainWindow(QMainWindow):
         mode = self.cb_mode.currentIndex()
         sp   = self._seq_spins
 
-        if mode == 0:
+        def _sync_cmds(raw_pairs, total_time):
+            """(ax, dist) 리스트 → (ax, dist, spd) 리스트 (동시 완료 비례 속도)"""
+            active = [(ax, d) for ax, d in raw_pairs if abs(d) >= 1e-6]
+            if not active: return []
+            return [(ax, d, max(0.01, abs(d) / total_time)) for ax, d in active]
+
+        if mode == 0:  # 대칭 이동
             tx, ty, z = sp["tot_x"].value(), sp["tot_y"].value(), sp["z"].value()
-            spd = sp["speed"].value()
-            cmds = [("XA", tx/2), ("XB", -tx/2), ("YA", ty/2), ("YB", -ty/2), ("Z", z)]
-            desc = f"Sym X:{tx} Y:{ty} Z:{z} @ {spd}mm/s"
-            step = {"type": "MOVE", "cmds_mm": cmds, "spd_mm": spd, "desc": desc}
+            max_spd   = sp["speed"].value()
+            raw = [("XA", tx/2), ("XB", -tx/2), ("YA", ty/2), ("YB", -ty/2), ("Z", z)]
+            active = [(ax, d) for ax, d in raw if abs(d) >= 1e-6]
+            max_dist = max(abs(d) for _, d in active) if active else 1.0
+            cmds = _sync_cmds(active, max_dist / max_spd if max_spd > 0 else 1.0)
+            desc = f"Sym X:{tx} Y:{ty} Z:{z} @ {max_spd}mm/s"
+            step = {"type": "MOVE", "hint": "sym", "cmds": cmds, "desc": desc, "max_spd": max_spd}
 
-        elif mode == 1:
-            spd  = sp["speed"].value()
-            cmds = [(ax, sp[ax].value()) for ax in AXES]
-            desc = "  ".join(f"{ax}:{v:.1f}" for ax, v in cmds) + f" @ {spd}mm/s"
-            step = {"type": "MOVE", "cmds_mm": cmds, "spd_mm": spd, "desc": desc}
+        elif mode == 1:  # 개별 속도
+            cmds = []
+            for ax in AXES:
+                d = sp[ax].value(); s = sp[f"{ax}_spd"].value()
+                if abs(d) >= 1e-6:
+                    cmds.append((ax, d, s))
+            desc = "  ".join(f"{ax}:{d:.1f}@{s:.1f}" for ax, d, s in cmds)
+            step = {"type": "MOVE", "hint": "ind", "cmds": cmds, "desc": desc}
 
-        else:
+        elif mode == 2:  # 동기 이동
+            sync_by_time = (sp["sync_cb"].currentIndex() == 0)
+            sync_val     = sp["sync_val"].value()
+            raw = [(ax, sp[ax].value()) for ax in AXES]
+            active = [(ax, d) for ax, d in raw if abs(d) >= 1e-6]
+            if sync_by_time:
+                total_t = sync_val
+            else:
+                max_dist = max(abs(d) for _, d in active) if active else 1.0
+                total_t  = max_dist / sync_val if sync_val > 0 else 1.0
+            cmds = _sync_cmds(active, total_t)
+            unit = "s" if sync_by_time else "mm/s"
+            desc = "  ".join(f"{ax}:{d:.1f}" for ax, d, _ in cmds) + f" | {'T' if sync_by_time else 'V'}:{sync_val}{unit}"
+            step = {"type": "MOVE", "hint": "sync", "cmds": cmds, "desc": desc,
+                    "sync_mode": "time" if sync_by_time else "speed", "sync_val": sync_val}
+
+        else:  # 대기
             delay = sp["delay"].value()
             step  = {"type": "WAIT", "val": delay, "desc": f"대기 {delay}ms"}
 
@@ -623,11 +673,16 @@ class MainWindow(QMainWindow):
 
     def _rebuild_tree(self):
         self.seq_tree.clear()
-        mode_names = ["대칭 이동", "개별 이동", "대기"]
+        hint_labels = {"sym": "대칭", "ind": "개별속도", "sync": "동기"}
         for i, step in enumerate(self._seq_data):
             desc = step.get("desc", "")
-            spd  = str(step.get("spd_mm", "")) if step["type"] == "MOVE" else "-"
-            item = QTreeWidgetItem([str(i+1), step["type"], desc, spd])
+            if step["type"] == "MOVE":
+                lbl     = hint_labels.get(step.get("hint", ""), "이동")
+                spd_col = " / ".join(f"{s:.1f}" for _, _, s in step.get("cmds", []))
+            else:
+                lbl     = "대기"
+                spd_col = "-"
+            item = QTreeWidgetItem([str(i+1), lbl, desc, spd_col])
             self.seq_tree.addTopLevelItem(item)
 
     def _load_for_edit(self, item):
@@ -636,27 +691,45 @@ class MainWindow(QMainWindow):
         self._editing_idx = idx
         step = self._seq_data[idx]
         if step["type"] == "WAIT":
-            self.cb_mode.setCurrentIndex(2)
+            self.cb_mode.setCurrentIndex(3)
             QTimer.singleShot(50, lambda: self._seq_spins["delay"].setValue(step["val"]))
-        else:
-            cmds = {ax: v for ax, v in step["cmds_mm"]}
-            # 대칭인지 개별인지 추정
-            is_sym = ("XA" in cmds and "XB" in cmds and abs(cmds["XA"] + cmds["XB"]) < 0.01)
-            if is_sym:
-                self.cb_mode.setCurrentIndex(0)
-                def fill_sym():
-                    self._seq_spins["tot_x"].setValue(cmds.get("XA",0)*2)
-                    self._seq_spins["tot_y"].setValue(cmds.get("YA",0)*2)
-                    self._seq_spins["z"].setValue(cmds.get("Z",0))
-                    self._seq_spins["speed"].setValue(step["spd_mm"])
-                QTimer.singleShot(50, fill_sym)
-            else:
-                self.cb_mode.setCurrentIndex(1)
-                def fill_ind():
-                    for ax in AXES:
-                        self._seq_spins[ax].setValue(cmds.get(ax, 0))
-                    self._seq_spins["speed"].setValue(step["spd_mm"])
-                QTimer.singleShot(50, fill_ind)
+            return
+
+        hint = step.get("hint", "ind")
+        cmds_dict = {ax: (d, s) for ax, d, s in step.get("cmds", [])}
+
+        if hint == "sym":
+            self.cb_mode.setCurrentIndex(0)
+            def fill():
+                xa_d = cmds_dict.get("XA", (0, 5))[0]
+                ya_d = cmds_dict.get("YA", (0, 5))[0]
+                z_d  = cmds_dict.get("Z",  (0, 5))[0]
+                self._seq_spins["tot_x"].setValue(xa_d * 2)
+                self._seq_spins["tot_y"].setValue(ya_d * 2)
+                self._seq_spins["z"].setValue(z_d)
+                self._seq_spins["speed"].setValue(step.get("max_spd", 5.0))
+            QTimer.singleShot(50, fill)
+
+        elif hint == "ind":
+            self.cb_mode.setCurrentIndex(1)
+            def fill():
+                for ax in AXES:
+                    d, s = cmds_dict.get(ax, (0.0, 5.0))
+                    self._seq_spins[ax].setValue(d)
+                    self._seq_spins[f"{ax}_spd"].setValue(s)
+            QTimer.singleShot(50, fill)
+
+        else:  # sync
+            self.cb_mode.setCurrentIndex(2)
+            def fill():
+                for ax in AXES:
+                    d, _ = cmds_dict.get(ax, (0.0, 5.0))
+                    self._seq_spins[ax].setValue(d)
+                sm = step.get("sync_mode", "speed")
+                sv = step.get("sync_val", 5.0)
+                self._seq_spins["sync_cb"].setCurrentIndex(0 if sm == "time" else 1)
+                self._seq_spins["sync_val"].setValue(sv)
+            QTimer.singleShot(50, fill)
 
     def _cancel_edit(self):
         self._editing_idx = None
@@ -713,15 +786,15 @@ class MainWindow(QMainWindow):
                     time.sleep(step["val"] / 1000.0)
 
                 elif step["type"] == "MOVE":
-                    spd = step["spd_mm"]
-                    cmd_parts = []
-                    for ax, dist in step["cmds_mm"]:
-                        if abs(dist) < 1e-6: continue
-                        steps    = int(abs(dist) * self.steps_per_mm)
-                        spd_step = int(spd * self.steps_per_mm)
-                        if dist < 0: steps = -steps
-                        cmd_parts += [ax, str(steps), str(spd_step)]
-                    if cmd_parts:
+                    cmds = step.get("cmds", [])
+                    active = [(ax, d, s) for ax, d, s in cmds if abs(d) >= 1e-6]
+                    if active:
+                        cmd_parts = []
+                        for ax, dist, spd in active:
+                            steps    = int(abs(dist) * self.steps_per_mm)
+                            spd_step = max(1, int(spd * self.steps_per_mm))
+                            if dist < 0: steps = -steps
+                            cmd_parts += [ax, str(steps), str(spd_step)]
                         self.arduino.send("ABS:" + ":".join(cmd_parts))
                         # DONE 또는 ALARM 대기
                         t_start = time.time()
