@@ -69,6 +69,75 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## PCB 설계 (Multisignal Switching Board)
+
+**파일 위치**: `MultimodalSensor/Gerber_PCB_PCB_Multisignal_Switching_25.12.19_2026-01-05_2026-04-29.zip`
+
+### 기본 사양
+
+| 항목 | 내용 |
+|---|---|
+| CAD 툴 | EasyEDA Pro v2.2.47.7 |
+| 보드 크기 | 약 65mm × 52mm |
+| 층 구성 | 6층 (Top / Inner1~4 / Bottom) |
+| 설계 단위 | mm |
+
+### 레이어 스택
+
+| 레이어 | 파일 | 역할 |
+|---|---|---|
+| Top | GTL | 주 신호 배선 + 부품 실장 |
+| Inner1~4 | G1~G4 | 내부 전원 평면 / 신호 배선 |
+| Bottom | GBL | 보조 신호 배선 |
+
+### 드릴 구성
+
+| 크기 | 수량 | 용도 |
+|---|---|---|
+| 0.305mm | 다수 | 비아 (Via) |
+| 0.800mm (슬롯형) | 4개 | 커넥터 장공 핀 |
+| 1.100mm | 8개 | 마운팅 홀 / 대형 커넥터 |
+
+### 주요 부품 배치
+
+**MCU 및 센서 IC**
+- `U1` — STM32G473CBT6 (메인 MCU, TDM 제어)
+- `U2` — LDC1614 (인덕턴스 측정 IC, I2C2)
+- `U3`~`U8` — ADG734 (아날로그 MUX) + OPAmp (신호 버퍼링, 4채널)
+- `U9` — 추가 IC
+
+**센서 인터페이스**
+- `SENSORCAP1`~`SENSORCAP5` — LDC1614 공진 회로용 커패시터 (센서 코일 연결)
+- `ADC0_R`~`ADC3_R` — ADC 입력 신호 컨디셔닝 저항 (4채널)
+
+**전원 및 통신**
+- `POWER` — 전원 입력 커넥터
+- `USB2UART` — USB-to-UART 변환기 (PC 연결 / 펌웨어 다운로드)
+- `UART1`, `UART2` — UART 헤더 (STM32 USART 연결)
+- `CN1`, `CN2`, `CN3` — 센서 / 외부 장치 연결 커넥터
+
+**상태 표시 및 디버그**
+- `LED1`~`LED4` + `LED_R1`~`LED_R4` — 4채널 상태 표시 LED
+- `DEBUG1`, `DEBUG_R1`, `DEBUG_R2` — 디버그 헤더
+- `RESET` + `RESET_C1`, `RESET_R1` — 하드웨어 리셋 회로
+
+**수동 부품**
+- `C1`~`C14`, `CAP_VDDA1`, `CAP_VDDA2`, `BULK_CAP` — 디커플링 / 바이패스 커패시터
+- `R1`~`R12` 등 — 각종 저항
+- `X1` — 크리스탈 오실레이터
+
+### 회로 구성 요약
+
+이 PCB는 TDM(Time Division Multiplexing) 방식으로 **L / R_DC / TENG** 3종 신호를 최대 4채널 동시 취득하는 전용 보드다.
+
+1. **STM32G473CBT6** — TIM7(1ms) 기반 TDM 사이클 구동, I2C DMA + ADC DMA 병렬 실행
+2. **LDC1614** — 센서 코일의 공진 주파수(28-bit)를 I2C2로 읽어 인덕턴스 계산
+3. **ADG734 MUX** — GPIO(PB2/PB10/PB11/PB15)로 신호 경로를 LDC / TENG / R 모드로 전환
+4. **OPAmp** — ADC 입력 신호 버퍼링 (채널당 1개)
+5. **USB2UART** — PC 없이 단독 동작 가능하지만 데이터 스트리밍 시 사용
+
+---
+
 ## Build & Flash
 
 ### STM32 Firmware (`Switching_testing_26.01.01/`)
