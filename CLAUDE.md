@@ -95,7 +95,9 @@ Loss_Physics = (1/N)·Σ[(ΔR − R_theory(ε̂))² + (ΔL − L_theory(ε̂,d̂
 - 변형률: 0→36mm (약 30% strain), 1mm 간격, 37회 시험
 - 각 시험: **고정 변형률 + 근접도 50mm→0mm 연속 스윔** (변형+근접 동시 자극 데이터)
 - 스테퍼 모터 가감속 보상, 시공간 동기화 완료
-- 데이터 위치: `0332_DecouplingTest_TXTFiles/strain0.txt ~ strain36.txt`
+- 데이터 위치: `0332_DecouplingTest_TXTFiles/strain0.txt ~ strain36.txt` (분석 스크립트: `graphcode.py`, `graphcode2.py`, `graphcode3.py`)
+- 코일 해석 스크립트: `Analysis/fringing_3d.py`
+- 세미나 자료: `Docs/26.03.27_세미나_문희준.pdf`
 - 출력 포맷 (CSV): `LDC_freq, R_DC_filtered, TENG_filtered, R_DC_raw, TENG_raw`
 
 ---
@@ -149,7 +151,7 @@ Loss_Physics = (1/N)·Σ[(ΔR − R_theory(ε̂))² + (ΔL − L_theory(ε̂,d̂
 
 ## PCB 설계 (Multisignal Switching Board)
 
-**파일 위치**: `MultimodalSensor/Gerber_PCB_PCB_Multisignal_Switching_25.12.19_2026-01-05_2026-04-29.zip` (추후 수정 예정)
+**파일 위치**: `PCB/Gerber_PCB_PCB_Multisignal_Switching_25.12.19_2026-01-05_2026-04-29.zip` (추후 수정 예정)
 
 ### 기본 사양
 
