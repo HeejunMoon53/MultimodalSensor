@@ -1,0 +1,41 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build TDMFirmware",
+            "type": "shell",
+            "command": "\"C:/ST/STM32CubeIDE_1.19.0/STM32CubeIDE/stm32cubeide.exe\" --launcher.suppressErrors -nosplash -application org.eclipse.cdt.managedbuilder.core.headlessbuild -import \"${workspaceFolder}/TDMFirmware\" -build \"TDMFirmware/Debug\"",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": {
+                "owner": "cpp",
+                "fileLocation": ["relative", "${workspaceFolder}/TDMFirmware"],
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Clean TDMFirmware",
+            "type": "shell",
+            "command": "\"C:/ST/STM32CubeIDE_1.19.0/STM32CubeIDE/stm32cubeide.exe\" --launcher.suppressErrors -nosplash -application org.eclipse.cdt.managedbuilder.core.headlessbuild -import \"${workspaceFolder}/TDMFirmware\" -cleanBuild \"TDMFirmware/Debug\"",
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        }
+    ]
+}

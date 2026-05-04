@@ -1,0 +1,32 @@
+{
+    "configurations": [
+        {
+            "name": "STM32G473 (arm-none-eabi)",
+            "includePath": [
+                "${workspaceFolder}/TDMFirmware/Core/Inc",
+                "${workspaceFolder}/TDMFirmware/Core/Src",
+                "${workspaceFolder}/TDMFirmware/Drivers/STM32G4xx_HAL_Driver/Inc",
+                "${workspaceFolder}/TDMFirmware/Drivers/STM32G4xx_HAL_Driver/Inc/Legacy",
+                "${workspaceFolder}/TDMFirmware/Drivers/CMSIS/Device/ST/STM32G4xx/Include",
+                "${workspaceFolder}/TDMFirmware/Drivers/CMSIS/Include"
+            ],
+            "defines": [
+                "USE_HAL_DRIVER",
+                "STM32G473xx",
+                "__weak=__attribute__((weak))",
+                "__packed=__attribute__((__packed__))"
+            ],
+            "compilerPath": "C:/ST/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/arm-none-eabi-gcc.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-arm",
+            "compilerArgs": [
+                "-mcpu=cortex-m4",
+                "-mthumb",
+                "-mfpu=fpv4-sp-d16",
+                "-mfloat-abi=hard"
+            ]
+        }
+    ],
+    "version": 4
+}
