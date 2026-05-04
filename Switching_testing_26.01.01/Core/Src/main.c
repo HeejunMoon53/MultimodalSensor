@@ -161,7 +161,6 @@ int main(void)
 
 		  uart_tx_busy = 0;
 	  }
-	  HAL_Delay(10);
 
 
 

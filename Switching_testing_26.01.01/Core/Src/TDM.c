@@ -40,6 +40,9 @@ volatile bool flag_i2c_done = false;
 volatile bool flag_adc_seq_done = false;
 volatile bool flag_LDC_Ready = false;
 
+/* 출력 주기 카운터: TDM_PRINT_EVERY_N 사이클마다 update_flag 세팅 */
+static volatile uint32_t tdm_print_cnt = 0;
+
 
 ///////////////////////////////////////////////////////////테스트용/////////////////////////////////////////////////////////////
 /* --- 필터 비교용 변수 선언 --- */
@@ -229,7 +232,11 @@ void TDM_Handle_Timer_ADC_ISR(void) {
 
 		// 5. 전체 완료 확인 (I2C가 이미 끝났는지 확인)
 		if (flag_i2c_done) {
-			g_SensorData.update_flag = 1;
+			tdm_print_cnt++;
+			if (tdm_print_cnt >= TDM_PRINT_EVERY_N) {
+				tdm_print_cnt = 0;
+				g_SensorData.update_flag = 1;
+			}
 			tdm_state = TDM_STATE_IDLE;
 		}
 	}
@@ -242,7 +249,11 @@ void TDM_Handle_I2C_RxCplt(void) {
 		LDC1614_Parse_DMA_Data();
 		flag_i2c_done = true;
 		if (flag_adc_seq_done) {
-			g_SensorData.update_flag = 1;
+			tdm_print_cnt++;
+			if (tdm_print_cnt >= TDM_PRINT_EVERY_N) {
+				tdm_print_cnt = 0;
+				g_SensorData.update_flag = 1;
+			}
 			tdm_state = TDM_STATE_IDLE;
 		}
 		return;

@@ -19,6 +19,7 @@
 #define TDM_PERIOD_TIME_US		1000	// TDM 주기 시간	 1000	/2000
 #define TENG_MEASURE_TIME_US    100  	 	// TENG 측정 시간 20	/100
 #define R_DC_MEASURE_TIME_US    100  	// 저항 측정 시간 6			/100
+#define TDM_PRINT_EVERY_N       10      // N × 1ms = 출력 주기 (10 → 100Hz, 5 → 200Hz)
 //#define ADC_BURST_SIZE 10				// ADC 버스트 개수
 
 /* --- Data Structure for Complete Sensor Packet --- */
