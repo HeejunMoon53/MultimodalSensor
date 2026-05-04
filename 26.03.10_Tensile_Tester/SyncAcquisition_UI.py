@@ -95,6 +95,7 @@ class STM32Reader(QThread):
 
 class ArduinoController(QThread):
     position_updated = pyqtSignal(float, dict)
+    limits_updated   = pyqtSignal(dict)
     log_msg          = pyqtSignal(str)
     done_received    = pyqtSignal()
     alarm_received   = pyqtSignal(str)
@@ -153,6 +154,7 @@ class ArduinoController(QThread):
                             self._last_pos.update(pos)
                             self._limit_hits = limits
                             self.position_updated.emit(time.time(), pos)
+                            self.limits_updated.emit(limits)
                     elif line == "DONE":
                         self.done_received.emit()
                     elif "ALARM" in line:
@@ -169,10 +171,12 @@ class ArduinoController(QThread):
             vals  = [float(v) for v in parts]
             pos   = {ax: round(vals[i] / self.steps_per_mm, 3) for i, ax in enumerate(AXES)}
             limits = {}
+            # POS 응답: xa xb ya yb z a0 a1 a2 a3 a4 a5 → vals[0..10] = 11개
+            # 스위치값은 vals[5]부터 시작 (vals[5]=a0=XA_in ... vals[10]=a5=Z_out)
             if len(vals) >= 11:
                 sw_names = ["XA_in","XA_out","YA_in","YA_out","Z_in","Z_out"]
                 for i, name in enumerate(sw_names):
-                    limits[name] = (vals[6+i] == 0)
+                    limits[name] = (vals[5+i] == 0)  # BUG FIX: 6+i → 5+i
             return pos, limits
         except Exception:
             return None, {}
@@ -314,18 +318,21 @@ class MainWindow(QMainWindow):
         }
         self._apply_settings()
 
-        self._save_dir      = str(Path.home())
-        self._is_recording  = False
-        self._emergency     = False
-        self._seq_data      = []
-        self._clipboard     = []
-        self._editing_idx   = None
+        self._save_dir       = str(Path.home())
+        self._is_recording   = False
+        self._emergency      = False
+        self._motor_enabled  = False
+        self._seq_data       = []
+        self._clipboard      = []
+        self._editing_idx    = None
         self._is_running_seq = False
+        self._done_event     = threading.Event()  # BUG FIX: threading.Event으로 done 신호 처리
 
         # 그래프 버퍼
-        self._t0      = None
-        self._ts_buf  = deque(maxlen=MAX_POINTS)
-        self._bufs    = [deque(maxlen=MAX_POINTS) for _ in range(5)]   # ldc,rdc,teng,r_raw,teng_raw
+        self._t0       = None
+        self._ts_buf   = deque(maxlen=MAX_POINTS)
+        self._bufs     = [deque(maxlen=MAX_POINTS) for _ in range(5)]
+        self._freq_ts  = deque(maxlen=100)
 
         self._build_ui()
         self._connect_signals()
@@ -353,6 +360,7 @@ class MainWindow(QMainWindow):
         vbox.setSpacing(4)
 
         vbox.addWidget(self._build_top_bar())
+        vbox.addWidget(self._build_pos_bar())
 
         splitter = QSplitter(Qt.Horizontal)
         splitter.addWidget(self._build_left_panel())
@@ -369,7 +377,6 @@ class MainWindow(QMainWindow):
         lay = QHBoxLayout(bar)
         lay.setContentsMargins(4, 4, 4, 4)
 
-        # STM32 연결
         lay.addWidget(self._sep_label("STM32"))
         self.cb_stm32 = QComboBox(); self.cb_stm32.setMinimumWidth(90)
         lay.addWidget(self.cb_stm32)
@@ -381,7 +388,6 @@ class MainWindow(QMainWindow):
 
         lay.addSpacing(16)
 
-        # Arduino 연결
         lay.addWidget(self._sep_label("Arduino"))
         self.cb_arduino = QComboBox(); self.cb_arduino.setMinimumWidth(90)
         lay.addWidget(self.cb_arduino)
@@ -398,21 +404,44 @@ class MainWindow(QMainWindow):
 
         lay.addSpacing(16)
 
-        # 비상정지
-        self.btn_emg = QPushButton("⚠ EMERGENCY")
+        self.btn_emg = QPushButton("● NORMAL")
         self.btn_emg.setFixedHeight(32)
-        self.btn_emg.setStyleSheet("background:#f38ba8; color:white; font-weight:bold; border-radius:4px;")
-        self.btn_emg.clicked.connect(self._toggle_emergency)
+        self.btn_emg.setStyleSheet("background:#a6e3a1; color:#1e1e2e; font-weight:bold; border-radius:4px;")
+        self.btn_emg.clicked.connect(self._on_emg_click)
         lay.addWidget(self.btn_emg)
+
+        lay.addSpacing(8)
+
+        self.btn_motor = QPushButton("ENABLE")
+        self.btn_motor.setFixedHeight(32)
+        self.btn_motor.setFixedWidth(90)
+        self.btn_motor.setStyleSheet("background:#a6e3a1; color:#1e1e2e; font-weight:bold; border-radius:4px;")
+        self.btn_motor.clicked.connect(self._toggle_motor)
+        lay.addWidget(self.btn_motor)
 
         lay.addStretch()
 
-        # 설정
         btn_cfg = QPushButton("⚙ 설정"); btn_cfg.setFixedWidth(72)
         btn_cfg.clicked.connect(self._open_settings)
         lay.addWidget(btn_cfg)
 
         self._refresh_ports()
+        return bar
+
+    # ── 위치 표시 바 ─────────────────────────────────────────────────
+
+    def _build_pos_bar(self):
+        bar = QGroupBox("현재 위치 (mm)")
+        bar.setMaximumHeight(72)
+        grid = QGridLayout(bar)
+        grid.setContentsMargins(6, 2, 6, 2)
+        self.pos_labels = {}
+        for i, ax in enumerate(AXES):
+            grid.addWidget(QLabel(ax, alignment=Qt.AlignCenter), 0, i)
+            lbl = QLabel("0.000", alignment=Qt.AlignCenter)
+            lbl.setStyleSheet("font-size:18px; font-weight:bold; color:#89b4fa;")
+            grid.addWidget(lbl, 1, i)
+            self.pos_labels[ax] = lbl
         return bar
 
     def _sep_label(self, text):
@@ -431,46 +460,31 @@ class MainWindow(QMainWindow):
     # ── 좌측 패널 ────────────────────────────────────────────────────
 
     def _build_left_panel(self):
+        splitter = QSplitter(Qt.Vertical)
+
         tabs = QTabWidget()
         tabs.addTab(self._build_manual_tab(),   "수동 조그")
         tabs.addTab(self._build_sequence_tab(), "시퀀스 프로그램")
-        tabs.addTab(self._build_log_tab(),      "로그")
-        return tabs
+        splitter.addWidget(tabs)
+
+        splitter.addWidget(self._build_log_panel())
+        splitter.setSizes([620, 200])
+        return splitter
 
     # ── 수동 조그 탭 ─────────────────────────────────────────────────
 
     def _build_manual_tab(self):
         w = QWidget(); vbox = QVBoxLayout(w)
 
-        # 위치 표시
-        pos_grp = QGroupBox("현재 위치 (mm)")
-        grid = QGridLayout(pos_grp)
-        self.pos_labels = {}
-        for i, ax in enumerate(AXES):
-            grid.addWidget(QLabel(ax, alignment=Qt.AlignCenter), 0, i)
-            lbl = QLabel("0.000", alignment=Qt.AlignCenter)
-            lbl.setStyleSheet("font-size:20px; font-weight:bold; color:#89b4fa;")
-            grid.addWidget(lbl, 1, i)
-            self.pos_labels[ax] = lbl
-        vbox.addWidget(pos_grp)
-
-        # 모터 제어 버튼
         ctrl_lay = QHBoxLayout()
-        self.btn_lock = QPushButton("🔒 LOCK")
-        self.btn_lock.setStyleSheet("background:#f9e2af; color:black;")
-        self.btn_lock.clicked.connect(lambda: self.arduino.send("EN:1"))
-        self.btn_free = QPushButton("🔓 FREE")
-        self.btn_free.setStyleSheet("background:#a6e3a1; color:black;")
-        self.btn_free.clicked.connect(lambda: self.arduino.send("EN:0"))
         btn_zero = QPushButton("원점(ZERO)")
         btn_zero.clicked.connect(self._set_zero)
         btn_emg_rst = QPushButton("EMG RESET")
         btn_emg_rst.clicked.connect(lambda: self.arduino.send("RESET_EMG"))
-        for b in [self.btn_lock, self.btn_free, btn_zero, btn_emg_rst]:
+        for b in [btn_zero, btn_emg_rst]:
             ctrl_lay.addWidget(b)
         vbox.addLayout(ctrl_lay)
 
-        # 조그 버튼
         jog_grp = QGroupBox("조그 제어")
         jog_grid = QGridLayout(jog_grp)
         self._jog_btns = {}
@@ -505,28 +519,35 @@ class MainWindow(QMainWindow):
     def _build_sequence_tab(self):
         w = QWidget(); vbox = QVBoxLayout(w)
 
-        # 입력 영역
         inp_grp = QGroupBox("스텝 입력")
         inp_lay = QGridLayout(inp_grp)
 
         self.cb_mode = QComboBox()
-        self.cb_mode.addItems(["대칭 이동 (Symmetric)", "개별 속도 (Individual)", "동기 이동 (Synchronized)", "대기 (Delay)"])
+        self.cb_mode.addItems(["대칭 이동 (Symmetric)", "개별 이동 (Individual)", "대기 (Delay)"])
         self.cb_mode.currentIndexChanged.connect(self._update_seq_inputs)
         inp_lay.addWidget(QLabel("동작 유형:"), 0, 0)
         inp_lay.addWidget(self.cb_mode, 0, 1, 1, 3)
 
-        # 동적 입력 컨테이너
+        self.chk_sync = QCheckBox("동기 이동")
+        self.lbl_sync_time = QLabel("총 시간 (s):")
+        self.sp_sync_time = QDoubleSpinBox()
+        self.sp_sync_time.setRange(0.01, 9999); self.sp_sync_time.setValue(5.0); self.sp_sync_time.setSingleStep(0.5)
+        self.sp_sync_time.setEnabled(False)
+        self.chk_sync.toggled.connect(self._on_sync_toggled)
+        inp_lay.addWidget(self.chk_sync, 1, 0, 1, 2)
+        inp_lay.addWidget(self.lbl_sync_time, 1, 2)
+        inp_lay.addWidget(self.sp_sync_time, 1, 3)
+
         self.seq_input_widget = QWidget()
         self.seq_input_layout = QGridLayout(self.seq_input_widget)
-        inp_lay.addWidget(self.seq_input_widget, 1, 0, 1, 4)
+        inp_lay.addWidget(self.seq_input_widget, 2, 0, 1, 4)
 
         btn_add = QPushButton("스텝 추가"); btn_add.clicked.connect(self._add_seq_step)
         btn_clr = QPushButton("편집 취소"); btn_clr.clicked.connect(self._cancel_edit)
-        inp_lay.addWidget(btn_add, 2, 0, 1, 2)
-        inp_lay.addWidget(btn_clr, 2, 2, 1, 2)
+        inp_lay.addWidget(btn_add, 3, 0, 1, 2)
+        inp_lay.addWidget(btn_clr, 3, 2, 1, 2)
         vbox.addWidget(inp_grp)
 
-        # 시퀀스 리스트
         self.seq_tree = QTreeWidget()
         self.seq_tree.setHeaderLabels(["#", "유형", "내용", "속도(mm/s)"])
         self.seq_tree.header().setSectionResizeMode(2, QHeaderView.Stretch)
@@ -534,21 +555,19 @@ class MainWindow(QMainWindow):
         self.seq_tree.itemDoubleClicked.connect(self._load_for_edit)
         vbox.addWidget(self.seq_tree, stretch=1)
 
-        # 리스트 조작 버튼
         btn_row = QHBoxLayout()
         for label, slot in [("▲ 위로", self._seq_up), ("▼ 아래", self._seq_down),
                              ("삭제", self._seq_delete), ("전체 삭제", self._seq_clear),
-                             ("복사 Ctrl+C", self._seq_copy), ("붙여넣기 Ctrl+V", self._seq_paste)]:
+                             ("복사", self._seq_copy), ("붙여넣기", self._seq_paste)]:
             b = QPushButton(label); b.clicked.connect(slot); btn_row.addWidget(b)
         vbox.addLayout(btn_row)
 
-        # 실행 버튼
         run_row = QHBoxLayout()
         self.btn_run_seq = QPushButton("▶ 시퀀스 실행")
         self.btn_run_seq.setStyleSheet("background:#89b4fa; color:#1e1e2e; font-weight:bold;")
         self.btn_run_seq.clicked.connect(self._run_sequence)
         self.btn_stop_seq = QPushButton("■ 정지")
-        self.btn_stop_seq.clicked.connect(lambda: setattr(self, '_is_running_seq', False))
+        self.btn_stop_seq.clicked.connect(self._stop_sequence)
         run_row.addWidget(self.btn_run_seq)
         run_row.addWidget(self.btn_stop_seq)
         vbox.addLayout(run_row)
@@ -565,22 +584,31 @@ class MainWindow(QMainWindow):
         self._seq_spins = {}
         lay = self.seq_input_layout
 
-        if mode == 0:  # 대칭 이동
-            for col, (label, key) in enumerate([("총 X (mm)", "tot_x"), ("총 Y (mm)", "tot_y"), ("Z (mm)", "z")]):
-                lay.addWidget(QLabel(label), 0, col*2)
-                sp = QDoubleSpinBox(); sp.setRange(-500, 500); sp.setSingleStep(1)
-                lay.addWidget(sp, 0, col*2+1)
-                self._seq_spins[key] = sp
-            lbl = QLabel("최대 속도 (mm/s)")
-            lbl.setToolTip("가장 긴 축 기준 — 나머지 축 비례 감속으로 동시 완료")
-            lay.addWidget(lbl, 1, 0)
-            sp = QDoubleSpinBox(); sp.setRange(0.1, 50); sp.setValue(5.0)
-            lay.addWidget(sp, 1, 1)
-            self._seq_spins["speed"] = sp
+        is_delay = (mode == 2)
+        self.chk_sync.setEnabled(not is_delay)
+        if is_delay:
+            self.chk_sync.setChecked(False)
 
-        elif mode == 1:  # 개별 속도 — 축마다 거리 + 속도 독립 설정
-            lay.addWidget(QLabel("축"),        0, 0)
-            lay.addWidget(QLabel("거리 (mm)"), 0, 1)
+        if mode == 0:  # 대칭 이동
+            lay.addWidget(QLabel("그룹"),           0, 0)
+            lay.addWidget(QLabel("총 거리 (mm)"),   0, 1)
+            lay.addWidget(QLabel("속도 (mm/s)"),    0, 2)
+            for row, (label, dk, sk) in enumerate([
+                ("X  (XA/XB)", "tot_x", "x_spd"),
+                ("Y  (YA/YB)", "tot_y", "y_spd"),
+                ("Z",          "z",     "z_spd"),
+            ]):
+                lay.addWidget(QLabel(label), row+1, 0)
+                sp_d = QDoubleSpinBox(); sp_d.setRange(-500, 500); sp_d.setSingleStep(1)
+                lay.addWidget(sp_d, row+1, 1)
+                sp_s = QDoubleSpinBox(); sp_s.setRange(0.1, 50); sp_s.setValue(5.0)
+                lay.addWidget(sp_s, row+1, 2)
+                self._seq_spins[dk] = sp_d
+                self._seq_spins[sk] = sp_s
+
+        elif mode == 1:  # 개별 속도
+            lay.addWidget(QLabel("축"),          0, 0)
+            lay.addWidget(QLabel("거리 (mm)"),   0, 1)
             lay.addWidget(QLabel("속도 (mm/s)"), 0, 2)
             for i, ax in enumerate(AXES):
                 lay.addWidget(QLabel(ax), i+1, 0)
@@ -591,74 +619,58 @@ class MainWindow(QMainWindow):
                 self._seq_spins[ax]          = sp_d
                 self._seq_spins[f"{ax}_spd"] = sp_s
 
-        elif mode == 2:  # 동기 이동 — 전체 시간 또는 전체 속도 기준으로 자동 비례
-            lay.addWidget(QLabel("축"),        0, 0)
-            lay.addWidget(QLabel("거리 (mm)"), 0, 1)
-            for i, ax in enumerate(AXES):
-                lay.addWidget(QLabel(ax), i+1, 0)
-                sp = QDoubleSpinBox(); sp.setRange(-500, 500); sp.setSingleStep(1)
-                lay.addWidget(sp, i+1, 1)
-                self._seq_spins[ax] = sp
-            row = len(AXES) + 1
-            lay.addWidget(QLabel("동기 기준"), row, 0)
-            cb = QComboBox(); cb.addItems(["총 시간 (s)", "최대 속도 (mm/s)"])
-            lay.addWidget(cb, row, 1)
-            self._seq_spins["sync_cb"] = cb
-            lay.addWidget(QLabel("값"), row+1, 0)
-            sp_v = QDoubleSpinBox(); sp_v.setRange(0.01, 9999); sp_v.setValue(5.0); sp_v.setSingleStep(1.0)
-            lay.addWidget(sp_v, row+1, 1)
-            self._seq_spins["sync_val"] = sp_v
-
         else:  # 대기
             lay.addWidget(QLabel("대기 시간 (ms)"), 0, 0)
             sp = QSpinBox(); sp.setRange(0, 60000); sp.setValue(1000); sp.setSingleStep(100)
             lay.addWidget(sp, 0, 1)
             self._seq_spins["delay"] = sp
 
+        self._on_sync_toggled(self.chk_sync.isChecked())
+
+    def _on_sync_toggled(self, checked: bool):
+        self.sp_sync_time.setEnabled(checked)
+        self.lbl_sync_time.setEnabled(checked)
+        for key, w in self._seq_spins.items():
+            if key.endswith("_spd"):
+                w.setEnabled(not checked)
+
     def _add_seq_step(self):
         mode = self.cb_mode.currentIndex()
         sp   = self._seq_spins
-
-        def _sync_cmds(raw_pairs, total_time):
-            """(ax, dist) 리스트 → (ax, dist, spd) 리스트 (동시 완료 비례 속도)"""
-            active = [(ax, d) for ax, d in raw_pairs if abs(d) >= 1e-6]
-            if not active: return []
-            return [(ax, d, max(0.01, abs(d) / total_time)) for ax, d in active]
+        sync_on   = self.chk_sync.isChecked()
+        sync_time = self.sp_sync_time.value()
 
         if mode == 0:  # 대칭 이동
             tx, ty, z = sp["tot_x"].value(), sp["tot_y"].value(), sp["z"].value()
-            max_spd   = sp["speed"].value()
-            raw = [("XA", tx/2), ("XB", -tx/2), ("YA", ty/2), ("YB", -ty/2), ("Z", z)]
-            active = [(ax, d) for ax, d in raw if abs(d) >= 1e-6]
-            max_dist = max(abs(d) for _, d in active) if active else 1.0
-            cmds = _sync_cmds(active, max_dist / max_spd if max_spd > 0 else 1.0)
-            desc = f"Sym X:{tx} Y:{ty} Z:{z} @ {max_spd}mm/s"
-            step = {"type": "MOVE", "hint": "sym", "cmds": cmds, "desc": desc, "max_spd": max_spd}
+            x_spd, y_spd, z_spd = sp["x_spd"].value(), sp["y_spd"].value(), sp["z_spd"].value()
+            raw = [("XA", tx/2, x_spd), ("XB", -tx/2, x_spd),
+                   ("YA", ty/2, y_spd), ("YB", -ty/2, y_spd), ("Z", z, z_spd)]
+            if sync_on:
+                active = [(ax, d) for ax, d, _ in raw if abs(d) >= 1e-6]
+                cmds = [(ax, d, max(0.01, abs(d) / sync_time)) for ax, d in active]
+                sync_suffix = f" | T:{sync_time}s"
+            else:
+                cmds = [(ax, d, s) for ax, d, s in raw if abs(d) >= 1e-6]
+                sync_suffix = f" X:{x_spd:.1f} Y:{y_spd:.1f} Z:{z_spd:.1f}mm/s"
+            desc = f"Sym X:{tx} Y:{ty} Z:{z}{sync_suffix}"
+            step = {"type": "MOVE", "hint": "sym", "cmds": cmds, "desc": desc,
+                    "x_spd": x_spd, "y_spd": y_spd, "z_spd": z_spd,
+                    "sync": sync_on, "sync_time": sync_time}
 
         elif mode == 1:  # 개별 속도
             cmds = []
             for ax in AXES:
-                d = sp[ax].value(); s = sp[f"{ax}_spd"].value()
+                d = sp[ax].value()
+                s = sp[f"{ax}_spd"].value()
                 if abs(d) >= 1e-6:
+                    if sync_on:
+                        s = max(0.01, abs(d) / sync_time)
                     cmds.append((ax, d, s))
             desc = "  ".join(f"{ax}:{d:.1f}@{s:.1f}" for ax, d, s in cmds)
-            step = {"type": "MOVE", "hint": "ind", "cmds": cmds, "desc": desc}
-
-        elif mode == 2:  # 동기 이동
-            sync_by_time = (sp["sync_cb"].currentIndex() == 0)
-            sync_val     = sp["sync_val"].value()
-            raw = [(ax, sp[ax].value()) for ax in AXES]
-            active = [(ax, d) for ax, d in raw if abs(d) >= 1e-6]
-            if sync_by_time:
-                total_t = sync_val
-            else:
-                max_dist = max(abs(d) for _, d in active) if active else 1.0
-                total_t  = max_dist / sync_val if sync_val > 0 else 1.0
-            cmds = _sync_cmds(active, total_t)
-            unit = "s" if sync_by_time else "mm/s"
-            desc = "  ".join(f"{ax}:{d:.1f}" for ax, d, _ in cmds) + f" | {'T' if sync_by_time else 'V'}:{sync_val}{unit}"
-            step = {"type": "MOVE", "hint": "sync", "cmds": cmds, "desc": desc,
-                    "sync_mode": "time" if sync_by_time else "speed", "sync_val": sync_val}
+            if sync_on:
+                desc += f" | T:{sync_time}s"
+            step = {"type": "MOVE", "hint": "ind", "cmds": cmds, "desc": desc,
+                    "sync": sync_on, "sync_time": sync_time}
 
         else:  # 대기
             delay = sp["delay"].value()
@@ -673,11 +685,13 @@ class MainWindow(QMainWindow):
 
     def _rebuild_tree(self):
         self.seq_tree.clear()
-        hint_labels = {"sym": "대칭", "ind": "개별속도", "sync": "동기"}
+        hint_labels = {"sym": "대칭", "ind": "개별속도", "sync": "동기(구)"}
         for i, step in enumerate(self._seq_data):
             desc = step.get("desc", "")
             if step["type"] == "MOVE":
-                lbl     = hint_labels.get(step.get("hint", ""), "이동")
+                lbl = hint_labels.get(step.get("hint", ""), "이동")
+                if step.get("sync"):
+                    lbl += "+동기"
                 spd_col = " / ".join(f"{s:.1f}" for _, _, s in step.get("cmds", []))
             else:
                 lbl     = "대기"
@@ -691,7 +705,7 @@ class MainWindow(QMainWindow):
         self._editing_idx = idx
         step = self._seq_data[idx]
         if step["type"] == "WAIT":
-            self.cb_mode.setCurrentIndex(3)
+            self.cb_mode.setCurrentIndex(2)
             QTimer.singleShot(50, lambda: self._seq_spins["delay"].setValue(step["val"]))
             return
 
@@ -700,6 +714,9 @@ class MainWindow(QMainWindow):
 
         if hint == "sym":
             self.cb_mode.setCurrentIndex(0)
+            self.chk_sync.setChecked(step.get("sync", False))
+            if step.get("sync"):
+                self.sp_sync_time.setValue(step.get("sync_time", 5.0))
             def fill():
                 xa_d = cmds_dict.get("XA", (0, 5))[0]
                 ya_d = cmds_dict.get("YA", (0, 5))[0]
@@ -707,11 +724,16 @@ class MainWindow(QMainWindow):
                 self._seq_spins["tot_x"].setValue(xa_d * 2)
                 self._seq_spins["tot_y"].setValue(ya_d * 2)
                 self._seq_spins["z"].setValue(z_d)
-                self._seq_spins["speed"].setValue(step.get("max_spd", 5.0))
+                self._seq_spins["x_spd"].setValue(step.get("x_spd", 5.0))
+                self._seq_spins["y_spd"].setValue(step.get("y_spd", 5.0))
+                self._seq_spins["z_spd"].setValue(step.get("z_spd", 5.0))
             QTimer.singleShot(50, fill)
 
         elif hint == "ind":
             self.cb_mode.setCurrentIndex(1)
+            self.chk_sync.setChecked(step.get("sync", False))
+            if step.get("sync"):
+                self.sp_sync_time.setValue(step.get("sync_time", 5.0))
             def fill():
                 for ax in AXES:
                     d, s = cmds_dict.get(ax, (0.0, 5.0))
@@ -719,16 +741,19 @@ class MainWindow(QMainWindow):
                     self._seq_spins[f"{ax}_spd"].setValue(s)
             QTimer.singleShot(50, fill)
 
-        else:  # sync
-            self.cb_mode.setCurrentIndex(2)
+        else:  # 구버전 hint=="sync" 호환
+            cmds_list = step.get("cmds", [])
+            max_dist  = max((abs(d) for _, d, _ in cmds_list), default=1.0)
+            sv        = step.get("sync_val", 5.0)
+            sync_t    = max_dist / sv if sv > 0 else 1.0
+            self.cb_mode.setCurrentIndex(1)
+            self.chk_sync.setChecked(True)
+            self.sp_sync_time.setValue(sync_t)
             def fill():
                 for ax in AXES:
-                    d, _ = cmds_dict.get(ax, (0.0, 5.0))
+                    d, s = cmds_dict.get(ax, (0.0, 5.0))
                     self._seq_spins[ax].setValue(d)
-                sm = step.get("sync_mode", "speed")
-                sv = step.get("sync_val", 5.0)
-                self._seq_spins["sync_cb"].setCurrentIndex(0 if sm == "time" else 1)
-                self._seq_spins["sync_val"].setValue(sv)
+                    self._seq_spins[f"{ax}_spd"].setValue(s)
             QTimer.singleShot(50, fill)
 
     def _cancel_edit(self):
@@ -774,8 +799,17 @@ class MainWindow(QMainWindow):
             self._log("시퀀스가 비어 있습니다"); return
         if not self.arduino.isRunning():
             self._log("Arduino 미연결"); return
+        # BUG FIX: 모터 활성화 여부 확인 (V3.2 참고)
+        if not self._motor_enabled:
+            self._log("모터가 비활성화 상태입니다. ENABLE 후 실행하세요.")
+            QMessageBox.warning(self, "모터 비활성화", "모터가 비활성화 상태입니다.\nENABLE 버튼을 누른 후 실행하세요.")
+            return
+        if self._emergency:
+            self._log("비상정지 상태 — 시퀀스 실행 불가"); return
+
         self._is_running_seq = True
         self.btn_run_seq.setEnabled(False)
+        self._done_event.clear()
 
         def execute():
             for i, step in enumerate(self._seq_data):
@@ -786,7 +820,7 @@ class MainWindow(QMainWindow):
                     time.sleep(step["val"] / 1000.0)
 
                 elif step["type"] == "MOVE":
-                    cmds = step.get("cmds", [])
+                    cmds   = step.get("cmds", [])
                     active = [(ax, d, s) for ax, d, s in cmds if abs(d) >= 1e-6]
                     if active:
                         cmd_parts = []
@@ -795,37 +829,51 @@ class MainWindow(QMainWindow):
                             spd_step = max(1, int(spd * self.steps_per_mm))
                             if dist < 0: steps = -steps
                             cmd_parts += [ax, str(steps), str(spd_step)]
+                        self._done_event.clear()
                         self.arduino.send("ABS:" + ":".join(cmd_parts))
-                        # DONE 또는 ALARM 대기
+                        # BUG FIX: threading.Event.wait()로 안전하게 대기
                         t_start = time.time()
                         while self._is_running_seq and not self._emergency:
-                            if time.time() - t_start > 60: break
-                            time.sleep(0.05)
-                            # done_received 시그널이 대신 플래그 세팅하도록 처리
-                            if getattr(self, '_done_flag', False):
-                                self._done_flag = False; break
+                            if time.time() - t_start > 120: break
+                            if self._done_event.wait(timeout=0.05):
+                                self._done_event.clear()
+                                break
 
             self._is_running_seq = False
             QTimer.singleShot(0, lambda: self.btn_run_seq.setEnabled(True))
             self._log("[시퀀스] 완료")
 
-        self.arduino.done_received.connect(self._on_done)
         t = threading.Thread(target=execute, daemon=True)
         t.start()
 
+    def _stop_sequence(self):
+        self._is_running_seq = False
+        self._done_event.set()  # 대기 중인 스레드 즉시 해제
+        self._log("[시퀀스] 정지 요청")
+
     def _on_done(self):
-        self._done_flag = True
+        # BUG FIX: threading.Event으로 교체 (_done_flag 제거)
+        self._done_event.set()
 
-    # ── 로그 탭 ──────────────────────────────────────────────────────
+    # ── 로그 패널 ────────────────────────────────────────────────────
 
-    def _build_log_tab(self):
+    def _build_log_panel(self):
         w = QWidget(); vbox = QVBoxLayout(w)
+        vbox.setContentsMargins(4, 2, 4, 2)
+        vbox.setSpacing(2)
+        hdr = QHBoxLayout()
+        lbl = QLabel("로그"); lbl.setStyleSheet("font-weight:bold;")
+        hdr.addWidget(lbl)
+        hdr.addStretch()
+        btn = QPushButton("지우기"); btn.setFixedHeight(20)
+        btn.setStyleSheet("font-size:10px;")
+        hdr.addWidget(btn)
+        vbox.addLayout(hdr)
         self.log_edit = QTextEdit()
         self.log_edit.setReadOnly(True)
         self.log_edit.setStyleSheet("background:#1e1e2e; color:#cdd6f4; font-family:Consolas; font-size:11px;")
         vbox.addWidget(self.log_edit)
-        btn = QPushButton("지우기"); btn.clicked.connect(self.log_edit.clear)
-        vbox.addWidget(btn)
+        btn.clicked.connect(self.log_edit.clear)
         return w
 
     # ── 우측 패널 (그래프) ───────────────────────────────────────────
@@ -895,8 +943,11 @@ class MainWindow(QMainWindow):
         self.stm32.data_received.connect(self._on_stm32_data)
         self.stm32.log_msg.connect(self._log)
         self.arduino.position_updated.connect(self._on_position)
+        self.arduino.limits_updated.connect(self._on_limits)
         self.arduino.log_msg.connect(self._log)
         self.arduino.alarm_received.connect(self._on_alarm)
+        # BUG FIX: done_received는 여기서 한 번만 연결 (run_sequence 내부에서 중복 연결 제거)
+        self.arduino.done_received.connect(self._on_done)
 
     # ──────────────────────────────────────────────────────────────────
     # 이벤트 핸들러
@@ -905,6 +956,7 @@ class MainWindow(QMainWindow):
     def _on_stm32_data(self, ts: float, vals: list):
         if self._t0 is None: self._t0 = ts
         self._ts_buf.append(ts - self._t0)
+        self._freq_ts.append(ts)
         for i, v in enumerate(vals):
             self._bufs[i].append(v)
         self.logger.add_sensor(ts, vals)
@@ -917,16 +969,48 @@ class MainWindow(QMainWindow):
 
     def _on_alarm(self, msg: str):
         self._log(f"⚠ {msg}")
+        if "LIMIT" in msg:
+            self._set_emergency(True)
+        elif "CLEARED" in msg:
+            self._set_emergency(False)
         self._is_running_seq = False
+        self._done_event.set()  # 시퀀스 대기 즉시 해제
+
+    def _on_limits(self, limits: dict):
+        # BUG FIX: 폴링 중 리밋 스위치 상태로 비상정지 트리거 제거
+        # 비상정지는 ALARM 메시지(_on_alarm)에서만 설정. 여기서는 조그 버튼 색상만 업데이트.
+        self._update_jog_axis("XA", limits.get("XA_in", False), limits.get("XA_out", False))
+        self._update_jog_axis("XB", limits.get("XA_in", False), limits.get("XA_out", False))
+        self._update_jog_axis("YA", limits.get("YA_in", False), limits.get("YA_out", False))
+        self._update_jog_axis("YB", limits.get("YA_in", False), limits.get("YA_out", False))
+        self._update_jog_axis("Z",  limits.get("Z_in",  False), limits.get("Z_out",  False))
+
+    def _update_jog_axis(self, ax: str, in_hit: bool, out_hit: bool):
+        btns = self._jog_btns.get(ax, [])
+        if len(btns) < 6:
+            return
+        hit_style  = "background:#f38ba8; color:#1e1e2e;"
+        norm_style = ""
+        for b in btns[:3]:
+            b.setEnabled(not in_hit)
+            b.setStyleSheet(hit_style if in_hit else norm_style)
+        for b in btns[3:]:
+            b.setEnabled(not out_hit)
+            b.setStyleSheet(hit_style if out_hit else norm_style)
 
     def _refresh_graph(self):
-        if len(self._ts_buf) < 2: return
+        n = len(self._ts_buf)
+        freq = 0.0
+        if len(self._freq_ts) >= 2:
+            elapsed = self._freq_ts[-1] - self._freq_ts[0]
+            if elapsed > 0:
+                freq = (len(self._freq_ts) - 1) / elapsed
+        self.lbl_counts.setText(f"STM32 샘플: {n}  |  {freq:.1f} Hz  |  기록: {self.logger.row_count()}행")
+        if n < 2: return
         ts = np.array(self._ts_buf)
         for i, curve in enumerate(self._curves):
             if len(self._bufs[i]) == len(ts):
                 curve.setData(ts, np.array(self._bufs[i]))
-        n = len(self._ts_buf)
-        self.lbl_counts.setText(f"STM32 샘플: {n}  |  기록: {self.logger.row_count()}행")
 
     # ──────────────────────────────────────────────────────────────────
     # 포트 관리
@@ -941,7 +1025,9 @@ class MainWindow(QMainWindow):
 
     def _toggle_stm32(self):
         if self.stm32.isRunning():
-            self.stm32.disconnect(); self.stm32.quit()
+            self.stm32.disconnect()
+            self.stm32.quit()
+            self.stm32.wait(1000)  # BUG FIX: 스레드 종료 대기
             self.btn_stm32.setText("연결")
             self._set_indicator(self.ind_stm32, False)
         else:
@@ -956,7 +1042,9 @@ class MainWindow(QMainWindow):
 
     def _toggle_arduino(self):
         if self.arduino.isRunning():
-            self.arduino.disconnect(); self.arduino.quit()
+            self.arduino.disconnect()
+            self.arduino.quit()
+            self.arduino.wait(1000)  # BUG FIX: 스레드 종료 대기
             self.btn_arduino.setText("연결")
             self._set_indicator(self.ind_arduino, False)
         else:
@@ -973,19 +1061,42 @@ class MainWindow(QMainWindow):
     # 기능
     # ──────────────────────────────────────────────────────────────────
 
-    def _toggle_emergency(self):
-        self._emergency = not self._emergency
-        self._is_running_seq = False
+    def _on_emg_click(self):
         if self._emergency:
-            self.arduino.send("EN:0")
-            self.btn_emg.setText("⚠ EMG — RESET 클릭")
-            self.btn_emg.setStyleSheet("background:#cba6f7; color:white; font-weight:bold; border-radius:4px;")
-            self._log("⚠ 비상정지 발동")
-        else:
             self.arduino.send("RESET_EMG")
-            self.btn_emg.setText("⚠ EMERGENCY")
+            self._log("Emergency Reset 요청")
+
+    def _set_emergency(self, active: bool):
+        self._emergency = active
+        if active:
+            self._motor_enabled = False
+            self.btn_motor.setText("ENABLE")
+            self.btn_motor.setStyleSheet("background:#a6e3a1; color:#1e1e2e; font-weight:bold; border-radius:4px;")
+            self.btn_emg.setText("⚠ EMERGENCY — 클릭 시 리셋")
             self.btn_emg.setStyleSheet("background:#f38ba8; color:white; font-weight:bold; border-radius:4px;")
-            self._log("✅ 비상정지 해제")
+            self._log("⚠ 리밋 스위치 감지 — EMERGENCY")
+        else:
+            self.btn_emg.setText("● NORMAL")
+            self.btn_emg.setStyleSheet("background:#a6e3a1; color:#1e1e2e; font-weight:bold; border-radius:4px;")
+            for ax in AXES:
+                for b in self._jog_btns.get(ax, []):
+                    b.setEnabled(True)
+                    b.setStyleSheet("")
+            self._log("✅ 리밋 해제 — NORMAL")
+
+    def _toggle_motor(self):
+        if self._motor_enabled:
+            self.arduino.send("EN:0")
+            self._motor_enabled = False
+            self.btn_motor.setText("ENABLE")
+            self.btn_motor.setStyleSheet("background:#a6e3a1; color:#1e1e2e; font-weight:bold; border-radius:4px;")
+            self._log("모터 DISABLED")
+        else:
+            self.arduino.send("EN:1")
+            self._motor_enabled = True
+            self.btn_motor.setText("DISABLE")
+            self.btn_motor.setStyleSheet("background:#f9e2af; color:#1e1e2e; font-weight:bold; border-radius:4px;")
+            self._log("모터 ENABLED")
 
     def _do_jog(self, axis: str, dist_mm: float):
         if self._emergency:
@@ -1040,8 +1151,16 @@ class MainWindow(QMainWindow):
         self.log_edit.append(f"[{ts}] {msg}")
 
     def closeEvent(self, event):
-        self.stm32.disconnect(); self.arduino.disconnect()
-        self._ui_timer.stop(); event.accept()
+        self._is_running_seq = False
+        self._done_event.set()
+        self.stm32.disconnect()
+        self.stm32.quit()
+        self.stm32.wait(1000)   # BUG FIX: 스레드 종료 대기
+        self.arduino.disconnect()
+        self.arduino.quit()
+        self.arduino.wait(1000)  # BUG FIX: 스레드 종료 대기
+        self._ui_timer.stop()
+        event.accept()
 
 
 # ══════════════════════════════════════════════════════════════════════
