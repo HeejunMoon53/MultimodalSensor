@@ -144,7 +144,7 @@ Loss_Physics = (1/N)·Σ[(ΔR − R_theory(ε̂))² + (ΔL − L_theory(ε̂,d̂
 
 ### 하위 프로젝트 구성
 
-1. **`Switching_testing_26.01.01/`** — STM32G473CBT6 펌웨어 (STM32CubeIDE): TDM 방식으로 DC 저항, TENG 전압, 인덕턴스를 최대 4채널 동시 측정
+1. **`TDMFirmware/`** — STM32G473CBT6 펌웨어 (STM32CubeIDE): TDM 방식으로 DC 저항, TENG 전압, 인덕턴스를 최대 4채널 동시 측정 (Git 태그로 버전 관리)
 2. **`26.03.10_Tensile_Tester/`** — Python GUI + Arduino 펌웨어: 5축 스테핑 모터 포지셔닝 스테이지 (데이터 취득용 커스텀 인장 시험기)
 
 ---
@@ -184,11 +184,12 @@ Loss_Physics = (1/N)·Σ[(ΔR − R_theory(ε̂))² + (ΔL − L_theory(ε̂,d̂
 
 ## Build & Flash
 
-### STM32 Firmware (`Switching_testing_26.01.01/`)
-- **IDE**: STM32CubeIDE (Windows). Open the `.project` file in the `Switching_testing_26.01.01/` directory.
-- **Build**: Project → Build Project (or Ctrl+B). Output is `Debug/Switching_testing_26.01.01.elf`.
-- **Flash**: Run/Debug configuration is in `Switching_testing_26.01.01 Debug.launch`. Uses ST-LINK.
-- **Peripheral config**: Re-generated from `Switching_testing_26.01.01.ioc` (STM32CubeMX). Do not manually edit HAL-generated files in `Core/Src/` other than within `/* USER CODE BEGIN/END */` blocks.
+### STM32 Firmware (`TDMFirmware/`)
+- **IDE**: STM32CubeIDE (Windows). Open the `.project` file in the `TDMFirmware/` directory.
+- **Build**: Project → Build Project (or Ctrl+B). Output is `Debug/TDMFirmware.elf`.
+- **Flash**: Run/Debug configuration is in `TDMFirmware Debug.launch`. Uses ST-LINK.
+- **Peripheral config**: Re-generated from `TDMFirmware.ioc` (STM32CubeMX). Do not manually edit HAL-generated files in `Core/Src/` other than within `/* USER CODE BEGIN/END */` blocks.
+- **버전 관리**: 날짜 폴더 복사 대신 `git tag vX.Y.Z` 로 버전 스냅샷 생성. GitHub Releases에서 확인 가능.
 - **Serial monitor**: USART2 at 115200 baud (PA2/PA3). `printf` is redirected to USART2 via `_write()` in `main.c`.
 
 ### Python GUI (`26.03.10_Tensile_Tester/`)
