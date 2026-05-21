@@ -1,0 +1,41 @@
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\train.py:116: DeprecationWarning: You are using the legacy TorchScript-based ONNX export. Starting in PyTorch 2.9, the new torch.export-based ONNX exporter has become the default. Learn more about the new export logic: https://docs.pytorch.org/docs/stable/onnx_export.html. For exporting control flow: https://pytorch.org/tutorials/beginner/onnx/export_control_flow_model_to_onnx_tutorial.html
+  torch.onnx.export(
+Device: cpu  |  Model: two_stage
+Baseline: L0=11876941.44, R0=771.36, N_half=1057, window=2113 samples/file
+Dataset sizes  train: 59,164  val: 8,452  test: 10,565
+Parameters: 370 (network) + 7 (physics)
+Epoch   1/300  lam=0.000  L_data=0.30683  L_phys=0.00000  Val MAE: eps=0.408%  d=7.38mm
+Epoch  10/300  lam=0.000  L_data=0.04915  L_phys=0.00000  Val MAE: eps=0.226%  d=3.50mm
+Epoch  20/300  lam=0.000  L_data=0.04816  L_phys=0.00000  Val MAE: eps=0.235%  d=3.61mm
+Epoch  30/300  lam=0.000  L_data=0.04706  L_phys=0.00000  Val MAE: eps=0.237%  d=3.45mm
+Epoch  40/300  lam=0.000  L_data=0.04649  L_phys=0.00000  Val MAE: eps=0.222%  d=3.25mm
+Epoch  50/300  lam=0.000  L_data=0.04552  L_phys=0.00000  Val MAE: eps=0.224%  d=3.19mm
+Epoch  60/300  lam=0.004  L_data=0.04534  L_phys=158.89599  Val MAE: eps=0.225%  d=3.15mm
+Epoch  70/300  lam=0.008  L_data=0.04524  L_phys=118.74135  Val MAE: eps=0.222%  d=3.08mm
+Epoch  80/300  lam=0.012  L_data=0.04482  L_phys=103.37072  Val MAE: eps=0.220%  d=3.10mm
+Epoch  90/300  lam=0.016  L_data=0.04455  L_phys=91.54793  Val MAE: eps=0.252%  d=3.23mm
+Epoch 100/300  lam=0.020  L_data=0.04431  L_phys=81.86014  Val MAE: eps=0.232%  d=3.09mm
+Epoch 110/300  lam=0.024  L_data=0.04436  L_phys=73.18609  Val MAE: eps=0.232%  d=3.17mm
+Epoch 120/300  lam=0.028  L_data=0.04409  L_phys=66.07602  Val MAE: eps=0.233%  d=3.10mm
+Epoch 130/300  lam=0.032  L_data=0.04416  L_phys=59.85009  Val MAE: eps=0.225%  d=3.02mm
+Epoch 140/300  lam=0.036  L_data=0.04411  L_phys=54.48950  Val MAE: eps=0.247%  d=3.17mm
+Epoch 150/300  lam=0.040  L_data=0.04386  L_phys=49.99519  Val MAE: eps=0.223%  d=3.07mm
+Epoch 160/300  lam=0.044  L_data=0.04386  L_phys=46.07596  Val MAE: eps=0.222%  d=3.04mm
+Epoch 170/300  lam=0.048  L_data=0.04383  L_phys=42.74518  Val MAE: eps=0.223%  d=3.06mm
+Epoch 180/300  lam=0.052  L_data=0.04380  L_phys=39.89390  Val MAE: eps=0.224%  d=3.08mm
+Epoch 190/300  lam=0.056  L_data=0.04371  L_phys=37.61939  Val MAE: eps=0.226%  d=3.02mm
+Epoch 200/300  lam=0.060  L_data=0.04379  L_phys=35.65652  Val MAE: eps=0.225%  d=3.04mm
+Epoch 210/300  lam=0.064  L_data=0.04366  L_phys=34.10505  Val MAE: eps=0.220%  d=3.02mm
+Epoch 220/300  lam=0.068  L_data=0.04366  L_phys=32.86104  Val MAE: eps=0.225%  d=3.04mm
+Epoch 230/300  lam=0.072  L_data=0.04354  L_phys=31.82703  Val MAE: eps=0.222%  d=3.03mm
+Early stopping at epoch 233  (best val MAE d = 3.01mm)
+
+Test MAE: eps=0.247%  d=3.23mm  (best epoch: 203)
+
+Learned physics params:
+  a1=24.4105  a2=24.1791
+  b1=23.9805   b2=-16.6656
+  b3=-13.7688   d0=0.4685mm  k=1.0192
+ONNX exported --> C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\checkpoints\decoupler.onnx
+STM32 header   ¡æ C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\checkpoints\model_params.h
+ONNX sanity check OK - output: [[ 0.42498618 -1.1497825 ]]

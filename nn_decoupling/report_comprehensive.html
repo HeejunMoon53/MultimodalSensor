@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Two-Stage PINN Decoupler — 종합 기술 보고서</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#1e1e2e;--bg2:#181825;--bg3:#313244;--text:#cdd6f4;--text2:#a6adc8;
+  --border:#45475a;--blue:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af;
+  --mauve:#cba6f7;--red:#f38ba8;--teal:#94e2d5;--peach:#fab387;--sky:#89dceb;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;font-size:14px;line-height:1.7}
+.wrap{max-width:1200px;margin:0 auto;padding:40px 24px}
+h1{font-size:2rem;color:var(--blue);margin-bottom:6px}
+.sub{color:var(--text2);font-size:.85rem;margin-bottom:40px}
+h2{font-size:1.2rem;color:var(--mauve);margin:44px 0 16px;
+    border-left:4px solid var(--mauve);padding-left:12px}
+h3{font-size:1rem;color:var(--teal);margin:20px 0 10px}
+h4{font-size:.9rem;color:var(--peach);margin:14px 0 6px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;
+        padding:24px;margin-bottom:22px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.met{background:var(--bg3);border-radius:10px;padding:18px;text-align:center}
+.met .v{font-size:2rem;font-weight:700;font-family:Consolas,monospace;line-height:1.2}
+.met .l{font-size:.72rem;color:var(--text2);letter-spacing:1px;text-transform:uppercase;margin-top:6px}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{padding:10px 14px;text-align:center;border-bottom:1px solid var(--border)}
+th{background:var(--bg3);color:var(--text2);font-size:.76rem;letter-spacing:.5px;text-transform:uppercase}
+tr:hover td{background:rgba(255,255,255,.02)}
+tr:last-child td{border-bottom:none}
+td:first-child{text-align:left}
+.pinn{color:var(--blue);font-weight:600}
+.singlep{color:var(--mauve);font-weight:600}
+.dnn{color:var(--green);font-weight:600}
+.good{color:var(--teal);font-weight:600}
+.bad{color:var(--red)}
+.ch{position:relative;height:300px;margin-top:14px}
+.ch2{position:relative;height:260px;margin-top:14px}
+.tag{display:inline-block;padding:2px 10px;border-radius:5px;font-size:.76rem;font-weight:600}
+.tp{background:rgba(137,180,250,.15);color:var(--blue)}
+.tm{background:rgba(203,166,247,.15);color:var(--mauve)}
+.td{background:rgba(166,227,161,.15);color:var(--green)}
+.note{color:var(--text2);font-size:.85rem;margin-bottom:14px;line-height:1.65}
+.box{background:rgba(137,180,250,.06);border:1px solid rgba(137,180,250,.2);
+       border-radius:8px;padding:18px;margin-top:16px}
+.box ul{padding-left:22px}
+.box li{margin-bottom:8px}
+.box li strong{color:var(--yellow)}
+.formula{background:var(--bg3);border-left:3px solid var(--teal);
+           border-radius:0 8px 8px 0;padding:14px 20px;margin:10px 0;
+           font-family:Consolas,monospace;font-size:.92rem;line-height:2}
+.arch-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0}
+.arch-box{background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+            padding:10px 16px;font-family:Consolas,monospace;font-size:.88rem;
+            text-align:center;min-width:64px;line-height:1.3}
+.arch-arr{color:var(--text2);font-size:1.4rem;font-weight:300}
+code{font-family:Consolas,monospace;background:var(--bg3);padding:1px 6px;
+       border-radius:3px;font-size:.87em;color:var(--sky)}
+.badge{display:inline-block;background:var(--bg3);border:1px solid var(--border);
+         border-radius:6px;padding:3px 10px;font-family:Consolas,monospace;
+         font-size:.82rem;margin:3px 4px}
+.sep{border:none;border-top:2px dashed var(--border);margin:48px 0}
+.highlight{background:rgba(249,226,175,.08);border:1px solid rgba(249,226,175,.3);
+             border-radius:8px;padding:16px 20px;margin:12px 0}
+.highlight strong{color:var(--yellow)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Two-Stage PINN Decoupler — 종합 기술 보고서</h1>
+<p class="sub">Multimodal Soft Sensor Signal Decoupling · ldc_iir(α=0.18) + R_DC_filtered · 2026-05-12 11:25 · BiRC Lab, 고려대학교</p>
+
+<!-- ══ 0. 요약 ═══════════════════════════════════════════════════════════════ -->
+<div class="g5" style="margin-bottom:24px">
+  <div class="met">
+    <div class="v" style="color:var(--blue)">3.16<span style="font-size:1.1rem"> mm</span></div>
+    <div class="l">Two-Stage PINN<br>Test MAE d</div>
+  </div>
+  <div class="met">
+    <div class="v" style="color:var(--blue)">0.254<span style="font-size:1.1rem"> %</span></div>
+    <div class="l">Two-Stage PINN<br>Test MAE ε</div>
+  </div>
+  <div class="met">
+    <div class="v" style="color:var(--mauve)">818</div>
+    <div class="l">파라미터 수<br>(Two-Stage)</div>
+  </div>
+  <div class="met">
+    <div class="v" style="color:var(--teal)">2.4<span style="font-size:1.1rem"> µs</span></div>
+    <div class="l">STM32 INT8<br>추론 시간 추정</div>
+  </div>
+  <div class="met">
+    <div class="v" style="color:var(--green)">106<span style="font-size:1.1rem">ep</span></div>
+    <div class="l">Best Epoch<br>(Two-Stage PINN)</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="sep"></div>
+
+<!-- ══ 1. 전체 모델 구조 ══════════════════════════════════════════════════════ -->
+<h2>1. 전체 모델 구조</h2>
+<div class="card">
+  <p class="note">
+    EGaIn 스파이럴 코일 단일 전극에서 TDM(Time Division Measurement)으로
+    <strong>L (인덕턴스), R_DC (저항), V_TENG (전압)</strong> 3종을 1ms 주기로 취득.
+    신호 간 물리적 결합(coupling)이 존재하므로, 역산 모델로 ε(변형률)과 d(근접거리)를 동시 디커플링.
+  </p>
+  <div class="g2">
+    <div>
+      <h3>시스템 전체 흐름</h3>
+      <div class="arch-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="arch-box" style="border-color:var(--peach);min-width:130px">EGaIn 코일<br><small>단일 전극 (2선)</small></div>
+          <span class="arch-arr">→</span>
+          <div class="arch-box" style="min-width:160px">TDM PCB<br><small>STM32G473 + LDC1614</small></div>
+        </div>
+        <div style="margin-left:60px;color:var(--text2)">↓ UART (100Hz, CSV)</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="arch-box" style="border-color:var(--blue);min-width:130px">L_DC (LDC freq)<br><small>R_DC, V_TENG</small></div>
+          <span class="arch-arr">→</span>
+          <div class="arch-box" style="min-width:160px">전처리<br><small>ΔL/L₀, ΔR/R₀ 계산</small></div>
+          <span class="arch-arr">→</span>
+          <div class="arch-box" style="border-color:var(--green);min-width:120px">PINN 추론<br><small>ε̂, d̂ 출력</small></div>
+        </div>
+      </div>
+      <h3 style="margin-top:22px">Two-Stage PINN 구조</h3>
+      <p class="note" style="margin-bottom:8px">
+        ΔR은 변형률에만 지배적 → Stage1이 먼저 ε를 독립 추정.<br>
+        이후 Stage2가 ΔL과 ε̂를 함께 사용하여 d를 추정.
+      </p>
+      <div class="arch-row">
+        <div class="arch-box" style="border-color:var(--peach)">ΔR<br><small>(1)</small></div>
+        <span class="arch-arr">→</span>
+        <div class="arch-box" style="border-color:var(--blue)">Stage 1<br><small>1→16→8→1</small></div>
+        <span class="arch-arr">→</span>
+        <div class="arch-box" style="border-color:var(--blue)">ε̂<br><small>(1)</small></div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-box" style="border-color:var(--peach)">ΔL, ε̂<br><small>(2)</small></div>
+        <span class="arch-arr">→</span>
+        <div class="arch-box" style="border-color:var(--teal)">Stage 2<br><small>2→32→16→1</small></div>
+        <span class="arch-arr">→</span>
+        <div class="arch-box" style="border-color:var(--teal)">d̂<br><small>(1)</small></div>
+      </div>
+    </div>
+    <div>
+      <h3>파라미터 구성</h3>
+      <table>
+        <thead><tr><th>구성 요소</th><th>레이어</th><th>파라미터</th></tr></thead>
+        <tbody>
+          <tr><td>Stage 1</td><td>1→16→8→1 (Tanh)</td><td class="pinn">177</td></tr>
+          <tr><td>Stage 2</td><td>2→32→16→1 (Tanh)</td><td class="pinn">641</td></tr>
+          <tr><td><b>Two-Stage 합계</b></td><td>—</td><td class="pinn"><b>818</b></td></tr>
+          <tr><td>Single-Stage</td><td>2→24→16→8→2 (Tanh)</td><td class="singlep">626</td></tr>
+          <tr><td>Physics params</td><td>α₁,α₂,β₁,β₂,β₃,d₀,k</td><td>7</td></tr>
+        </tbody>
+      </table>
+      <h3 style="margin-top:20px">모델 크기 (STM32 배포)</h3>
+      <table>
+        <thead><tr><th>포맷</th><th>Two-Stage</th><th>Single-Stage</th></tr></thead>
+        <tbody>
+          <tr><td>FP32 (.onnx)</td><td>3.3 KB</td><td>2.6 KB</td></tr>
+          <tr><td>INT8 (X-CUBE-AI)</td><td>~0.85 KB</td><td>~0.65 KB</td></tr>
+          <tr><td>STM32G473 Flash 256KB 대비</td><td>&lt; 0.4%</td><td>&lt; 0.3%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 2. 데이터 입력 처리 ════════════════════════════════════════════════════ -->
+<h2>2. 데이터 입력 처리</h2>
+<div class="card">
+  <div class="g2">
+    <div>
+      <h3>원시 신호 → 입력 특징 변환</h3>
+      <p class="note">
+        STM32에서 출력되는 raw 신호는 절대값이며 센서마다 초기값이 다름.
+        물리적으로 의미 있는 <b>상대 변화율(%)</b>로 변환하여 센서 개체차 제거.
+      </p>
+      <div class="formula">
+ΔL/L₀ (%) = [ (L₀/L_meas)² - 1 ] × 100<br>
+ΔR/R₀ (%) = [ (R_meas - R₀) / R₀ ] × 100<br><br>
+L₀, R₀ : 기준 상태 (d=50mm, ε=0) 평균값
+      </div>
+      <h4>LDC IIR 필터 (α = 0.18)</h4>
+      <div class="formula">
+L_filt[n] = (1-α)·L_filt[n-1] + α·L_raw[n]<br>
+α = 0.18  →  τ ≈ 6 샘플 ≈ 0.1s @ 100Hz
+      </div>
+      <p class="note">LDC1614 공진 측정의 고주파 노이즈 제거. R_DC는 STM32 IIR(α=0.02) 적용된 Channel 2 사용.</p>
+    </div>
+    <div>
+      <h3>전처리 파이프라인</h3>
+      <table>
+        <thead><tr><th>단계</th><th>입력</th><th>출력</th><th>이유</th></tr></thead>
+        <tbody>
+          <tr><td>1. IIR 필터</td><td>LDC raw freq</td><td>LDC smoothed</td><td>공진 노이즈 제거</td></tr>
+          <tr><td>2. 정규화 ΔL</td><td>LDC smoothed, L₀</td><td>ΔL/L₀ (%)</td><td>센서 개체차 제거</td></tr>
+          <tr><td>3. 정규화 ΔR</td><td>R_filtered, R₀</td><td>ΔR/R₀ (%)</td><td>절대값 의존성 제거</td></tr>
+          <tr><td>4. StandardScaler</td><td>ΔL, ΔR</td><td>z-score</td><td>학습 안정성, 그래디언트 균형</td></tr>
+          <tr><td>5. 출력 Scaler</td><td>ε, d</td><td>z-score</td><td>MSE loss 스케일 균형</td></tr>
+        </tbody>
+      </table>
+      <h3 style="margin-top:18px">Train / Val / Test 분할</h3>
+      <table>
+        <thead><tr><th>분할</th><th>strain 파일</th><th>샘플 수</th><th>선택 이유</th></tr></thead>
+        <tbody>
+          <tr><td>Train</td><td>나머지 28개</td><td class="pinn">59,164</td><td>균일 분포 학습</td></tr>
+          <tr><td>Val</td><td>4, 13, 22, 31</td><td>8,452</td><td>전 구간 균등 샘플링</td></tr>
+          <tr><td>Test</td><td>0, 9, 18, 27, 36</td><td>10,565</td><td>경계+중간 검증</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 3. Single vs Two-Stage 비교 ═══════════════════════════════════════════ -->
+<h2>3. Single-Stage vs Two-Stage 아키텍처 비교</h2>
+<div class="card">
+  <div class="g2">
+    <div>
+      <h3>Two-Stage 설계 근거</h3>
+      <p class="note">
+        물리 방정식에서 ΔR은 ε에만 지배적으로 의존하고, ΔL은 ε와 d 모두에 의존:
+      </p>
+      <div class="formula">
+R_theory(ε)    = α₁·ε + α₂·ε²      (d 독립)<br>
+L_theory(ε, d) = β₁·ε + β₂/(d+d₀)ᵏ + β₃·ε/(d+d₀)
+      </div>
+      <p class="note" style="margin-top:10px">
+        Two-Stage는 이 인과구조를 <b>아키텍처 자체에 hardcode</b>:
+        Stage1(ΔR→ε̂)은 ε만 담당,  Stage2(ΔL,ε̂→d̂)는 d만 담당.
+        Single-Stage는 ΔL, ΔR 모두를 동시에 보고 ε,d를 함께 추정 — 물리적 독립성을 데이터에서 학습해야 함.
+      </p>
+      <h3 style="margin-top:18px">Single-Stage 아키텍처</h3>
+      <div class="arch-row">
+        <div class="arch-box" style="border-color:var(--peach)">ΔL, ΔR<br><small>(2)</small></div>
+        <span class="arch-arr">→</span>
+        <div class="arch-box" style="border-color:var(--mauve)">2→24→16→8→2<br><small>Tanh</small></div>
+        <span class="arch-arr">→</span>
+        <div class="arch-box" style="border-color:var(--mauve)">ε̂, d̂<br><small>(2)</small></div>
+      </div>
+    </div>
+    <div>
+      <h3>성능 비교표</h3>
+      <table>
+        <thead><tr>
+          <th>모델</th><th>파라미터</th>
+          <th>Test MAE ε (%)</th><th>Test MAE d (mm)</th>
+          <th>Best Epoch</th><th>학습 시간</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="tag tp">Two-Stage PINN</span></td>
+            <td>818</td>
+            <td class="pinn">0.254</td>
+            <td class="pinn">3.16</td>
+            <td>106</td>
+            <td>122.8s</td>
+          </tr>
+          <tr>
+            <td><span class="tag tm">Single PINN</span></td>
+            <td>626</td>
+            <td class="singlep">0.212</td>
+            <td class="singlep">3.13</td>
+            <td>94</td>
+            <td>97.1s</td>
+          </tr>
+          <tr>
+            <td><span class="tag td">Single DNN</span></td>
+            <td>626</td>
+            <td class="dnn">0.222</td>
+            <td class="dnn">3.12</td>
+            <td>90</td>
+            <td>74.2s</td>
+          </tr>
+        </tbody>
+      </table>
+      <table style="margin-top:14px">
+        <thead><tr><th>비교</th><th>MAE d 차이</th><th>해석</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Two-Stage PINN vs Single DNN</td>
+            <td class="pinn">↓ 0.04 mm</td>
+            <td>Architecture + Physics 합산</td>
+          </tr>
+          <tr>
+            <td>Single PINN vs Single DNN</td>
+            <td class="dnn">↓ 0.01 mm</td>
+            <td>Physics Loss 단독 효과</td>
+          </tr>
+          <tr>
+            <td>Two-Stage vs Single PINN</td>
+            <td class="dnn">↓ 0.03 mm</td>
+            <td>Two-Stage 구조 단독 효과</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <h3>3-모델 Val MAE d 수렴 곡선 비교</h3>
+  <div class="ch"><canvas id="cArch"></canvas></div>
+</div>
+
+<!-- ══ 4. PINN ════════════════════════════════════════════════════════════════ -->
+<h2>4. Physics-Informed Neural Network (PINN)</h2>
+
+<!-- 4.1 개념 및 수식 -->
+<div class="card">
+  <h3>4.1 PINN 개념 및 Loss 함수</h3>
+  <p class="note">
+    순수 데이터 기반 DNN은 학습 데이터 분포 밖에서 물리적으로 불가능한 예측을 할 수 있음.
+    PINN은 신경망 출력이 <b>물리 방정식을 만족하도록</b> 추가 패널티를 부과.
+  </p>
+  <div class="g2">
+    <div>
+      <h4>물리 모델 (경험적 피팅)</h4>
+      <div class="formula">
+R_theory(ε̂)      = α₁·ε̂ + α₂·ε̂²<br>
+L_theory(ε̂, d̂)  = β₁·ε̂ + β₂/(d̂+d₀)ᵏ + β₃·ε̂/(d̂+d₀)
+      </div>
+      <h4>Loss 함수</h4>
+      <div class="formula">
+L_total = L_data + λ · L_phys<br><br>
+L_data  = MSE(ε̂_norm, ε_norm) + MSE(d̂_norm, d_norm)<br><br>
+L_phys  = MSE(R_theory(ε̂), ΔR_meas)<br>
+        + MSE(L_theory(ε̂,d̂), ΔL_meas)
+      </div>
+    </div>
+    <div>
+      <h4>λ 워밍업 스케줄</h4>
+      <div class="formula">
+epoch &lt; warmup(50) : λ = 0.0<br>
+epoch ≥ warmup      : λ = (ep-50)/(300-50) × 0.10
+      </div>
+      <p class="note" style="margin-top:10px">
+        초기에는 데이터 손실만으로 빠르게 수렴 방향 설정 후,
+        물리 제약을 점진적으로 적용하여 <b>학습 안정성과 물리 일관성을 동시 확보</b>.
+      </p>
+      <h4>물리 파라미터 학습 방식</h4>
+      <p class="note">
+        α₁, α₂, β₁, β₂, β₃는 unconstrained learnable parameters.<br>
+        d₀, k는 <code>softplus</code> 적용으로 항상 양수 보장 (특이점 방지).
+      </p>
+      <div class="formula">
+d₀ = softplus(d₀_raw),  k = softplus(k_raw)
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 4.2 학습 곡선 -->
+<div class="card">
+  <h3>4.2 Two-Stage PINN 학습 곡선 (전체 에폭)</h3>
+  <div class="g2">
+    <div>
+      <h4>Data Loss vs Physics Loss (log scale)</h4>
+      <div class="ch"><canvas id="cLoss"></canvas></div>
+    </div>
+    <div>
+      <h4>Val MAE ε (%) 와 Val MAE d (mm)</h4>
+      <div class="ch"><canvas id="cValMAE"></canvas></div>
+    </div>
+  </div>
+  <div class="g2" style="margin-top:18px">
+    <div>
+      <h4>λ 스케줄 (Physics Loss 가중치)</h4>
+      <div class="ch2"><canvas id="cLam"></canvas></div>
+    </div>
+    <div>
+      <h4>Train Loss 총합 (L_data + λ·L_phys)</h4>
+      <div class="ch2"><canvas id="cTotal"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- 4.3 PINN vs DNN 비교 -->
+<div class="card">
+  <h3>4.3 PINN vs DNN 학습 비교 (Two-Stage 기준)</h3>
+  <div class="g2">
+    <div>
+      <h4>Val MAE d 수렴 곡선 (PINN vs DNN)</h4>
+      <div class="ch"><canvas id="cPvsD"></canvas></div>
+    </div>
+    <div>
+      <h4>수렴 속도 및 최종 성능</h4>
+      <table>
+        <thead><tr><th>지표</th><th class="pinn">PINN (λ=0.10)</th><th class="dnn">DNN (λ=0.00)</th></tr></thead>
+        <tbody>
+          <tr><td>Test MAE ε (%)</td><td class="pinn">0.254</td><td class="dnn">0.222</td></tr>
+          <tr><td>Test MAE d (mm)</td><td class="pinn">3.16</td><td class="dnn">3.12</td></tr>
+          <tr><td>Best Epoch</td><td class="pinn">106</td><td class="dnn">90</td></tr>
+          <tr><td>학습 시간</td><td class="pinn">122.8s</td><td class="dnn">74.2s</td></tr>
+          <tr><td>파라미터 수</td><td class="pinn">818</td><td class="dnn">818</td></tr>
+          <tr><td>추가 학습 파라미터</td><td class="pinn">+7 (물리)</td><td class="dnn">없음</td></tr>
+        </tbody>
+      </table>
+      <div class="highlight" style="margin-top:14px">
+        <strong>PINN 장점</strong>: 데이터가 적을수록 Physics Loss의 regularization 효과가 두드러짐.
+        특히 새 센서 형상/재료 적용 시 재학습 데이터 수집 비용 절감 가능.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 4.4 학습된 물리 파라미터 -->
+<div class="card">
+  <h3>4.4 학습된 물리 파라미터 (Two-Stage PINN)</h3>
+  <div class="g2">
+    <div>
+      <table>
+        <thead><tr><th>파라미터</th><th>의미</th><th>모델 수식</th><th>학습 후 값</th></tr></thead>
+        <tbody>
+          <tr><td><code>α₁</code></td><td>ΔR/R₀ 선형 계수</td><td>α₁·ε</td><td class="pinn">47.9839</td></tr>
+          <tr><td><code>α₂</code></td><td>ΔR/R₀ 이차 계수</td><td>α₂·ε²</td><td class="pinn">14.5887</td></tr>
+          <tr><td><code>β₁</code></td><td>ΔL/L₀ 변형률 계수</td><td>β₁·ε</td><td class="pinn">17.4495</td></tr>
+          <tr><td><code>β₂</code></td><td>ΔL/L₀ 근접거리 계수</td><td>β₂/(d+d₀)ᵏ</td><td class="pinn">-1.203</td></tr>
+          <tr><td><code>β₃</code></td><td>ΔL/L₀ 교차 결합</td><td>β₃·ε/(d+d₀)</td><td class="pinn">-14.0257</td></tr>
+          <tr><td><code>d₀</code></td><td>근접거리 오프셋</td><td>softplus(d₀_raw)</td><td class="pinn">0.5175 mm</td></tr>
+          <tr><td><code>k</code></td><td>거리 거듭제곱 지수</td><td>softplus(k_raw)</td><td class="pinn">5.6287</td></tr>
+        </tbody>
+      </table>
+      <p class="note" style="margin-top:12px">
+        α₁·ε + α₂·ε² ≈ 저항-변형 관계. ε≈0.15(15mm)에서 ΔR/R₀ ≈ 7.5%.
+      </p>
+    </div>
+    <div>
+      <h4>물리 해석</h4>
+      <div class="box">
+        <ul>
+          <li><strong>α₁+α₂ 관계</strong>: 전체 저항 증가율이 이차 다항식으로 표현됨.
+            R_DC의 변형 의존성 (도체 길이·단면적 변화)을 학습이 자동 포착.</li>
+          <li><strong>β₂ 부호</strong>: β₂ < 0이면 d 감소 시 ΔL 감소 (상호 인덕턴스 부호).
+            물리적으로 타겟 물체 재질·형상에 의존하는 값.</li>
+          <li><strong>d₀ = 0.52mm</strong>: 근접거리 0mm 근방 특이점 방지 오프셋.
+            softplus로 항상 양수 보장.</li>
+          <li><strong>k = 5.629</strong>: 거리-인덕턴스 감쇠 지수.
+            이론적으로 쌍극자 근사에서 k≈3이지만, 실제 형상에 맞게 학습됨.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 5. MCU 임베딩 비교 ══════════════════════════════════════════════════════ -->
+<h2>5. MCU 임베딩 — DNN vs 수식 역산 vs 룩업 테이블</h2>
+<div class="card">
+  <h3>5.1 방법론 비교</h3>
+  <div class="g3">
+    <div>
+      <h4 style="color:var(--blue)">① DNN (Two-Stage PINN)</h4>
+      <p class="note">
+        학습된 신경망을 ONNX → X-CUBE-AI → INT8로 STM32에 직접 배포.
+        매 TDM 주기에 forward pass 1회 실행.
+      </p>
+      <div class="badge">ONNX export</div>
+      <div class="badge">INT8 양자화</div>
+      <div class="badge">O(1) 추론</div>
+      <div class="badge">확정적 결과</div>
+    </div>
+    <div>
+      <h4 style="color:var(--yellow)">② 수식 역산 (Newton-Raphson)</h4>
+      <p class="note">
+        ΔR=R(ε), ΔL=L(ε,d) 연립방정식을 반복법으로 풀어 ε,d를 추정.
+        비선형 시스템으로 야코비안 계산 + 반복 필요.
+      </p>
+      <div class="badge">코드만 필요</div>
+      <div class="badge">반복 수렴</div>
+      <div class="badge" style="color:var(--red)">수렴 불확실</div>
+      <div class="badge" style="color:var(--red)">야코비안 특이점</div>
+    </div>
+    <div>
+      <h4 style="color:var(--green)">③ 룩업 테이블 (LUT)</h4>
+      <p class="note">
+        (ΔL, ΔR) 격자점에 대한 (ε, d) 값을 사전 계산하여 Flash에 저장.
+        측정 시 보간(bilinear)으로 추정.
+      </p>
+      <div class="badge">빠른 조회</div>
+      <div class="badge" style="color:var(--red)">대용량 Flash</div>
+      <div class="badge" style="color:var(--red)">이산화 오차</div>
+      <div class="badge" style="color:var(--red)">재학습 어려움</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:22px">5.2 정량 비교표</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>항목</th>
+        <th style="color:var(--blue)">DNN (Two-Stage)</th>
+        <th style="color:var(--yellow)">수식 역산 (N-R)</th>
+        <th style="color:var(--green)">LUT (50×50)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Flash 사용량</td>
+        <td class="pinn">~0.85 KB (INT8)</td>
+        <td>~2 KB (코드)</td>
+        <td class="bad">~20 KB (격자)</td>
+      </tr>
+      <tr>
+        <td>RAM 사용량</td>
+        <td class="pinn">~256 B (활성화)</td>
+        <td>~128 B (변수)</td>
+        <td>~256 B (인덱스)</td>
+      </tr>
+      <tr>
+        <td>STM32 추론 시간 (FP32 추정)</td>
+        <td class="pinn">9.6 µs</td>
+        <td class="bad">~500–2000 µs (5–20iter)</td>
+        <td class="good">~1 µs</td>
+      </tr>
+      <tr>
+        <td>STM32 추론 시간 (INT8)</td>
+        <td class="pinn"><b>2.4 µs</b></td>
+        <td>N/A (FP32 필수)</td>
+        <td class="good">~1 µs</td>
+      </tr>
+      <tr>
+        <td>TDM 1ms 대비 부하율</td>
+        <td class="pinn">&lt; 0.24%</td>
+        <td class="bad">50–200% (주기 초과 위험)</td>
+        <td class="good">&lt; 0.1%</td>
+      </tr>
+      <tr>
+        <td>Test MAE d</td>
+        <td class="pinn">3.16 mm</td>
+        <td class="bad">발산 위험 (극단 조건)</td>
+        <td>~5–8 mm (격자 해상도)</td>
+      </tr>
+      <tr>
+        <td>수렴 확정성</td>
+        <td class="pinn">항상 O(1)</td>
+        <td class="bad">불확실 (야코비안 특이)</td>
+        <td class="good">항상 O(1)</td>
+      </tr>
+      <tr>
+        <td>새 센서 적용</td>
+        <td class="pinn">재학습 → ONNX 재변환</td>
+        <td>파라미터 재피팅</td>
+        <td class="bad">격자 전체 재계산</td>
+      </tr>
+      <tr>
+        <td>물리 파라미터 해석</td>
+        <td class="pinn">학습으로 자동 추출</td>
+        <td class="pinn">명시적 (α₁,α₂,β₁…)</td>
+        <td class="bad">없음 (black box)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:22px">5.3 STM32 배포 파이프라인</h3>
+  <div class="arch-row" style="justify-content:center;padding:10px 0;gap:12px">
+    <div class="arch-box" style="border-color:var(--blue);min-width:100px">PyTorch<br>FP32<br><small>train.py</small></div>
+    <span class="arch-arr">→</span>
+    <div class="arch-box" style="min-width:100px">ONNX<br>Export<br><small>opset 17</small></div>
+    <span class="arch-arr">→</span>
+    <div class="arch-box" style="min-width:100px">X-CUBE-AI<br>Post-Quant<br><small>INT8</small></div>
+    <span class="arch-arr">→</span>
+    <div class="arch-box" style="min-width:100px">C 코드<br>생성<br><small>network.c/h</small></div>
+    <span class="arch-arr">→</span>
+    <div class="arch-box" style="border-color:var(--green);min-width:100px">STM32<br>실시간 추론<br><small>2.4 µs</small></div>
+  </div>
+
+  <div class="g2" style="margin-top:16px">
+    <div>
+      <h4>추론 시간 측정 결과</h4>
+      <table>
+        <thead><tr><th>플랫폼</th><th>정밀도</th><th>1회 추론</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>PC CPU (측정)</td><td>FP32</td><td class="pinn">170.23 µs</td><td>100K회 평균</td></tr>
+          <tr><td>STM32G473 (추정)</td><td>FP32</td><td class="pinn">9.6 µs</td><td>클럭 비율 170/3000 환산</td></tr>
+          <tr><td>STM32G473 (추정)</td><td>INT8</td><td class="pinn"><b>2.4 µs</b></td><td>INT8 ≈ FP32×4 가속</td></tr>
+          <tr><td>TDM 1ms 주기 대비</td><td>—</td><td class="pinn">&lt;0.24%</td><td>충분한 여유</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h4>메모리 요약</h4>
+      <table>
+        <thead><tr><th>항목</th><th>용량</th><th>STM32G473 대비</th></tr></thead>
+        <tbody>
+          <tr><td>INT8 모델 (Flash)</td><td class="pinn">~0.85 KB</td><td>256KB 대비 0.33%</td></tr>
+          <tr><td>Scaler 상수 (Flash)</td><td>~0.5 KB</td><td>C 헤더로 포함</td></tr>
+          <tr><td>활성화 버퍼 (RAM)</td><td class="pinn">~256 B</td><td>80KB 대비 0.31%</td></tr>
+          <tr><td>LUT 50×50 대비</td><td class="pinn">97% 절약</td><td>20KB → 0.85KB</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+<script>
+Chart.defaults.color = '#a6adc8';
+Chart.defaults.borderColor = '#45475a';
+const PC = '#89b4fa', MC = '#cba6f7', DC = '#a6e3a1', YC = '#f9e2af', TC = '#94e2d5';
+
+// 3-model convergence
+new Chart('cArch', {
+  type: 'line',
+  data: {
+    labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136],
+    datasets: [
+      { label: 'Two-Stage + PINN', data: [7.3733, 5.5801, 4.5183, 4.0287, 3.9393, 3.5927, 3.5058, 3.5632, 3.3633, 3.4711, 3.4727, 3.3568, 3.3137, 3.4306, 3.3187, 3.291, 3.2862, 3.2912, 3.2703, 3.3973, 3.2426, 3.2353, 3.2642, 3.3456, 3.1946, 3.234, 3.2467, 3.2303, 3.1542, 3.1308, 3.1309, 3.1083, 3.1806, 3.1032, 3.194, 3.107, 3.1277, 3.0918, 3.0894, 3.1702, 3.114, 3.1546, 3.0868, 3.0444, 3.1152, 3.0383, 3.0471, 3.0424, 3.058, 3.0516, 3.046, 3.0352, 3.07, 3.0217, 3.0321, 3.0466, 3.1204, 3.0178, 3.0386, 3.0087, 3.0181, 3.0204, 3.0626, 2.9994, 3.0077, 3.0891, 3.083, 3.109, 3.0163, 3.0199, 3.0269, 3.1688, 2.9891, 2.9853, 3.0169, 3.0591, 3.0116, 3.0996, 3.0454, 3.0089, 3.0636, 3.1215, 3.0066, 3.0019, 2.9991, 3.083, 3.0163, 3.1344, 3.1109, 3.0679, 3.2135, 2.9681, 3.0004, 3.0011, 3.0363, 3.0115, 2.9849, 3.0962, 3.0939, 2.9935, 3.0022, 3.0113, 2.9948, 3.0, 3.1062, 2.9654, 3.0556, 2.9985, 3.0585, 2.9871, 3.0612, 2.9737, 3.0065, 3.0176, 3.0229, 3.0079, 3.0631, 3.0243, 3.0446, 3.0564, 3.0186, 2.992, 3.0866, 3.0847, 3.0362, 2.9816, 3.1106, 2.9745, 3.0316, 3.0149, 2.9754, 3.02, 2.9741, 2.9874, 2.9939, 2.9834],
+         borderColor: PC, borderWidth:2, pointRadius:0, tension:.3 },
+      { label: 'Single + PINN',    data: [5.5193, 3.9042, 3.4883, 3.4288, 3.3162, 3.3648, 3.2755, 3.2318, 3.2093, 3.1994, 3.1844, 3.1976, 3.183, 3.1991, 3.1443, 3.1842, 3.1211, 3.0862, 3.108, 3.0815, 3.0573, 3.0432, 3.0689, 3.0504, 3.0704, 3.123, 3.0649, 3.0425, 3.0591, 3.014, 3.0124, 3.0017, 3.037, 3.0047, 3.0237, 3.0434, 2.9954, 2.9867, 3.0681, 3.0274, 3.0051, 3.0467, 3.0792, 2.9922, 2.986, 3.0204, 3.0516, 3.0569, 3.0011, 3.0247, 3.002, 3.0287, 3.0957, 2.9709, 2.9839, 3.0346, 2.987, 3.0144, 2.9847, 2.9678, 2.99, 2.979, 3.0136, 2.955, 2.9718, 2.9979, 2.9663, 2.9944, 3.0153, 2.9723, 2.9794, 3.0325, 2.9708, 2.99, 2.9819, 2.9583, 2.9931, 2.9769, 2.99, 3.0006, 3.0175, 3.0085, 2.9649, 2.9656, 2.9698, 3.0072, 2.9599, 2.9817, 2.9846, 2.965, 3.0042, 2.9912, 2.9785, 2.953, 2.9921, 3.0108, 2.9621, 2.9838, 3.0052, 3.0228, 2.982, 2.9531, 3.0038, 2.9855, 2.9742, 2.9726, 2.9996, 2.9743, 3.0178, 2.9785, 3.0118, 2.9709, 2.9925, 2.9574, 2.9668, 2.9957, 3.0095, 3.0037, 2.962, 2.9879, 2.9737, 2.9802, 2.9678, 2.9735, null, null, null, null, null, null, null, null, null, null, null, null],
+         borderColor: MC, borderWidth:2, pointRadius:0, tension:.3 },
+      { label: 'Single + DNN',     data: [6.4054, 4.5408, 3.6523, 3.3178, 3.2213, 3.1618, 3.1242, 3.1256, 3.1112, 3.1233, 3.0829, 3.0758, 3.1136, 3.0605, 3.111, 3.0793, 3.0542, 3.0549, 3.1047, 3.0467, 3.0591, 3.0589, 3.0611, 3.0402, 3.0084, 3.0077, 3.0384, 2.9844, 3.0061, 3.049, 2.9709, 2.998, 2.989, 2.9669, 2.9644, 3.1003, 2.9668, 2.9718, 3.0756, 3.0183, 3.0091, 2.98, 3.0033, 3.0133, 2.9597, 2.9493, 2.9682, 2.9675, 3.0183, 3.0129, 2.9876, 2.9847, 3.0179, 2.9567, 2.9965, 2.9522, 3.0363, 2.9866, 2.9821, 2.9671, 2.9505, 2.9769, 2.9427, 2.9894, 2.9784, 2.9972, 2.9729, 2.943, 2.9664, 2.9723, 3.0185, 3.0015, 2.9456, 3.0539, 3.0076, 2.9642, 2.9936, 2.9597, 2.9748, 2.9536, 2.9795, 3.0273, 2.9629, 2.9638, 3.0353, 2.9444, 2.991, 2.9808, 2.9565, 2.9412, 2.976, 2.98, 3.005, 3.0028, 3.0065, 2.9554, 2.9724, 2.9858, 2.9874, 3.0168, 2.9712, 3.0423, 2.9549, 2.9607, 2.9503, 2.9772, 2.969, 2.9464, 3.0255, 3.0198, 3.0346, 2.9686, 2.9998, 2.9934, 2.9678, 2.968, 2.9704, 2.9579, 2.9846, 2.994, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
+         borderColor: DC, borderWidth:2, pointRadius:0, tension:.3 },
+    ]
+  },
+  options:{ responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{position:'top'}},
+    scales:{ x:{title:{display:true,text:'Epoch'}}, y:{title:{display:true,text:'Val MAE d (mm)'}} } }
+});
+
+// Loss curves (PINN)
+new Chart('cLoss', {
+  type: 'line',
+  data: {
+    labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136],
+    datasets: [
+      { label: 'L_data', data: [0.32387, 0.11865, 0.08213, 0.06528, 0.05572, 0.05146, 0.04943, 0.04788, 0.04714, 0.04741, 0.0473, 0.04731, 0.04687, 0.04659, 0.04671, 0.04596, 0.04599, 0.04649, 0.04626, 0.04634, 0.04599, 0.04578, 0.04567, 0.04589, 0.04565, 0.04553, 0.04552, 0.04502, 0.04544, 0.04487, 0.04495, 0.04435, 0.04498, 0.04436, 0.0444, 0.04429, 0.04412, 0.04411, 0.04414, 0.04391, 0.04403, 0.04397, 0.04409, 0.04372, 0.04379, 0.04339, 0.04374, 0.04378, 0.04345, 0.0433, 0.04344, 0.04328, 0.04331, 0.0434, 0.0432, 0.04332, 0.0437, 0.04337, 0.04329, 0.04389, 0.04326, 0.04314, 0.04334, 0.04298, 0.04317, 0.04274, 0.04305, 0.04286, 0.04299, 0.04277, 0.04327, 0.04297, 0.04303, 0.04308, 0.04347, 0.04297, 0.04323, 0.04296, 0.04298, 0.04286, 0.04321, 0.04316, 0.04326, 0.04266, 0.04271, 0.04274, 0.04293, 0.0428, 0.04294, 0.04271, 0.04268, 0.04296, 0.04278, 0.04288, 0.04277, 0.04301, 0.04265, 0.04311, 0.04289, 0.04282, 0.04269, 0.04308, 0.043, 0.04273, 0.04289, 0.04286, 0.04273, 0.04294, 0.04283, 0.0429, 0.04263, 0.04271, 0.04255, 0.04269, 0.04295, 0.04258, 0.04254, 0.04266, 0.04269, 0.04262, 0.04277, 0.04257, 0.04274, 0.04268, 0.04278, 0.04271, 0.04269, 0.04263, 0.0426, 0.04267, 0.04268, 0.0427, 0.04261, 0.04256, 0.04285, 0.0427],
+         borderColor: PC, borderWidth:2, pointRadius:0, tension:.3, yAxisID:'y' },
+      { label: 'L_phys', data: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 100.87, 97.599, 94.482, 92.019, 90.216, 88.87, 87.88, 87.088, 86.447, 85.923, 85.457, 85.038, 84.663, 84.315, 83.992, 83.689, 83.394, 83.111, 82.83, 82.548, 82.264, 81.963, 81.651, 81.326, 80.987, 80.628, 80.258, 79.893, 79.531, 79.175, 78.825, 78.485, 78.147, 77.793, 77.409, 76.981, 76.431, 74.078, 63.126, 62.18, 61.733, 60.937, 60.613, 59.997, 59.329, 59.159, 59.07, 58.727, 58.437, 57.692, 56.935, 56.926, 56.467, 56.278, 55.86, 55.281, 54.787, 54.551, 54.151, 53.936, 53.152, 52.767, 52.529, 52.17, 51.903, 51.186, 51.074, 51.008, 50.245, 50.119, 49.425, 49.347, 48.651, 48.45, 48.078, 47.415, 47.046, 46.999, 46.223, 46.103, 45.852, 45.388, 45.027, 44.532, 44.221, 43.8],
+         borderColor: YC, borderWidth:2, pointRadius:0, tension:.3, yAxisID:'y2' },
+    ]
+  },
+  options:{ responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{position:'top'}},
+    scales:{
+      x:{title:{display:true,text:'Epoch'}},
+      y:{title:{display:true,text:'L_data (MSE)'},position:'left'},
+      y2:{title:{display:true,text:'L_phys'},position:'right',grid:{drawOnChartArea:false}}
+    }
+  }
+});
+
+// Val MAE curves
+new Chart('cValMAE', {
+  type: 'line',
+  data: {
+    labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136],
+    datasets: [
+      { label: 'Val MAE ε (%)', data: [0.5475, 0.3432, 0.2807, 0.2383, 0.2366, 0.2245, 0.2305, 0.2302, 0.2367, 0.2366, 0.2365, 0.2398, 0.2263, 0.2355, 0.2282, 0.2266, 0.2337, 0.2398, 0.2309, 0.2458, 0.2238, 0.2315, 0.2392, 0.2375, 0.2407, 0.2465, 0.2327, 0.2368, 0.2318, 0.2299, 0.227, 0.231, 0.2372, 0.2247, 0.2466, 0.2271, 0.2369, 0.2267, 0.2356, 0.2462, 0.2424, 0.2469, 0.2356, 0.2308, 0.2398, 0.226, 0.2354, 0.2291, 0.2306, 0.2279, 0.2284, 0.2381, 0.231, 0.2271, 0.2329, 0.2326, 0.2352, 0.2275, 0.2354, 0.2294, 0.2408, 0.231, 0.2312, 0.232, 0.2345, 0.2317, 0.2403, 0.2457, 0.2293, 0.2386, 0.231, 0.243, 0.2284, 0.2337, 0.2325, 0.2336, 0.2356, 0.2427, 0.2337, 0.2297, 0.2415, 0.2436, 0.2307, 0.2239, 0.2219, 0.2356, 0.2346, 0.2393, 0.2371, 0.2396, 0.2454, 0.2315, 0.2244, 0.2268, 0.2294, 0.2285, 0.2227, 0.2362, 0.2356, 0.2272, 0.2325, 0.2243, 0.2244, 0.2295, 0.2469, 0.2319, 0.2328, 0.2254, 0.2292, 0.2249, 0.2309, 0.2289, 0.2288, 0.2312, 0.2258, 0.2267, 0.2368, 0.234, 0.2318, 0.2292, 0.2236, 0.2221, 0.2345, 0.2325, 0.2344, 0.2235, 0.24, 0.221, 0.226, 0.2266, 0.2239, 0.2332, 0.2228, 0.2237, 0.2258, 0.2217],
+         borderColor: TC, borderWidth:2, pointRadius:0, tension:.3, yAxisID:'y' },
+      { label: 'Val MAE d (mm)', data: [7.3733, 5.5801, 4.5183, 4.0287, 3.9393, 3.5927, 3.5058, 3.5632, 3.3633, 3.4711, 3.4727, 3.3568, 3.3137, 3.4306, 3.3187, 3.291, 3.2862, 3.2912, 3.2703, 3.3973, 3.2426, 3.2353, 3.2642, 3.3456, 3.1946, 3.234, 3.2467, 3.2303, 3.1542, 3.1308, 3.1309, 3.1083, 3.1806, 3.1032, 3.194, 3.107, 3.1277, 3.0918, 3.0894, 3.1702, 3.114, 3.1546, 3.0868, 3.0444, 3.1152, 3.0383, 3.0471, 3.0424, 3.058, 3.0516, 3.046, 3.0352, 3.07, 3.0217, 3.0321, 3.0466, 3.1204, 3.0178, 3.0386, 3.0087, 3.0181, 3.0204, 3.0626, 2.9994, 3.0077, 3.0891, 3.083, 3.109, 3.0163, 3.0199, 3.0269, 3.1688, 2.9891, 2.9853, 3.0169, 3.0591, 3.0116, 3.0996, 3.0454, 3.0089, 3.0636, 3.1215, 3.0066, 3.0019, 2.9991, 3.083, 3.0163, 3.1344, 3.1109, 3.0679, 3.2135, 2.9681, 3.0004, 3.0011, 3.0363, 3.0115, 2.9849, 3.0962, 3.0939, 2.9935, 3.0022, 3.0113, 2.9948, 3.0, 3.1062, 2.9654, 3.0556, 2.9985, 3.0585, 2.9871, 3.0612, 2.9737, 3.0065, 3.0176, 3.0229, 3.0079, 3.0631, 3.0243, 3.0446, 3.0564, 3.0186, 2.992, 3.0866, 3.0847, 3.0362, 2.9816, 3.1106, 2.9745, 3.0316, 3.0149, 2.9754, 3.02, 2.9741, 2.9874, 2.9939, 2.9834],
+         borderColor: PC, borderWidth:2, pointRadius:0, tension:.3, yAxisID:'y2' },
+    ]
+  },
+  options:{ responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{position:'top'}},
+    scales:{
+      x:{title:{display:true,text:'Epoch'}},
+      y:{title:{display:true,text:'MAE ε (%)'},position:'left'},
+      y2:{title:{display:true,text:'MAE d (mm)'},position:'right',grid:{drawOnChartArea:false}}
+    }
+  }
+});
+
+// λ schedule
+new Chart('cLam', {
+  type: 'line',
+  data: {
+    labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136],
+    datasets:[
+      { label: 'λ (Physics weight)', data: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0004, 0.0008, 0.0012000000000000001, 0.0016, 0.002, 0.0024000000000000002, 0.0028000000000000004, 0.0032, 0.0036, 0.004, 0.0044, 0.0048000000000000004, 0.0052, 0.005600000000000001, 0.006, 0.0064, 0.0068000000000000005, 0.0072, 0.0076, 0.008, 0.008400000000000001, 0.0088, 0.0092, 0.009600000000000001, 0.010000000000000002, 0.0104, 0.0108, 0.011200000000000002, 0.011600000000000001, 0.012, 0.012400000000000001, 0.0128, 0.013200000000000002, 0.013600000000000001, 0.014000000000000002, 0.0144, 0.0148, 0.0152, 0.015600000000000001, 0.016, 0.0164, 0.016800000000000002, 0.0172, 0.0176, 0.018, 0.0184, 0.0188, 0.019200000000000002, 0.019600000000000003, 0.020000000000000004, 0.0204, 0.0208, 0.0212, 0.0216, 0.022000000000000002, 0.022400000000000003, 0.0228, 0.023200000000000002, 0.0236, 0.024, 0.0244, 0.024800000000000003, 0.0252, 0.0256, 0.026000000000000002, 0.026400000000000003, 0.026800000000000004, 0.027200000000000002, 0.027600000000000003, 0.028000000000000004, 0.028399999999999998, 0.0288, 0.0292, 0.0296, 0.03, 0.0304, 0.0308, 0.031200000000000002, 0.0316, 0.032, 0.032400000000000005, 0.0328, 0.0332, 0.033600000000000005, 0.034, 0.0344],
+         borderColor: YC, borderWidth:2, pointRadius:0, tension:.1,
+         fill:true, backgroundColor:'rgba(249,226,175,.08)' },
+    ]
+  },
+  options:{ responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{position:'top'}},
+    scales:{x:{title:{display:true,text:'Epoch'}}, y:{title:{display:true,text:'λ'}, min:0, max:0.12}}
+  }
+});
+
+// Total train loss
+const total_ts = [0.32387, 0.11865, 0.08213, 0.06528, 0.05572, 0.05146, 0.04943, 0.04788, 0.04714, 0.04741, 0.0473, 0.04731, 0.04687, 0.04659, 0.04671, 0.04596, 0.04599, 0.04649, 0.04626, 0.04634, 0.04599, 0.04578, 0.04567, 0.04589, 0.04565, 0.04553, 0.04552, 0.04502, 0.04544, 0.04487, 0.04495, 0.04435, 0.04498, 0.04436, 0.0444, 0.04429, 0.04412, 0.04411, 0.04414, 0.04391, 0.04403, 0.04397, 0.04409, 0.04372, 0.04379, 0.04339, 0.04374, 0.04378, 0.04345, 0.0433, 0.04344, 0.04328, 0.04331, 0.0434, 0.0432, 0.04332, 0.0437, 0.04337, 0.04329, 0.04389, 0.04326, 0.04314, 0.04334, 0.04298, 0.04317, 0.04274, 0.04305, 0.04286, 0.04299, 0.04277, 0.04327, 0.04297, 0.04303, 0.04308, 0.04347, 0.04297, 0.04323, 0.04296, 0.04298, 0.04286, 0.04321, 0.04316, 0.04326, 0.04266, 0.04271, 0.04274, 0.04293, 0.0428, 0.04294, 0.04271, 0.04268, 0.04296, 0.04278, 0.04288, 0.04277, 0.04301, 0.04265, 0.04311, 0.04289, 0.04282, 0.04269, 0.04308, 0.043, 0.04273, 0.04289, 0.04286, 0.04273, 0.04294, 0.04283, 0.0429, 0.04263, 0.04271, 0.04255, 0.04269, 0.04295, 0.04258, 0.04254, 0.04266, 0.04269, 0.04262, 0.04277, 0.04257, 0.04274, 0.04268, 0.04278, 0.04271, 0.04269, 0.04263, 0.0426, 0.04267, 0.04268, 0.0427, 0.04261, 0.04256, 0.04285, 0.0427].map((v,i)=>{
+  const lam = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0004, 0.0008, 0.0012000000000000001, 0.0016, 0.002, 0.0024000000000000002, 0.0028000000000000004, 0.0032, 0.0036, 0.004, 0.0044, 0.0048000000000000004, 0.0052, 0.005600000000000001, 0.006, 0.0064, 0.0068000000000000005, 0.0072, 0.0076, 0.008, 0.008400000000000001, 0.0088, 0.0092, 0.009600000000000001, 0.010000000000000002, 0.0104, 0.0108, 0.011200000000000002, 0.011600000000000001, 0.012, 0.012400000000000001, 0.0128, 0.013200000000000002, 0.013600000000000001, 0.014000000000000002, 0.0144, 0.0148, 0.0152, 0.015600000000000001, 0.016, 0.0164, 0.016800000000000002, 0.0172, 0.0176, 0.018, 0.0184, 0.0188, 0.019200000000000002, 0.019600000000000003, 0.020000000000000004, 0.0204, 0.0208, 0.0212, 0.0216, 0.022000000000000002, 0.022400000000000003, 0.0228, 0.023200000000000002, 0.0236, 0.024, 0.0244, 0.024800000000000003, 0.0252, 0.0256, 0.026000000000000002, 0.026400000000000003, 0.026800000000000004, 0.027200000000000002, 0.027600000000000003, 0.028000000000000004, 0.028399999999999998, 0.0288, 0.0292, 0.0296, 0.03, 0.0304, 0.0308, 0.031200000000000002, 0.0316, 0.032, 0.032400000000000005, 0.0328, 0.0332, 0.033600000000000005, 0.034, 0.0344][i]||0;
+  const lp  = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 100.87, 97.599, 94.482, 92.019, 90.216, 88.87, 87.88, 87.088, 86.447, 85.923, 85.457, 85.038, 84.663, 84.315, 83.992, 83.689, 83.394, 83.111, 82.83, 82.548, 82.264, 81.963, 81.651, 81.326, 80.987, 80.628, 80.258, 79.893, 79.531, 79.175, 78.825, 78.485, 78.147, 77.793, 77.409, 76.981, 76.431, 74.078, 63.126, 62.18, 61.733, 60.937, 60.613, 59.997, 59.329, 59.159, 59.07, 58.727, 58.437, 57.692, 56.935, 56.926, 56.467, 56.278, 55.86, 55.281, 54.787, 54.551, 54.151, 53.936, 53.152, 52.767, 52.529, 52.17, 51.903, 51.186, 51.074, 51.008, 50.245, 50.119, 49.425, 49.347, 48.651, 48.45, 48.078, 47.415, 47.046, 46.999, 46.223, 46.103, 45.852, 45.388, 45.027, 44.532, 44.221, 43.8][i]||0;
+  return +(v + lam*lp).toFixed(5);
+});
+new Chart('cTotal', {
+  type:'line',
+  data:{ labels:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136],
+    datasets:[{ label:'L_total = L_data + λ·L_phys', data:total_ts,
+      borderColor:MC, borderWidth:2, pointRadius:0, tension:.3 }] },
+  options:{ responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{position:'top'}},
+    scales:{x:{title:{display:true,text:'Epoch'}}, y:{title:{display:true,text:'L_total'}}}
+  }
+});
+
+// PINN vs DNN
+const ep_sd_map = {};
+[[1, 0.0, 0.2187, 0.0, 0.7178, 6.4054], [2, 0.0, 0.08632, 0.0, 0.3972, 4.5408], [3, 0.0, 0.05554, 0.0, 0.2966, 3.6523], [4, 0.0, 0.04813, 0.0, 0.2635, 3.3178], [5, 0.0, 0.04638, 0.0, 0.2554, 3.2213], [6, 0.0, 0.04558, 0.0, 0.2499, 3.1618], [7, 0.0, 0.04512, 0.0, 0.2597, 3.1242], [8, 0.0, 0.04499, 0.0, 0.2442, 3.1256], [9, 0.0, 0.04471, 0.0, 0.2346, 3.1112], [10, 0.0, 0.04449, 0.0, 0.2358, 3.1233], [11, 0.0, 0.04426, 0.0, 0.2423, 3.0829], [12, 0.0, 0.04409, 0.0, 0.2398, 3.0758], [13, 0.0, 0.04361, 0.0, 0.2333, 3.1136], [14, 0.0, 0.04351, 0.0, 0.2312, 3.0605], [15, 0.0, 0.04362, 0.0, 0.2218, 3.111], [16, 0.0, 0.04358, 0.0, 0.2232, 3.0793], [17, 0.0, 0.04316, 0.0, 0.2383, 3.0542], [18, 0.0, 0.0433, 0.0, 0.2257, 3.0549], [19, 0.0, 0.04326, 0.0, 0.253, 3.1047], [20, 0.0, 0.04335, 0.0, 0.2363, 3.0467], [21, 0.0, 0.04287, 0.0, 0.2312, 3.0591], [22, 0.0, 0.04298, 0.0, 0.2278, 3.0589], [23, 0.0, 0.04289, 0.0, 0.2284, 3.0611], [24, 0.0, 0.04288, 0.0, 0.2178, 3.0402], [25, 0.0, 0.04295, 0.0, 0.2174, 3.0084], [26, 0.0, 0.0428, 0.0, 0.2136, 3.0077], [27, 0.0, 0.04296, 0.0, 0.2283, 3.0384], [28, 0.0, 0.04272, 0.0, 0.2291, 2.9844], [29, 0.0, 0.04269, 0.0, 0.212, 3.0061], [30, 0.0, 0.04262, 0.0, 0.2115, 3.049], [31, 0.0, 0.04267, 0.0, 0.2195, 2.9709], [32, 0.0, 0.04258, 0.0, 0.2116, 2.998], [33, 0.0, 0.04265, 0.0, 0.2055, 2.989], [34, 0.0, 0.0427, 0.0, 0.2094, 2.9669], [35, 0.0, 0.04256, 0.0, 0.2277, 2.9644], [36, 0.0, 0.04269, 0.0, 0.2181, 3.1003], [37, 0.0, 0.04253, 0.0, 0.2038, 2.9668], [38, 0.0, 0.04263, 0.0, 0.2022, 2.9718], [39, 0.0, 0.04249, 0.0, 0.2176, 3.0756], [40, 0.0, 0.04257, 0.0, 0.2209, 3.0183], [41, 0.0, 0.04241, 0.0, 0.2023, 3.0091], [42, 0.0, 0.04242, 0.0, 0.2015, 2.98], [43, 0.0, 0.0425, 0.0, 0.201, 3.0033], [44, 0.0, 0.04241, 0.0, 0.2002, 3.0133], [45, 0.0, 0.04267, 0.0, 0.1962, 2.9597], [46, 0.0, 0.04237, 0.0, 0.1969, 2.9493], [47, 0.0, 0.04235, 0.0, 0.2014, 2.9682], [48, 0.0, 0.04228, 0.0, 0.2042, 2.9675], [49, 0.0, 0.04248, 0.0, 0.2011, 3.0183], [50, 0.0, 0.04257, 0.0, 0.1942, 3.0129], [51, 0.0, 0.04245, 0.0, 0.2066, 2.9876], [52, 0.0, 0.04231, 0.0, 0.1939, 2.9847], [53, 0.0, 0.04235, 0.0, 0.2127, 3.0179], [54, 0.0, 0.04248, 0.0, 0.2057, 2.9567], [55, 0.0, 0.04258, 0.0, 0.2135, 2.9965], [56, 0.0, 0.04225, 0.0, 0.2083, 2.9522], [57, 0.0, 0.04236, 0.0, 0.2193, 3.0363], [58, 0.0, 0.04239, 0.0, 0.218, 2.9866], [59, 0.0, 0.0424, 0.0, 0.2007, 2.9821], [60, 0.0, 0.04251, 0.0, 0.205, 2.9671], [61, 0.0, 0.04241, 0.0, 0.2178, 2.9505], [62, 0.0, 0.04221, 0.0, 0.2194, 2.9769], [63, 0.0, 0.04234, 0.0, 0.2064, 2.9427], [64, 0.0, 0.04229, 0.0, 0.1976, 2.9894], [65, 0.0, 0.04232, 0.0, 0.2042, 2.9784], [66, 0.0, 0.04232, 0.0, 0.1982, 2.9972], [67, 0.0, 0.04231, 0.0, 0.1923, 2.9729], [68, 0.0, 0.04223, 0.0, 0.2001, 2.943], [69, 0.0, 0.04237, 0.0, 0.2055, 2.9664], [70, 0.0, 0.04241, 0.0, 0.1993, 2.9723], [71, 0.0, 0.04228, 0.0, 0.2007, 3.0185], [72, 0.0, 0.04241, 0.0, 0.2157, 3.0015], [73, 0.0, 0.0422, 0.0, 0.2013, 2.9456], [74, 0.0, 0.0423, 0.0, 0.2091, 3.0539], [75, 0.0, 0.04231, 0.0, 0.218, 3.0076], [76, 0.0, 0.04217, 0.0, 0.2006, 2.9642], [77, 0.0, 0.04226, 0.0, 0.2019, 2.9936], [78, 0.0, 0.04224, 0.0, 0.2109, 2.9597], [79, 0.0, 0.04228, 0.0, 0.2303, 2.9748], [80, 0.0, 0.0423, 0.0, 0.205, 2.9536], [81, 0.0, 0.04231, 0.0, 0.2049, 2.9795], [82, 0.0, 0.04232, 0.0, 0.2134, 3.0273], [83, 0.0, 0.04229, 0.0, 0.2051, 2.9629], [84, 0.0, 0.04227, 0.0, 0.2141, 2.9638], [85, 0.0, 0.04221, 0.0, 0.2086, 3.0353], [86, 0.0, 0.04214, 0.0, 0.2, 2.9444], [87, 0.0, 0.04236, 0.0, 0.2079, 2.991], [88, 0.0, 0.04211, 0.0, 0.2057, 2.9808], [89, 0.0, 0.04228, 0.0, 0.1992, 2.9565], [90, 0.0, 0.04223, 0.0, 0.2058, 2.9412], [91, 0.0, 0.04211, 0.0, 0.206, 2.976], [92, 0.0, 0.04222, 0.0, 0.2115, 2.98], [93, 0.0, 0.04229, 0.0, 0.2187, 3.005], [94, 0.0, 0.04217, 0.0, 0.1997, 3.0028], [95, 0.0, 0.04217, 0.0, 0.2076, 3.0065], [96, 0.0, 0.04214, 0.0, 0.2079, 2.9554], [97, 0.0, 0.04222, 0.0, 0.2032, 2.9724], [98, 0.0, 0.04239, 0.0, 0.2158, 2.9858], [99, 0.0, 0.04214, 0.0, 0.2251, 2.9874], [100, 0.0, 0.04229, 0.0, 0.2165, 3.0168], [101, 0.0, 0.04225, 0.0, 0.2121, 2.9712], [102, 0.0, 0.04224, 0.0, 0.1996, 3.0423], [103, 0.0, 0.04223, 0.0, 0.1989, 2.9549], [104, 0.0, 0.04222, 0.0, 0.1987, 2.9607], [105, 0.0, 0.04204, 0.0, 0.2154, 2.9503], [106, 0.0, 0.04219, 0.0, 0.2032, 2.9772], [107, 0.0, 0.04203, 0.0, 0.1998, 2.969], [108, 0.0, 0.04203, 0.0, 0.221, 2.9464], [109, 0.0, 0.04221, 0.0, 0.2019, 3.0255], [110, 0.0, 0.0422, 0.0, 0.221, 3.0198], [111, 0.0, 0.04209, 0.0, 0.2137, 3.0346], [112, 0.0, 0.04221, 0.0, 0.2094, 2.9686], [113, 0.0, 0.04205, 0.0, 0.2156, 2.9998], [114, 0.0, 0.04211, 0.0, 0.1976, 2.9934], [115, 0.0, 0.04201, 0.0, 0.2078, 2.9678], [116, 0.0, 0.04233, 0.0, 0.202, 2.968], [117, 0.0, 0.04218, 0.0, 0.2009, 2.9704], [118, 0.0, 0.04215, 0.0, 0.2007, 2.9579], [119, 0.0, 0.04219, 0.0, 0.2006, 2.9846], [120, 0.0, 0.04212, 0.0, 0.2006, 2.994]].forEach(h=>{ ep_sd_map[h[0]]=h[5]; });
+const vd_sd_aligned = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136].map(e=>ep_sd_map[e]??null);
+new Chart('cPvsD', {
+  type:'line',
+  data:{
+    labels:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136],
+    datasets:[
+      { label:'PINN (λ=0.10)', data:[7.3733, 5.5801, 4.5183, 4.0287, 3.9393, 3.5927, 3.5058, 3.5632, 3.3633, 3.4711, 3.4727, 3.3568, 3.3137, 3.4306, 3.3187, 3.291, 3.2862, 3.2912, 3.2703, 3.3973, 3.2426, 3.2353, 3.2642, 3.3456, 3.1946, 3.234, 3.2467, 3.2303, 3.1542, 3.1308, 3.1309, 3.1083, 3.1806, 3.1032, 3.194, 3.107, 3.1277, 3.0918, 3.0894, 3.1702, 3.114, 3.1546, 3.0868, 3.0444, 3.1152, 3.0383, 3.0471, 3.0424, 3.058, 3.0516, 3.046, 3.0352, 3.07, 3.0217, 3.0321, 3.0466, 3.1204, 3.0178, 3.0386, 3.0087, 3.0181, 3.0204, 3.0626, 2.9994, 3.0077, 3.0891, 3.083, 3.109, 3.0163, 3.0199, 3.0269, 3.1688, 2.9891, 2.9853, 3.0169, 3.0591, 3.0116, 3.0996, 3.0454, 3.0089, 3.0636, 3.1215, 3.0066, 3.0019, 2.9991, 3.083, 3.0163, 3.1344, 3.1109, 3.0679, 3.2135, 2.9681, 3.0004, 3.0011, 3.0363, 3.0115, 2.9849, 3.0962, 3.0939, 2.9935, 3.0022, 3.0113, 2.9948, 3.0, 3.1062, 2.9654, 3.0556, 2.9985, 3.0585, 2.9871, 3.0612, 2.9737, 3.0065, 3.0176, 3.0229, 3.0079, 3.0631, 3.0243, 3.0446, 3.0564, 3.0186, 2.992, 3.0866, 3.0847, 3.0362, 2.9816, 3.1106, 2.9745, 3.0316, 3.0149, 2.9754, 3.02, 2.9741, 2.9874, 2.9939, 2.9834], borderColor:PC, borderWidth:2, pointRadius:0, tension:.3 },
+      { label:'DNN  (λ=0.00)', data:vd_sd_aligned,  borderColor:DC, borderWidth:2, pointRadius:0, tension:.3 },
+    ]
+  },
+  options:{ responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{position:'top'}},
+    scales:{x:{title:{display:true,text:'Epoch'}}, y:{title:{display:true,text:'Val MAE d (mm)'}}}
+  }
+});
+</script>
+</body>
+</html>

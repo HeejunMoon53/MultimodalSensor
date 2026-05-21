@@ -3,6 +3,24 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 
+## 그래프 색상 컨벤션
+
+모든 Python 플롯(matplotlib 등)에서 아래 색상을 반드시 통일하여 사용한다.
+
+| 신호 | 색상 | HEX |
+|---|---|---|
+| 인덕턴스 L (ΔL, dL_pct, ldc 계열) | 주황색 | `#FF8C00` |
+| DC 저항 R (ΔR, dR_pct, r 계열) | 초록색 | `#2CA02C` |
+| TENG 전압 V (teng 계열) | 파란색 | `#1F77B4` |
+
+```python
+COLOR_L    = "#FF8C00"  # 인덕턴스 L — 주황
+COLOR_R    = "#2CA02C"  # DC 저항 R  — 초록
+COLOR_TENG = "#1F77B4"  # TENG 전압  — 파랑
+```
+
+---
+
 ## Git 워크플로우
 
 작업이 마무리될 때마다 커밋 여부를 물어본다. 커밋 시 변경 내용을 한글로 간결하게 요약한 메시지로 `git add . → git commit → git push`를 순서대로 실행한다.
