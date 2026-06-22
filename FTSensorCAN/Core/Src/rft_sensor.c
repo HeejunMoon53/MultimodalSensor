@@ -21,11 +21,7 @@ static volatile struct {
 
 static uint32_t s_tx_mailbox; /* 마지막 TX 메일박스 번호 (스캔 중 abort 용) */
 
-/* ── DEBUG 카운터 (외부에서 읽을 수 있도록 공개) ── */
-volatile uint32_t g_rft_isr_cnt   = 0;  /* 콜백 호출 횟수 */
-volatile uint32_t g_rft_frame1    = 0;  /* ID=0x001 수신 횟수 */
-volatile uint32_t g_rft_frame2    = 0;  /* ID=0x002 수신 횟수 */
-volatile uint32_t g_rft_parse_cnt = 0;  /* 완전한 쌍 파싱 횟수 */
+volatile uint32_t g_rft_isr_cnt = 0;
 
 /* ── 내부: 특정 CAN ID로 1바이트 명령 전송 ── */
 static void send_to_id(uint32_t can_id, uint8_t cmd)
@@ -91,68 +87,23 @@ static void parse_frame(void)
    Public API
    ════════════════════════════════════════════════════════════ */
 
-/* ── LOOPBACK_TEST 매크로: 1=루프백(HW 없이 SW 경로 검증), 0=실제 운용 ── */
-#define LOOPBACK_TEST  0   /* 0=실제 운용, 1=루프백 테스트 (SW 확인용) */
-
 void RFT_Init(CAN_HandleTypeDef *hcan)
 {
     s_hcan = hcan;
 
-#if LOOPBACK_TEST
-    /* 루프백 테스트: CAN 모드를 LOOPBACK으로 재초기화
-       STM32가 자신의 TX를 RX FIFO로 자동 수신 (트랜시버/버스 불필요)
-       필터는 모든 ID 수신(mask=0) — 0x064 명령 프레임을 직접 수신하여 isr 확인 */
-    HAL_CAN_Stop(hcan);                         /* 일단 정지 */
-    hcan->Init.Mode = CAN_MODE_LOOPBACK;
-    HAL_CAN_Init(hcan);                         /* 루프백 모드로 재초기화 */
-
-    CAN_FilterTypeDef f = {
-        .FilterBank           = 0,
-        .FilterMode           = CAN_FILTERMODE_IDMASK,
-        .FilterScale          = CAN_FILTERSCALE_32BIT,
-        .FilterIdHigh         = 0x0000U,   /* ID   = 0 → don't care */
-        .FilterIdLow          = 0x0000U,
-        .FilterMaskIdHigh     = 0x0000U,   /* Mask = 0 → 모든 ID 통과 */
-        .FilterMaskIdLow      = 0x0000U,
-        .FilterFIFOAssignment = CAN_RX_FIFO0,
-        .FilterActivation     = ENABLE,
-        .SlaveStartFilterBank = 14,
-    };
-#else
-    /* 실제 운용 — FILTER_ALL=1이면 모든 ID 수신(ID 스니핑용), 0이면 0x001/0x002만 수신 */
-#define FILTER_ALL  1   /* 1=전체 수신(디버그), 0=RFT ID만 수신(운용) */
-
-#if FILTER_ALL
-    /* 전체 ID 수신 — 센서가 실제로 어떤 ID로 응답하는지 확인 */
+    /* mask=0 → 모든 ID 수신. ISR에서 StdId로 0x001/0x002 구분 */
     CAN_FilterTypeDef f = {
         .FilterBank           = 0,
         .FilterMode           = CAN_FILTERMODE_IDMASK,
         .FilterScale          = CAN_FILTERSCALE_32BIT,
         .FilterIdHigh         = 0x0000U,
         .FilterIdLow          = 0x0000U,
-        .FilterMaskIdHigh     = 0x0000U,   /* mask=0 → 모든 ID 통과 */
+        .FilterMaskIdHigh     = 0x0000U,
         .FilterMaskIdLow      = 0x0000U,
         .FilterFIFOAssignment = CAN_RX_FIFO0,
         .FilterActivation     = ENABLE,
         .SlaveStartFilterBank = 14,
     };
-#else
-    /* 운용 필터: Transmitter ID 0x001 / 0x002 만 수신 */
-    CAN_FilterTypeDef f = {
-        .FilterBank           = 0,
-        .FilterMode           = CAN_FILTERMODE_IDLIST,
-        .FilterScale          = CAN_FILTERSCALE_32BIT,
-        .FilterIdHigh         = 0x0020U,   /* STID 0x001 */
-        .FilterIdLow          = 0x0000U,
-        .FilterMaskIdHigh     = 0x0040U,   /* STID 0x002 */
-        .FilterMaskIdLow      = 0x0000U,
-        .FilterFIFOAssignment = CAN_RX_FIFO0,
-        .FilterActivation     = ENABLE,
-        .SlaveStartFilterBank = 14,
-    };
-#endif
-#endif
-
     HAL_CAN_ConfigFilter(hcan, &f);
     HAL_CAN_ActivateNotification(hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
     HAL_CAN_Start(hcan);
@@ -305,17 +256,14 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
         if (rxhdr.StdId == RFT_CAN_RSP_ID1) {
             memcpy(&s_buf[0], rxdata, 8);
             s_got1 = 1;
-            g_rft_frame1++;
         } else if (rxhdr.StdId == RFT_CAN_RSP_ID2) {
             memcpy(&s_buf[8], rxdata, 8);
             s_got2 = 1;
-            g_rft_frame2++;
         }
 
         if (s_got1 && s_got2) {
             s_got1 = s_got2 = 0;
             parse_frame();
-            g_rft_parse_cnt++;
         }
     }
 }

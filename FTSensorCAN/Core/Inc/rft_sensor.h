@@ -37,11 +37,8 @@ typedef struct {
     uint8_t  valid;    /* 1=센서 응답 수신, 0=타임아웃 */
 } RFT_CommID_t;
 
-/* ── DEBUG 카운터 ── */
+/* commid_tool.c에서 "firmware alive" 확인에 사용 */
 extern volatile uint32_t g_rft_isr_cnt;
-extern volatile uint32_t g_rft_frame1;
-extern volatile uint32_t g_rft_frame2;
-extern volatile uint32_t g_rft_parse_cnt;
 
 /* ── Public API ── */
 void         RFT_Init(CAN_HandleTypeDef *hcan);
