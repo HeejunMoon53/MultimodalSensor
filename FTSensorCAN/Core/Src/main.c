@@ -106,7 +106,7 @@ int main(void)
   while (1);
 #endif
 
-  RFT_StartStream();
+  RFT_SetOutputRate(RFT_RATE_100HZ);  /* 100Hz로 설정 후 자동 재시작 */
 
   /* USER CODE END 2 */
 
@@ -128,12 +128,27 @@ int main(void)
 
     ft = RFT_GetData();
     if (ft.updated) {
-        char buf[64];
-        int len = snprintf(buf, sizeof(buf),
-            "%.3f,%.3f,%.3f,%.5f,%.5f,%.5f\r\n",
-            (double)ft.Fx, (double)ft.Fy, (double)ft.Fz,
-            (double)ft.Tx, (double)ft.Ty, (double)ft.Tz);
-        HAL_UART_Transmit(&huart2, (uint8_t *)buf, (uint16_t)len, 10);
+        /* %f 대신 정수 변환 사용 (newlib-nano %f 미지원 대비) */
+        char buf[96];
+        int pos = 0;
+        const float vals[6]  = {ft.Fx, ft.Fy, ft.Fz, ft.Tx, ft.Ty, ft.Tz};
+        const int   decs[6]  = {3, 3, 3, 5, 5, 5};
+        const uint32_t muls[6] = {1000, 1000, 1000, 100000, 100000, 100000};
+        for (int i = 0; i < 6; i++) {
+            float v = vals[i];
+            int neg = (v < 0.0f);
+            if (neg) v = -v;
+            uint32_t iv = (uint32_t)(v * (float)muls[i] + 0.5f);
+            pos += snprintf(buf + pos, sizeof(buf) - (uint32_t)pos,
+                            "%s%lu.%0*lu%c",
+                            neg ? "-" : "",
+                            (unsigned long)(iv / muls[i]),
+                            decs[i],
+                            (unsigned long)(iv % muls[i]),
+                            (i < 5) ? ',' : '\r');
+        }
+        buf[pos++] = '\n';
+        HAL_UART_Transmit(&huart2, (uint8_t *)buf, (uint16_t)pos, 20);
     }
   }
   /* USER CODE END 3 */

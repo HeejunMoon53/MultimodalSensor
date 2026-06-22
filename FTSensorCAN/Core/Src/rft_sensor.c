@@ -113,6 +113,16 @@ void RFT_SendCmdTo(uint32_t can_id, uint8_t cmd) { send_to_id(can_id, cmd); }
 void RFT_StartStream(void) { send_cmd(RFT_CMD_START, 0x00); }
 void RFT_StopStream(void)  { send_cmd(RFT_CMD_STOP,  0x00); }
 
+/* Rate 변경은 스트리밍 중 불가 — 내부에서 Stop → Set → Start */
+void RFT_SetOutputRate(uint8_t rate_param)
+{
+    send_cmd(RFT_CMD_STOP, 0x00);
+    HAL_Delay(10);
+    send_cmd(RFT_CMD_SET_RATE, rate_param);
+    HAL_Delay(50);  /* EEPROM 저장 대기 */
+    send_cmd(RFT_CMD_START, 0x00);
+}
+
 /* ── Communication ID 조회: 0x064로 0x05 명령 전송 → 200ms 대기 ── */
 RFT_CommID_t RFT_ReadCommID(void)
 {
@@ -216,9 +226,11 @@ RFT_CommID_t RFT_ScanAndReadCommID(uint16_t id_start, uint16_t id_end)
     return result;
 }
 
+/* Bias: 0x11 + param 0x01=set, 0x00=clear (§3.6.17)
+   0x12는 Overload 카운트 읽기 — Bias OFF에 쓰면 안 됨 */
 void RFT_SetBias(uint8_t enable)
 {
-    send_cmd(enable ? RFT_CMD_BIAS_ON : RFT_CMD_BIAS_OFF, 0x00);
+    send_cmd(RFT_CMD_BIAS, enable ? 0x01U : 0x00U);
 }
 
 RFT_Data_t RFT_GetData(void)
