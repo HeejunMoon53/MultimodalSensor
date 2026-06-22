@@ -48,6 +48,8 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 RFT_Data_t ft;
+static uint8_t   g_uart_rx_byte;
+volatile uint8_t g_cal_cmd = 0;  /* 1=영점설정, 2=영점해제 */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -61,7 +63,15 @@ static void MX_USART2_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+/* UART RX 인터럽트 콜백 — 'c': 영점설정, 'r': 영점해제 */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART2) {
+        if (g_uart_rx_byte == 'c')      g_cal_cmd = 1;
+        else if (g_uart_rx_byte == 'r') g_cal_cmd = 2;
+        HAL_UART_Receive_IT(&huart2, &g_uart_rx_byte, 1);
+    }
+}
 /* USER CODE END 0 */
 
 /**
@@ -106,7 +116,8 @@ int main(void)
   while (1);
 #endif
 
-  RFT_SetOutputRate(RFT_RATE_100HZ);  /* 100Hz로 설정 후 자동 재시작 */
+  RFT_StartStream();
+  HAL_UART_Receive_IT(&huart2, &g_uart_rx_byte, 1);
 
   /* USER CODE END 2 */
 
@@ -117,6 +128,18 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+    /* 캘리브레이션 명령 처리 (ISR에서 플래그만 세우고 여기서 실행) */
+    if (g_cal_cmd) {
+        if (g_cal_cmd == 1) {
+            RFT_SetBias(1);
+            HAL_UART_Transmit(&huart2, (uint8_t *)"#CAL_SET\r\n", 10, 10);
+        } else {
+            RFT_SetBias(0);
+            HAL_UART_Transmit(&huart2, (uint8_t *)"#CAL_CLR\r\n", 10, 10);
+        }
+        g_cal_cmd = 0;
+    }
 
     /* Bus-Off 자동 복구 */
     if (hcan.Instance->ESR & CAN_ESR_BOFF) {
