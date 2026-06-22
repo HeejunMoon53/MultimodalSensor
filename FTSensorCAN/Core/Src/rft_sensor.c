@@ -21,7 +21,10 @@ static volatile struct {
 
 static uint32_t s_tx_mailbox; /* 마지막 TX 메일박스 번호 (스캔 중 abort 용) */
 
-volatile uint32_t g_rft_isr_cnt = 0;
+volatile uint32_t g_rft_isr_cnt  = 0;  /* ISR 발화 횟수 (0=CAN 수신 없음) */
+volatile uint32_t g_rft_rx_cnt   = 0;  /* FIFO에서 꺼낸 프레임 수 */
+volatile uint32_t g_rft_last_id  = 0;  /* 마지막 수신 CAN ID */
+volatile uint32_t g_rft_parse_cnt = 0; /* parse_frame() 호출 횟수 */
 
 /* ── 내부: 특정 CAN ID로 1바이트 명령 전송 ── */
 static void send_to_id(uint32_t can_id, uint8_t cmd)
@@ -253,6 +256,9 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
     while (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxhdr, rxdata) == HAL_OK)
     {
+        g_rft_rx_cnt++;
+        g_rft_last_id = rxhdr.StdId;  /* Live expression으로 수신 ID 확인 가능 */
+
         if (rxhdr.IDE != CAN_ID_STD) continue;
 
         /* CommID 응답 (0x05): [0x05, currRX, currTX1, currTX2, newRX, newTX1, newTX2, XX]
@@ -276,6 +282,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
         if (s_got1 && s_got2) {
             s_got1 = s_got2 = 0;
             parse_frame();
+            g_rft_parse_cnt++;
         }
     }
 }

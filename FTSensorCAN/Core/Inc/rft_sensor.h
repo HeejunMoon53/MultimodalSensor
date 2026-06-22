@@ -47,8 +47,11 @@ typedef struct {
     uint8_t  valid;    /* 1=센서 응답 수신, 0=타임아웃 */
 } RFT_CommID_t;
 
-/* commid_tool.c에서 "firmware alive" 확인에 사용 */
-extern volatile uint32_t g_rft_isr_cnt;
+/* 진단용 — Live expression에서 확인 */
+extern volatile uint32_t g_rft_isr_cnt;   /* ISR 발화 횟수 */
+extern volatile uint32_t g_rft_rx_cnt;    /* 수신 프레임 수 */
+extern volatile uint32_t g_rft_last_id;   /* 마지막 수신 CAN ID */
+extern volatile uint32_t g_rft_parse_cnt; /* parse 성공 횟수 */
 
 /* ── Public API ── */
 void         RFT_Init(CAN_HandleTypeDef *hcan);
