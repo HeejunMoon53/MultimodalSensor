@@ -39,3 +39,6 @@ Thumbs.db
 *.mov
 *.mp4
 *.avi
+
+# Office 임시 잠금 파일
+~$*

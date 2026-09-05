@@ -29,6 +29,14 @@ def build(doc, L):
            [t("근접 측정 범위", "Proximity range"),
             t("0–52 mm (금속) / 0–30 mm (손)", "0–52 mm (metal) / 0–30 mm (hand)")],
            [t("접촉력 범위", "Contact-force range"), t("0–10.1 N", "0–10.1 N")],
+           [t("돌기 구조", "Bump array"),
+            t("직경 5 mm, 높이 0.5 mm, 필름 마스킹 + 어플리케이터 성형. ΔR/R₀ 100 % 도달 하중 210 N → 20 N",
+              "5 mm diameter, 0.5 mm height, formed by film masking and an applicator; load "
+              "for a 100 % ΔR/R₀ response reduced from 210 N to 20 N")],
+           [t("제작 공정", "Fabrication"),
+            t("① EGaIn DIW → ② 브리징(내부 단자를 권선 위로 인출) → ③ 커버링 → ④ 배선 삽입·십자형 재단",
+              "(i) EGaIn DIW → (ii) bridging (inner terminal routed out over the windings) "
+              "→ (iii) covering → (iv) wire insertion and cruciform cutting")],
            [t("MCU", "MCU"),
             "STM32G473CBT6, Cortex-M4F @ 170 MHz, 128 KB flash, 32 KB SRAM"],
            [t("인덕턴스 IC", "Inductance IC"),
@@ -46,9 +54,11 @@ def build(doc, L):
             t("주기 1000 µs (TIM7), TENG 150 µs, R 150 µs, LDC I²C ~200 µs, 정착 6 µs",
               "period 1000 µs (TIM7), TENG 150 µs, R 150 µs, LDC I²C ~200 µs, settling 6 µs")],
            [t("시험 스테이지", "Test stage"),
-            t("5축 스테퍼(XA/XB/YA/YB/Z), Arduino + AccelStepper, 320 step/mm, 115,200 baud",
-              "five-axis stepper (XA/XB/YA/YB/Z), Arduino + AccelStepper, 320 steps/mm, "
-              "115,200 baud")],
+            t("5축 스테퍼(XA/XB/YA/YB/Z), 프레임 700 × 700 mm(높이 200–300 mm), Nema23 + TB6600, "
+              "SMPS LRS-350-24, Arduino Uno + AccelStepper, 320 step/mm, 115,200 baud",
+              "five-axis stepper (XA/XB/YA/YB/Z), 700 × 700 mm frame (200–300 mm high), "
+              "Nema23 with TB6600 drivers, SMPS LRS-350-24, Arduino Uno with AccelStepper, "
+              "320 steps/mm, 115,200 baud")],
            [t("힘 기준", "Force reference"),
             t("6축 F/T 센서, 세션별 비접촉 구간 평균으로 영점 보정, 잡음 ±0.19 N",
               "six-axis F/T sensor, zeroed session-wise on the non-contact mean, "
@@ -86,9 +96,36 @@ def build(doc, L):
            t("MAE d (mm)", "MAE d (mm)"), t("MAE d≤15 (mm)", "MAE d≤15 (mm)")],
           rows, widths=[2.8, 2.4, 2.6, 1.8, 1.6, 1.7, 1.7, 1.8], size=8)
 
-    # S3 물리 파라미터
-    heading(doc, L, t("S3. 학습된 물리 파라미터와 물리식 역산의 한계",
-                      "S3. Learned Physical Parameters and Limits of Physics-Only Inversion"), 1)
+    # S3 자기 인덕턴스 해석 모델
+    heading(doc, L, t("S3. 직사각형 평면 나선의 자기 인덕턴스 모델",
+                      "S3. Self-Inductance Model of the Rectangular Planar Spiral"), 1)
+    para(doc, L, t(
+        "본문 2.2절에서 요약한 자기 인덕턴스는 Rosa 계열의 부분 인덕턴스 식으로 기술된다. N은 권선 수, μ₀는 "
+        "진공 투자율, A는 권선 면적, t = b/a는 종횡비, r은 액체금속 채널 반경이다.",
+        "The self-inductance summarized in Section 2.2 is described by a Rosa-type partial "
+        "inductance expression, in which N is the number of turns, μ₀ the permeability of "
+        "free space, A the turn area, t = b/a the aspect ratio and r the liquid-metal "
+        "channel radius."), size=9.5)
+    eq(doc, L, "L_self(ε) = (N²μ₀A/π) · [ (1/t)·ln(2A/(r·t)) + t·ln(2At/r) + 2(t + 1/t)")
+    eq(doc, L, "        − (1/t)·sinh⁻¹(1/t) − t·sinh⁻¹(t) − (7/4)(1/t + t) ]")
+    para(doc, L, t(
+        "인장이 가해지면 세 형상 인자가 각각 다른 지수로 변한다. 체적 보존과 평면 나선의 기하 구속에서 "
+        "A(ε) = A₀(1+ε)^0.5, t(ε) = t₀(1+ε)^1.5, r(ε) = r₀(1+ε)^(−0.5)가 얻어지며, 이를 위 식에 대입하면 "
+        "L_self(ε)가 결정된다. 반면 DC 저항은 R_DC(ε) = R_DC,0(1+ε)²로 단순하다. 이 비대칭 — 인덕턴스는 "
+        "초월함수를 포함한 복잡한 형상 의존성을, 저항은 단순한 멱함수 의존성을 갖는다는 점 — 이 본문 2.3절에서 "
+        "해석적 역산이 실패하는 이유의 일부다.",
+        "Under tension the three shape factors scale with different exponents. Volume "
+        "conservation together with the geometric constraints of a planar spiral gives "
+        "A(ε) = A₀(1+ε)^0.5, t(ε) = t₀(1+ε)^1.5 and r(ε) = r₀(1+ε)^(−0.5); substituting "
+        "these into the expression above determines L_self(ε). The DC resistance, by "
+        "contrast, is simply R_DC(ε) = R_DC,0(1+ε)². This asymmetry — the inductance "
+        "carrying a complicated shape dependence involving transcendental functions while "
+        "the resistance follows a simple power law — is part of why analytical inversion "
+        "fails in Section 2.3."), size=9.5)
+
+    # S4 물리 파라미터
+    heading(doc, L, t("S4. 학습된 물리 파라미터와 물리식 역산의 한계",
+                      "S4. Learned Physical Parameters and Limits of Physics-Only Inversion"), 1)
     para(doc, L, t(
         "PINN 학습으로 얻은 경험식 계수는 다음과 같다(D3 기준). α₁ = 55.535, α₂ = 26.676, β₁ = 15.434, "
         "β₂ = 4.255, β₃ = −2.367, d₀ = 7.547 mm, k = 0.0027. d₀와 k는 softplus를 통해 양수로 제약하여 "
@@ -113,8 +150,8 @@ def build(doc, L):
         "itself."), size=9.5)
 
     # S4 툴체인
-    heading(doc, L, t("S4. 임베디드 변환 툴체인에서 마주친 문제와 해결",
-                      "S4. Toolchain Issues Encountered During Embedded Conversion"), 1)
+    heading(doc, L, t("S5. 임베디드 변환 툴체인에서 마주친 문제와 해결",
+                      "S5. Toolchain Issues Encountered During Embedded Conversion"), 1)
     table(doc, L,
           [t("문제", "Issue"), t("원인", "Cause"), t("해결", "Resolution")],
           [[t("stedgeai 경로 오류", "stedgeai path error"),
@@ -138,7 +175,7 @@ def build(doc, L):
           widths=[4.6, 5.4, 5.8], size=8.5)
 
     # S5 데이터 취득 프로토콜
-    heading(doc, L, t("S5. 데이터 취득 프로토콜 상세", "S5. Detailed Acquisition Protocols"), 1)
+    heading(doc, L, t("S6. 데이터 취득 프로토콜 상세", "S6. Detailed Acquisition Protocols"), 1)
     bullets(doc, L, [
         t("P1(변형 이산 고정 + 근접 연속 스윕): 변형 19단계(0, 2, …, 36 mm), 근접 스윕 속도 5 mm/s(접근) / "
           "10 mm/s(복귀), 레벨당 1회, 금속 19 CSV(27,123행) + 손 19 CSV(18,611행).",
@@ -170,7 +207,7 @@ def build(doc, L):
     ], size=9.5)
 
     # S6 용어
-    heading(doc, L, t("S6. 용어 정리", "S6. Glossary"), 1)
+    heading(doc, L, t("S7. 용어 정리", "S7. Glossary"), 1)
     items = [
         ("TDM", t("시분할 측정. 하나의 센서를 짧은 시간 단위로 나누어 여러 물리량을 순차 측정하는 방식.",
                   "Time-division measurement: sequentially measuring several quantities from "
@@ -202,7 +239,7 @@ def build(doc, L):
           widths=[3.0, 12.8], size=9)
 
     # S7 코드/데이터 위치
-    heading(doc, L, t("S7. 코드 및 데이터 위치", "S7. Code and Data Locations"), 1)
+    heading(doc, L, t("S8. 코드 및 데이터 위치", "S8. Code and Data Locations"), 1)
     bullets(doc, L, [
         t("펌웨어: TDMFirmware/ (TDM.c, LDC1614.c, moe_inference.c, nn_inference.c)",
           "Firmware: TDMFirmware/ (TDM.c, LDC1614.c, moe_inference.c, nn_inference.c)"),
