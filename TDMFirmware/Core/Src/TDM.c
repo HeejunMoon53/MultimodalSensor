@@ -43,6 +43,28 @@ volatile bool flag_LDC_Ready = false;
 /* 출력 주기 카운터: TDM_PRINT_EVERY_N 사이클마다 update_flag 세팅 */
 static volatile uint32_t tdm_print_cnt = 0;
 
+/* Calibration baselines — 리셋 직후 첫 샘플 1개를 그대로 기준으로 쓰면
+ * (a) LDC1614/코일이 아직 안정화되기 전 과도상태이거나 (b) 리셋 버튼을
+ * 누르는 순간의 미세한 진동이 섞인 값일 수 있어서 재현성이 떨어졌다.
+ * 대신 리셋 후 짧게 안정화 시간을 두고(SETTLE), 그 다음 N개 샘플을
+ * 평균(ACCUMULATE)해서 기준값으로 쓴다. */
+#define CAL_SETTLE_SAMPLES      10   /* 안정화 대기 — TDM_PRINT_EVERY_N 기준 ~100ms */
+#define CAL_AVERAGE_SAMPLES     30   /* 평균낼 샘플 수 — ~300ms */
+
+typedef enum { CAL_STATE_SETTLING = 0, CAL_STATE_ACCUMULATING, CAL_STATE_DONE } CalState_t;
+
+static uint32_t cal_base_ldc  = 0;
+static uint32_t cal_base_r    = 0;
+static uint32_t cal_base_teng = 0;
+static uint8_t  cal_done      = 0;   /* 호환용 — CAL_STATE_DONE과 동일 시점에 1이 됨 */
+
+static CalState_t cal_state        = CAL_STATE_SETTLING;
+static uint32_t    cal_settle_cnt  = 0;
+static uint32_t    cal_avg_cnt     = 0;
+static uint64_t     cal_sum_ldc    = 0;
+static uint64_t     cal_sum_r      = 0;
+static uint64_t     cal_sum_teng   = 0;
+
 
 ///////////////////////////////////////////////////////////테스트용/////////////////////////////////////////////////////////////
 /* --- 필터 비교용 변수 선언 --- */
@@ -95,7 +117,7 @@ static inline void Set_MUX_LDC(void) {//(LDC 연결), (R0/GND 분리)
     HAL_GPIO_WritePin(SW_PORT, SW3_PIN | SW4_PIN, GPIO_PIN_RESET);
 }
 
-static inline void Set_MUX_TENG(void) {//(ADC 연결), (R0/GND 분리)
+static inline void Set_MUX_TENG(void) {//(ADC 연결), (R0/GND 분리) - B단 floating → S-TENG 단일전극
     HAL_GPIO_WritePin(SW_PORT, SW1_PIN | SW2_PIN, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(SW_PORT, SW3_PIN | SW4_PIN, GPIO_PIN_RESET);
 }
@@ -148,6 +170,7 @@ void TDM_Handle_Timer_Main_ISR(void){
 	LDC1614_Start_DMA_Read_MSB(0);
 
 	// 3. Parallel Task 2: 모드 변경, ADC DMA
+	OPAMP1_Switch_Gain(OPAMP_PGA_GAIN_2_OR_MINUS_1);  // ×2 전환 (disable→변경→enable→5µs wait)
 	Set_MUX_TENG();
 	__HAL_TIM_SET_COUNTER(&htim6, 0);
 	__HAL_TIM_SET_AUTORELOAD(&htim6, TENG_MEASURE_TIME_US);
@@ -187,6 +210,7 @@ void TDM_Handle_Timer_ADC_ISR(void) {
 		Stop_Active_ADCs();
 
 		//모드 변경: TENG -> R
+		OPAMP1_Switch_Gain(OPAMP_PGA_GAIN_16_OR_MINUS_15); // ×16 전환 (disable→변경→enable→5µs wait)
 		Set_MUX_R();
 		HAL_TIM_Base_Stop_IT(&htim6);
 		__HAL_TIM_SET_COUNTER(&htim6, 0);
@@ -210,12 +234,15 @@ void TDM_Handle_Timer_ADC_ISR(void) {
 //			r_med_buf[med_idx_r] = r_raw;
 //			r_med_only = Get_Median_3(r_med_buf[0], r_med_buf[1], r_med_buf[2]);
 //			med_idx_r = (med_idx_r + 1) % 3;
-			// 2) IIR Only 산출 (알파: 0.15)
+			// 2) IIR Only 산출 (알파: 0.02) — 디버그 출력 비교용으로만 계속 계산.
+			// 실시간 압력 예측이 alpha=0.02 필터의 위상 지연(시간상수 ~50 TDM 사이클)만큼
+			// 실제보다 늦게 반응하는 것이 확인돼서(0816 실시간 테스트, lag correlation
+			// 분석) g_SensorData에는 더 이상 반영하지 않는다.
 			r_iir_only = IIR_Filter_Adv(&r_iir_only_prev, r_raw, 0.02f);
 			// 3) Hybrid 산출
 //			r_hybrid = IIR_Filter_Adv(&r_hybrid_prev, r_med_only, 0.05f);
-			// 실제 적용은 하이브리드 값으로 설정
-			g_SensorData.r_dc_adc[0] = r_iir_only;
+			// 필터 없이 raw 값을 그대로 사용 — dR_pct/MoE 입력의 지연 제거
+			g_SensorData.r_dc_adc[0] = r_raw;
 		}
 		//////////테스트/////////
 
@@ -279,21 +306,18 @@ void TDM_Handle_I2C_RxCplt(void) {
 
 
 void TDM_Print_Calibrated_Data3(void) {
-	static uint32_t base_ldc = 0;
-	static uint32_t base_teng = 0; // TENG 기준값 추가
-	static uint32_t base_r = 0;
-	static uint8_t is_calibrated = 0;
+	static uint32_t base_teng = 0;
 
-	// 1. 기준값 잡기 (최초 1회)
-	if (!is_calibrated) {
-		// 3개의 센서 모두 0 이상의 유효한 값이 들어올 때 캘리브레이션
+	// 1. 기준값 잡기 (최초 1회) — LDC/R 기준은 cal_base_ldc/cal_base_r 공유
+	if (!cal_done) {
 		if (g_SensorData.ldc_ch[0] > 0 && g_SensorData.teng_adc[0] > 0 && g_SensorData.r_dc_adc[0] > 0) {
-			base_ldc = g_SensorData.ldc_ch[0];
-			base_teng = g_SensorData.teng_adc[0]; // TENG Base 저장
-			base_r   = g_SensorData.r_dc_adc[0];
-			is_calibrated = 1;
+			cal_base_ldc  = g_SensorData.ldc_ch[0];
+			cal_base_teng = g_SensorData.teng_adc[0];
+			base_teng     = g_SensorData.teng_adc[0];
+			cal_base_r    = g_SensorData.r_dc_adc[0];
+			cal_done = 1;
 			printf("CALIBRATED: Base LDC=%lu, Base TENG=%u, Base R=%u\r\n",
-                    base_ldc, (unsigned int)base_teng, (unsigned int)base_r);
+                    cal_base_ldc, (unsigned int)cal_base_teng, (unsigned int)cal_base_r);
 		}
 		return;
 	}
@@ -305,7 +329,7 @@ void TDM_Print_Calibrated_Data3(void) {
 	 * L_current / L_base = (DATA_base / DATA_current)^2
 	 */
 	// 먼저 Base / Current 비율을 구함 (스케일링 100,000 곱함)
-	uint64_t ldc_ratio_scaled = ((uint64_t)base_ldc * 100000) / g_SensorData.ldc_ch[0];
+	uint64_t ldc_ratio_scaled = ((uint64_t)cal_base_ldc * 100000) / g_SensorData.ldc_ch[0];
 	// 제곱하여 인덕턴스 비율 계산 (10^10 / 10^4 = 1,000,000 -> 100.0000% 스케일)
 	uint64_t ldc_inductance_ratio = (ldc_ratio_scaled * ldc_ratio_scaled) / 10000;
 
@@ -320,7 +344,7 @@ void TDM_Print_Calibrated_Data3(void) {
 
 
 	/* [저항(R) 변화율 계산] */
-	uint64_t r_ratio = ((uint64_t)g_SensorData.r_dc_adc[0] * 1000000) / base_r;
+	uint64_t r_ratio = ((uint64_t)g_SensorData.r_dc_adc[0] * 1000000) / cal_base_r;
 	uint32_t r_int = r_ratio / 10000;
 	uint32_t r_dec = r_ratio % 10000;
 
@@ -329,6 +353,50 @@ void TDM_Print_Calibrated_Data3(void) {
 			ldc_int, ldc_dec,
 			teng_int, teng_dec,
 			r_int, r_dec);
+}
+
+/* dL/dR/dV: ΔX/X₀ [%] 반환. 첫 호출 시 자동 calibration(안정화 후 평균). */
+int TDM_Get_Sensor_pct(float *dL_pct, float *dR_pct, float *dV_pct) {
+    if (g_SensorData.ldc_ch[0] == 0) return 0;
+    if (g_SensorData.r_dc_adc[0] == 0 || g_SensorData.teng_adc[0] == 0) return 0;
+
+    if (cal_state == CAL_STATE_SETTLING) {
+        /* 리셋 직후 과도상태/진동이 가라앉을 때까지 그냥 버림 */
+        cal_settle_cnt++;
+        if (cal_settle_cnt >= CAL_SETTLE_SAMPLES) {
+            cal_state = CAL_STATE_ACCUMULATING;
+            cal_avg_cnt = 0;
+            cal_sum_ldc = cal_sum_r = cal_sum_teng = 0;
+        }
+        return 0;
+    }
+
+    if (cal_state == CAL_STATE_ACCUMULATING) {
+        cal_sum_ldc  += g_SensorData.ldc_ch[0];
+        cal_sum_r    += g_SensorData.r_dc_adc[0];
+        cal_sum_teng += g_SensorData.teng_adc[0];
+        cal_avg_cnt++;
+        if (cal_avg_cnt >= CAL_AVERAGE_SAMPLES) {
+            cal_base_ldc  = (uint32_t)(cal_sum_ldc  / cal_avg_cnt);
+            cal_base_r    = (uint32_t)(cal_sum_r    / cal_avg_cnt);
+            cal_base_teng = (uint32_t)(cal_sum_teng / cal_avg_cnt);
+            cal_state = CAL_STATE_DONE;
+            cal_done  = 1;
+            printf("CAL: LDC=%lu R=%u V=%u (avg of %lu samples)\r\n",
+                   cal_base_ldc, (unsigned)cal_base_r, (unsigned)cal_base_teng,
+                   (unsigned long)cal_avg_cnt);
+        }
+        return 0;  /* 평균 내는 동안은 출력하지 않음 */
+    }
+
+    uint64_t ldc_rs = ((uint64_t)cal_base_ldc  * 100000ULL) / g_SensorData.ldc_ch[0];
+    uint64_t ldc_L  = (ldc_rs * ldc_rs) / 10000ULL;
+    uint64_t r_rat  = ((uint64_t)g_SensorData.r_dc_adc[0]  * 1000000ULL) / cal_base_r;
+    uint64_t v_rat  = ((uint64_t)g_SensorData.teng_adc[0]  * 1000000ULL) / cal_base_teng;
+    *dL_pct = (float)((int64_t)ldc_L - 1000000LL) / 10000.0f;
+    *dR_pct = (float)((int64_t)r_rat - 1000000LL) / 10000.0f;
+    *dV_pct = (float)((int64_t)v_rat - 1000000LL) / 10000.0f;
+    return 1;
 }
 
 void TDM_Print_Filter_Comparison(void) {

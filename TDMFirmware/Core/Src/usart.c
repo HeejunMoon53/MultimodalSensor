@@ -112,7 +112,16 @@ void MX_USART2_UART_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN USART2_Init 2 */
-
+  /* 실시간 모니터링 출력 속도 향상: TDM_PRINT_EVERY_N=2(500Hz)에서 한 줄(~60byte)
+   * 전송이 1ms TDM 주기 안에 안전하게 끝나도록 baud를 460800으로 재설정.
+   * CubeMX .ioc에는 반영되지 않으니, .ioc에서 재생성할 경우 여기 값이 유지되긴
+   * 하지만(USER CODE 블록) TDMFirmware.ioc의 USART2 baud도 같이 460800으로
+   * 맞춰두는 것을 권장. */
+  huart2.Init.BaudRate = 460800;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE END USART2_Init 2 */
 
 }

@@ -1,4 +1,4 @@
-/* USER CODE BEGIN Header */
+﻿/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file           : main.c
@@ -26,12 +26,18 @@
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
+#include "app_x-cube-ai.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <string.h>
 #include <TDM.h>
+/* #include "nn_inference.h" -- 구 2단계(R->strain, L+strain->distance) 정적
+ * 디커플러. 오늘 세션의 게이트+EMA MoE 모델(moe_inference)로 대체 — 파일은
+ * 참고용으로 남겨두고 더 이상 호출하지 않는다. */
+#include "moe_inference.h"
+#include "LDC1614.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,6 +59,8 @@
 
 /* USER CODE BEGIN PV */
 volatile uint8_t uart_tx_busy = 0;
+static char txbuf[128];  /* DMA TX buffer — must stay valid until HAL_UART_TxCpltCallback
+                           * (96->128: moe_inference 출력 컬럼 5개 추가로 늘어남) */
 extern volatile TDM_State_t tdm_state;
 
 uint32_t idle_counter = 0;//테스트용 삭제
@@ -117,6 +125,7 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM6_Init();
   MX_TIM7_Init();
+  MX_X_CUBE_AI_Init();
   /* USER CODE BEGIN 2 */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET); //전원 LED
 
@@ -135,7 +144,16 @@ int main(void)
   HAL_OPAMP_Start(&hopamp5);
 
   TDM_Init();
+  moe_inference_init();
 
+  /* USART2 NVIC — needed so HAL_UART_TxCpltCallback fires after DMA TX */
+  HAL_NVIC_SetPriority(USART2_IRQn, 1, 0);
+  HAL_NVIC_EnableIRQ(USART2_IRQn);
+
+  /* DWT cycle counter for latency measurement */
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+  DWT->CYCCNT = 0;
+  DWT->CTRL  |= DWT_CTRL_CYCCNTENA_Msk;
 
   printf("--- System Boot ---\r\n");
 
@@ -148,18 +166,63 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
+  MX_X_CUBE_AI_Process();
     /* USER CODE BEGIN 3 */
 
 
-	  if(g_SensorData.update_flag == 1 && (uart_tx_busy == 0)){
-		  g_SensorData.update_flag = 0;
-		  uart_tx_busy = 1;
-//		  TDM_Print_Calibrated_Data();
-//		  TDM_Print_Calibrated_Data3();
-//		  TDM_Print_Calibrated_Data4();
-		  TDM_Print_Filter_Comparison();
+	  /* 부팅 후 첫 번째 유효 데이터에서 f0, L0 1회 출력 */
+	  static uint8_t logged_f0 = 0;
+	  if (!logged_f0 && g_SensorData.update_flag == 1 && g_SensorData.ldc_ch[0] > 0) {
+		  logged_f0 = 1;
+		  /* f_sensor = DATA * f_REF * FIN_DIV / (2^28 * FREF_DIV)
+		   *          = DATA * 40MHz * 2 / 268435456 = DATA * 0.2981 Hz */
+		  float f0_hz = (float)g_SensorData.ldc_ch[0] * 0.29802322f;
+		  float L0_uH = 1e18f / (4.0f * 3.14159265f * 3.14159265f * f0_hz * f0_hz * 330.0f);
+		  printf("# INIT: DATA0=%lu, f0=%.1fHz, L0=%.4fuH\r\n",
+				 (unsigned long)g_SensorData.ldc_ch[0], f0_hz, L0_uH);
+	  }
 
-		  uart_tx_busy = 0;
+	  if(g_SensorData.update_flag == 1) {
+		  g_SensorData.update_flag = 0;
+
+		  float dL = 0.0f, dR = 0.0f, dV = 0.0f;
+
+		  /* IDRIVE/STATUS 읽기: 10ms마다(매 출력주기), TIM7 잠시 정지해 I2C DMA 충돌 방지
+		   * STATUS(0x18) 비트: bit9=ERR_ALE(진폭저하), bit10=ERR_AHE, bit11=ERR_WD, bit14=ERR_OR, bit15=ERR_UR */
+		  static uint8_t  cached_idrive = 0;
+		  static uint16_t cached_status = 0;
+		  HAL_TIM_Base_Stop_IT(&htim7);
+		  cached_idrive = LDC1614_ReadIDRIVE();
+		  cached_status = LDC1614_ReadSTATUS();
+		  HAL_TIM_Base_Start_IT(&htim7);
+
+		  if (TDM_Get_Sensor_pct(&dL, &dR, &dV)) {
+			  uint32_t t0 = DWT->CYCCNT;
+			  MoeOut ai = moe_inference_run(dL, dR);
+			  uint32_t cyc = DWT->CYCCNT - t0;
+
+			  if (!uart_tx_busy) {
+				  float latency_us = (float)cyc / 170.0f;
+				  /* 출력 컬럼: dL_pct, dR_pct, dV_pct, IDRIVE, STATUS,
+				   *           strain_pct, value(mode==0:distance_mm / mode==1:force_N),
+				   *           mode(0=근접,1=압력), gate_proba, latency_us
+				   *   IDRIVE : 0=Rp높음(Q양호)  31=Rp낮음(한계)
+				   *   STATUS : 0x18 원본값. Python: err_ale=(s>>9)&1, err_wd=(s>>11)&1 */
+				  int len = snprintf(txbuf, sizeof(txbuf),
+						  "%.4f,%.4f,%.4f,%u,%u,%.3f,%.3f,%u,%.3f,%.2f\r\n",
+						  (double)dL, (double)dR, (double)dV,
+						  (unsigned int)cached_idrive,
+						  (unsigned int)cached_status,
+						  (double)ai.strain_pct, (double)ai.value,
+						  (unsigned int)ai.mode, (double)ai.gate_proba,
+						  (double)latency_us
+						  );
+				  uart_tx_busy = 1;
+				  if (HAL_UART_Transmit_DMA(&huart2, (uint8_t*)txbuf, (uint16_t)len) != HAL_OK) {
+					  uart_tx_busy = 0;   /* DMA 시작 실패 시 플래그 즉시 해제 */
+				  }
+			  }
+		  }
 	  }
 
 

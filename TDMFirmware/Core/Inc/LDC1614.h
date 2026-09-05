@@ -22,8 +22,10 @@ void LDC1614_SetMultiChannel(uint8_t LDC, uint8_t num_Ch);
 void LDC1614_Init(void);
 void LDC1614_INT_Callback(uint8_t LDC);
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
-HAL_StatusTypeDef LDC1614_Start_DMA_Read_MSB(int ch);	//
-HAL_StatusTypeDef LDC1614_Start_DMA_Read_LSB(int ch);	//
+HAL_StatusTypeDef LDC1614_Start_DMA_Read_MSB(int ch);
+HAL_StatusTypeDef LDC1614_Start_DMA_Read_LSB(int ch);
+uint8_t  LDC1614_ReadIDRIVE(void);  // auto-amp 모드에서 수렴된 IDRIVE(0~31) 반환 → Rp 추정용
+uint16_t LDC1614_ReadSTATUS(void);  // STATUS 레지스터(0x18) 반환 — 읽으면 자동 클리어
 
 
 #endif /* INC_LDC1614_H_ */

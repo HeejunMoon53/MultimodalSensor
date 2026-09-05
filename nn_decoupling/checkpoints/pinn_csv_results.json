@@ -1,0 +1,20 @@
+{
+  "model": "TwoStageDecoupler (PyTorch PINN)",
+  "params_net": 818,
+  "params_phys": 7,
+  "dataset": "data_acquisition/dataset/train+val+test.csv",
+  "best_epoch": 231,
+  "test_mae_eps": 0.3557,
+  "test_mae_d": 1.7971,
+  "test_mae_d15": 0.3371,
+  "test_mae_d10": 0.1997,
+  "physics": {
+    "alpha1": 55.535,
+    "alpha2": 26.6764,
+    "beta1": 15.4342,
+    "beta2": 4.2545,
+    "beta3": -2.367,
+    "d0": 7.5474,
+    "k": 0.0027
+  }
+}

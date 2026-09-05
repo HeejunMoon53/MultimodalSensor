@@ -11,6 +11,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import matplotlib.font_manager as fm
 
 warnings.filterwarnings("ignore")
 
@@ -21,6 +22,11 @@ CHK  = DIR / "checkpoints"
 COLOR_L = "#FF8C00"  # 근접도 / 주황
 COLOR_R = "#2CA02C"  # 변형률 / 초록
 
+# ── 한글 폰트 설정 (Windows: Malgun Gothic) ──────────────────────────────────
+_korean_fonts = [f.name for f in fm.fontManager.ttflist
+                 if any(k in f.name for k in ["Malgun", "NanumGothic", "AppleGothic", "CJK"])]
+_font_family = ["Malgun Gothic"] + _korean_fonts + ["DejaVu Sans"]
+
 # ── 흰색 배경 스타일 ──────────────────────────────────────────────────────────
 plt.rcParams.update(plt.rcParamsDefault)
 plt.rcParams.update({
@@ -30,6 +36,9 @@ plt.rcParams.update({
     "text.color": "#222", "grid.color": "#ddd",
     "legend.facecolor": "white", "legend.edgecolor": "#ccc",
     "savefig.facecolor": "white", "font.size": 11,
+    "font.family": "sans-serif",
+    "font.sans-serif": _font_family,
+    "axes.unicode_minus": False,
 })
 
 def fig_to_b64(fig):
@@ -80,69 +89,31 @@ mae_d     = [a["mae_d"]     for a in archs]
 mae_eps   = [a["mae_eps"]   for a in archs]
 names     = [a["name"]      for a in archs]
 
-# 마커: Pareto 점 = star, 나머지 = circle
+# 모든 점을 동일 마커(circle)로 표시
 for i, a in enumerate(archs):
-    mk = "*" if pareto_mask[i] else "o"
-    sz = 220 if pareto_mask[i] else 90
     ax1.scatter(a["flash_kb"], a["mae_d"],
-                color=COLOR_L, marker=mk, s=sz, zorder=5,
-                edgecolors="#555" if not pareto_mask[i] else "#FF6600",
-                linewidths=0.8 if not pareto_mask[i] else 1.5)
-    ax2.scatter(a["flash_kb"], a["mae_eps"],
-                color=COLOR_R, marker="^", s=60, alpha=0.65, zorder=4,
-                edgecolors="#1a6e1a", linewidths=0.7)
+                color=COLOR_L, marker="o", s=70, zorder=5,
+                edgecolors="#AA5500", linewidths=0.8)
 
-# Pareto 선
-pareto_pts = [(a["flash_kb"], a["mae_d"]) for i,a in enumerate(archs) if pareto_mask[i]]
-pareto_pts.sort()
-if pareto_pts:
-    px, py = zip(*pareto_pts)
-    ax1.step(px, py, where="post", color=COLOR_L, lw=1.8, ls="--", alpha=0.7, label="Pareto frontier (d)")
-
-# 라벨 (주요 포인트만)
-label_names = {"nano", "tiny-deep", "small", "base", "medium-deep", "large"}
-for i, a in enumerate(archs):
-    if a["name"] in label_names:
-        ax1.annotate(a["name"],
-                     (a["flash_kb"], a["mae_d"]),
-                     textcoords="offset points", xytext=(6, 4),
-                     fontsize=8, color="#AA4400", fontweight="bold" if pareto_mask[i] else "normal")
-
-# sklearn (배포 모델) 표시
+# sklearn (배포 모델) — 작은 마름모
 ax1.scatter(SKLEARN_ENTRY["flash_kb"], SKLEARN_ENTRY["mae_d"],
-            color="#1F77B4", marker="D", s=200, zorder=6,
-            edgecolors="#003366", linewidths=1.5, label="sklearn (배포)")
-ax1.annotate("sklearn\n(배포, 50K params)",
-             (SKLEARN_ENTRY["flash_kb"], SKLEARN_ENTRY["mae_d"]),
-             textcoords="offset points", xytext=(-80, 6),
-             fontsize=8.5, color="#1F77B4", fontweight="bold",
-             arrowprops=dict(arrowstyle="->", color="#1F77B4", lw=1.2))
+            color="#1F77B4", marker="D", s=80, zorder=6,
+            edgecolors="#003366", linewidths=1.2)
 
 # 축 설정
-ax1.set_xlabel("INT8 Flash 크기 (KB)  [파라미터 수 = bytes]", fontsize=11)
-ax1.set_ylabel("Test MAE d [mm]  ●/★", color=COLOR_L, fontsize=11)
+ax1.set_xlabel("INT8 Flash 크기 (KB)", fontsize=11)
+ax1.set_ylabel("Test MAE d [mm]", color=COLOR_L, fontsize=11)
 ax1.tick_params(axis="y", labelcolor=COLOR_L)
 ax1.set_xscale("log")
 ax1.xaxis.set_major_formatter(mticker.FuncFormatter(
     lambda x, _: f"{x:.3f}" if x < 0.1 else (f"{x:.2f}" if x < 1 else f"{x:.1f}")))
 
-ax2.set_ylabel("Test MAE ε [%]  ▲", color=COLOR_R, fontsize=11)
-ax2.tick_params(axis="y", labelcolor=COLOR_R)
+# 오른쪽 y축 숨김 (MAE ε 제거)
+ax2.set_visible(False)
 
-# 범례
-from matplotlib.lines import Line2D
-leg_handles = [
-    Line2D([0],[0], marker="o", color="w", markerfacecolor=COLOR_L, markersize=9, label="MAE d (Non-Pareto)"),
-    Line2D([0],[0], marker="*", color="w", markerfacecolor=COLOR_L, markersize=13,
-           markeredgecolor="#FF6600", label="MAE d (Pareto optimal)"),
-    Line2D([0],[0], marker="^", color="w", markerfacecolor=COLOR_R, markersize=8, alpha=0.7, label="MAE ε"),
-    Line2D([0],[0], marker="D", color="w", markerfacecolor="#1F77B4", markersize=10,
-           markeredgecolor="#003366", label="sklearn 배포 모델"),
-    Line2D([0],[0], ls="--", color=COLOR_L, lw=1.8, label="Pareto frontier"),
-]
-ax1.legend(handles=leg_handles, loc="upper left", fontsize=8.5, framealpha=0.9)
 ax1.grid(True, alpha=0.4, which="both")
-ax1.set_title("아키텍처 탐색: INT8 Flash 크기 vs 정확도 (d + ε)", fontweight="bold", fontsize=12)
+ax1.set_title("아키텍처 탐색: INT8 Flash 크기 vs MAE d",
+              fontweight="bold", fontsize=12)
 
 plt.tight_layout()
 b64_pareto = fig_to_b64(fig)
@@ -151,10 +122,18 @@ print("Pareto figure generated.")
 # ═══════════════════════════════════════════════════════════════════════════════
 # Section 6c HTML 블록 구성
 # ═══════════════════════════════════════════════════════════════════════════════
+CELL = {
+    "best": "background:#e6f4ea;color:#1a6b36;font-weight:600",
+    "good": "background:#f4faf4;color:#2a6a2a",
+    "mid":  "background:#fff8f0;color:#b45000",
+    "bad":  "background:#fff0f0;color:#cc0000;font-weight:600",
+    "":     "color:#333",
+}
+
 def row_color(val, best, worst):
-    if val == best:  return "best"
-    if val == worst: return "bad"
-    return "mid" if val > (best+worst)/2 else "good"
+    if val <= best:  return "best"
+    if val >= worst: return "bad"
+    return "mid" if val > (best + worst) / 2 else "good"
 
 rows = ""
 for i, a in enumerate(archs):
@@ -163,17 +142,23 @@ for i, a in enumerate(archs):
     pmark = " ★" if pareto_mask[i] else ""
     flash_b = a["params"]
     flash_str = f"{flash_b} B" if flash_b < 1024 else f"{flash_b/1024:.1f} KB"
-    rows += f"""      <tr>
-        <td class="label">{a['name']}{pmark}</td>
-        <td style="color:var(--text2);font-size:11px">1→{s1h}→1</td>
-        <td style="color:var(--text2);font-size:11px">2→{s2h}→1</td>
-        <td>{a['params']:,}</td>
-        <td>{flash_str}</td>
-        <td>{a['macs']:,}</td>
-        <td class="{row_color(a['mae_eps'], 0.349, 0.381)}">{a['mae_eps']:.4f}</td>
-        <td class="{row_color(a['mae_d'], 1.765, 2.115)}">{a['mae_d']:.4f}</td>
-        <td class="{row_color(a['mae_d15'], 0.31, 0.81)}">{a['mae_d15']:.4f}</td>
-        <td class="{'best' if pareto_mask[i] else ''}">{a['int8']['step_d_mm']:.4f}</td>
+    bg = "#fffef5" if pareto_mask[i] else "white"
+    c_eps = row_color(a['mae_eps'], 0.349, 0.381)
+    c_d   = row_color(a['mae_d'],   1.765, 2.115)
+    c_d15 = row_color(a['mae_d15'], 0.31,  0.81)
+    c_step = "best" if pareto_mask[i] else ""
+    P = "padding:6px 10px"
+    rows += f"""      <tr style="background:{bg};border-bottom:1px solid #eee">
+        <td style="{P};font-weight:600;color:#333;white-space:nowrap">{a['name']}{pmark}</td>
+        <td style="{P};color:#777;font-size:11px">1→{s1h}→1</td>
+        <td style="{P};color:#777;font-size:11px">2→{s2h}→1</td>
+        <td style="{P};color:#333;text-align:right">{a['params']:,}</td>
+        <td style="{P};color:#333;text-align:right">{flash_str}</td>
+        <td style="{P};color:#555;text-align:right">{a['macs']:,}</td>
+        <td style="{CELL[c_eps]};{P};text-align:right">{a['mae_eps']:.4f}</td>
+        <td style="{CELL[c_d]};{P};text-align:right">{a['mae_d']:.4f}</td>
+        <td style="{CELL[c_d15]};{P};text-align:right">{a['mae_d15']:.4f}</td>
+        <td style="{CELL[c_step]};{P};text-align:right">{a['int8']['step_d_mm']:.4f}</td>
       </tr>\n"""
 
 S6C_HTML = f"""<section id="arch-search">
@@ -205,28 +190,34 @@ S6C_HTML = f"""<section id="arch-search">
 
 <div class="card">
   <h3>전체 결과 테이블</h3>
-  <div class="cmp-wrap">
-  <table>
+  <div style="overflow-x:auto">
+  <table style="width:100%;border-collapse:collapse;background:white;color:#222;font-size:13px">
     <thead>
-      <tr>
-        <th>이름</th><th>S1 구조</th><th>S2 구조</th><th>파라미터</th>
-        <th>INT8 Flash</th><th>MACs</th>
-        <th>MAE ε (%)</th><th>MAE d (mm)</th><th>MAE d≤15 (mm)</th>
-        <th>INT8 step_d (mm)</th>
+      <tr style="background:#f0f2f5;border-bottom:2px solid #ccc">
+        <th style="padding:8px 10px;text-align:left;color:#333;font-weight:700">이름</th>
+        <th style="padding:8px 10px;text-align:left;color:#555;font-weight:600">S1 구조</th>
+        <th style="padding:8px 10px;text-align:left;color:#555;font-weight:600">S2 구조</th>
+        <th style="padding:8px 10px;text-align:right;color:#333;font-weight:700">파라미터</th>
+        <th style="padding:8px 10px;text-align:right;color:#333;font-weight:700">INT8 Flash</th>
+        <th style="padding:8px 10px;text-align:right;color:#555;font-weight:600">MACs</th>
+        <th style="padding:8px 10px;text-align:right;color:#2CA02C;font-weight:700">MAE ε (%)</th>
+        <th style="padding:8px 10px;text-align:right;color:#FF8C00;font-weight:700">MAE d (mm)</th>
+        <th style="padding:8px 10px;text-align:right;color:#FF8C00;font-weight:600">MAE d≤15 (mm)</th>
+        <th style="padding:8px 10px;text-align:right;color:#555;font-weight:600">INT8 step_d (mm)</th>
       </tr>
     </thead>
     <tbody>
-{rows}      <tr style="background:rgba(31,119,180,.08)">
-        <td class="label">sklearn (배포) <span class="tag blue" style="font-size:11px">현재</span></td>
-        <td style="font-size:11px">1→128→128→64→1</td>
-        <td style="font-size:11px">2→128→128→64→1</td>
-        <td style="color:var(--red)">50,306</td>
-        <td style="color:var(--red)">~49 KB</td>
-        <td style="color:var(--text2)">49,664</td>
-        <td class="good">0.3435</td>
-        <td class="good">1.7830</td>
-        <td class="good">0.3009</td>
-        <td class="mid">0.1371</td>
+{rows}      <tr style="background:#e8f2ff;border-top:2px solid #99bbdd">
+        <td style="padding:8px 10px;font-weight:700;color:#1a5a9a;white-space:nowrap">sklearn (배포) <span style="font-size:10px;background:#1F77B4;color:white;padding:2px 6px;border-radius:3px;margin-left:4px">현재</span></td>
+        <td style="padding:8px 10px;color:#555;font-size:11px">1→128→128→64→1</td>
+        <td style="padding:8px 10px;color:#555;font-size:11px">2→128→128→64→1</td>
+        <td style="padding:8px 10px;color:#cc3333;font-weight:700;text-align:right">50,306</td>
+        <td style="padding:8px 10px;color:#cc3333;font-weight:700;text-align:right">~49 KB</td>
+        <td style="padding:8px 10px;color:#555;text-align:right">49,664</td>
+        <td style="{CELL['good']};padding:8px 10px;text-align:right">0.3435</td>
+        <td style="{CELL['good']};padding:8px 10px;text-align:right">1.7830</td>
+        <td style="{CELL['good']};padding:8px 10px;text-align:right">0.3009</td>
+        <td style="{CELL['mid']};padding:8px 10px;text-align:right">0.1371</td>
       </tr>
     </tbody>
   </table>

@@ -1,0 +1,239 @@
+ST Edge AI Core v2.2.0-20266 2adc00962
+Created date          : 2026-08-19 14:17:08
+Parameters            : generate --target stm32 --name gate --model C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\test0816_RealtimeDecoupling\stm32_deploy_moe_v3\gate.onnx --output C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\test0816_RealtimeDecoupling\stm32_deploy_moe_v3
+
+Exec/report summary (generate)
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+model file         :   C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\test0816_RealtimeDecoupling\stm32_deploy_moe_v3\gate.onnx   
+type               :   onnx                                                                                                                               
+c_name             :   gate                                                                                                                               
+compression        :   lossless                                                                                                                           
+options            :   allocate-inputs, allocate-outputs                                                                                                  
+optimization       :   balanced                                                                                                                           
+target/series      :   stm32                                                                                                                              
+workspace dir      :   C:\Users\Korea University\ClaudeProject\MultimodalSensor\st_ai_ws                                                                  
+output dir         :   C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\test0816_RealtimeDecoupling\stm32_deploy_moe_v3             
+model_fmt          :   float                                                                                                                              
+model_name         :   gate                                                                                                                               
+model_hash         :   0xef8c6885036ab7498edc0641a730c5c8                                                                                                 
+params #           :   68 items (272 B)                                                                                                                   
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+input 1/1          :   'x', f32(1x2), 8 Bytes, activations                                                                                                
+output 1/2         :   'label', int32(1), 4 Bytes, activations                                                                                            
+output 2/2         :   'probabilities', f32(1x2), 8 Bytes, activations                                                                                    
+outputs (total)    :   12 Bytes                                                                                                                           
+macc               :   202                                                                                                                                
+weights (ro)       :   272 B (272 B) (1 segment)                                                                                                          
+activations (rw)   :   48 B (48 B) (1 segment) *                                                                                                          
+ram (total)        :   48 B (48 B) = 48 + 0 + 0                                                                                                           
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+(*) 'input'/'output' buffers are allocated in the activations buffer
+
+Model name - gate
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+m_id   layer (type,original)                                                           oshape      param/size     macc                     connected to   | c_size          c_macc         c_type                                
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+1      coefficient (Placeholder, MatMul)                                               [b:2,c:8]   16/64                                                  | -64(-100.0%)                   
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+2      intercepts (Placeholder, Add)                                                   [b:1,c:8]   8/32                                                   | +64(+200.0%)    +24(+100.0%)   Dense_[0]                             
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+4      coefficient1 (Placeholder, MatMul)                                              [b:8,c:4]   32/128                                                 | -128(-100.0%)                  
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+5      intercepts1 (Placeholder, Add)                                                  [b:1,c:4]   4/16                                                   | +128(+800.0%)   +36(+100.0%)   Dense_[2]                             
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+7      coefficient2 (Placeholder, MatMul)                                              [b:4,c:1]   4/16                                                   | -16(-100.0%)                   
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+8      intercepts2 (Placeholder, Add)                                                  [b:1,c:1]   1/4                                                    | +16(+400.0%)    +5(+100.0%)    Dense_[4]                             
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+10     unity (Placeholder, Sub)                                                        []          1/4                                                    |                 +1(+100.0%)    Eltwise/sub_[6]                       
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+13     classes (Placeholder, ArrayFeatureExtractor)                                    [b:2]       2/8                                                    |                 +4(+100.0%)    Cast_/ArrayFeatureExtractor_[9, 10]   
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+0      x (Input, )                                                                     [b:1,c:2]                                                          |                                
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+1      mul_result (Gemm, MatMul)                                                       [b:1,c:8]                    24                                x   |                 -24(-100.0%)   
+                                                                                                                                            coefficient   | 
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+2      add_result (Eltwise, Add)                                                       [b:1,c:8]                     8                       mul_result   |                 -8(-100.0%)    
+                                                                                                                                             intercepts   | 
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+3      next_activations (Nonlinearity, Tanh)                                           [b:1,c:8]                    80                       add_result   |                                Nonlinearity_[1]                      
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+4      mul_result1 (Gemm, MatMul)                                                      [b:1,c:4]                    36                 next_activations   |                 -36(-100.0%)   
+                                                                                                                                           coefficient1   | 
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+5      add_result1 (Eltwise, Add)                                                      [b:1,c:4]                     4                      mul_result1   |                 -4(-100.0%)    
+                                                                                                                                            intercepts1   | 
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+6      next_activations1 (Nonlinearity, Tanh)                                          [b:1,c:4]                    40                      add_result1   |                                Nonlinearity_[3]                      
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+7      mul_result2 (Gemm, MatMul)                                                      [b:1,c:1]                     5                next_activations1   |                 -5(-100.0%)    
+                                                                                                                                           coefficient2   | 
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+8      add_result2 (Eltwise, Add)                                                      [b:1,c:1]                     1                      mul_result2   |                 -1(-100.0%)    
+                                                                                                                                            intercepts2   | 
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+9      out_activations_result (Nonlinearity, Sigmoid)                                  [b:1,c:1]                    10                      add_result2   |                                Nonlinearity_[5]                      
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+10     negative_class_proba (Eltwise, Sub)                                             [b:1,c:1]                     1                            unity   |                 -1(-100.0%)    
+                                                                                                                                 out_activations_result   | 
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+11     probabilities (Concat, Concat)                                                  [b:1,c:2]                                   negative_class_proba   |                                Concat_[o][7]                         
+                                                                                                                                 out_activations_result   | 
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+12     argmax_output (ArgMinMax, ArgMax)                                               [b:1,c:1]                                          probabilities   |                                ArgMinMax_[8]                         
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+13     array_feature_extractor_result (ArrayFeatureExtractor, ArrayFeatureExtractor)   [b:1]                                                    classes   |                                
+                                                                                                                                          argmax_output   | 
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+14     reshaped_result (Reshape, Reshape)                                              [b:1]                             array_feature_extractor_result   |                                
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+15     label (Cast, Cast)                                                              [b:1]                         2                  reshaped_result   |                                Cast_[o][11]                          
+------ ------------------------------------------------------------------------------- ----------- ------------ ------ -------------------------------- --- --------------- -------------- ------------------------------------- 
+model/c-model: macc=211/202 -9(-4.3%) weights=272/272  activations=--/48 io=--/0
+
+
+
+Generated C-graph summary
+------------------------------------------------------------------------------------------------------------------------
+model name            : gate
+c-name                : gate
+c-node #              : 12
+c-array #             : 21
+activations size      : 48 (1 segment)
+weights size          : 272 (1 segment)
+macc                  : 202
+inputs                : ['x_output']
+outputs               : ['label_output', 'probabilities_output']
+
+C-Arrays (21)
+------ --------------------------------------- ----------- ------------------------- ------------- --------- 
+c_id   name (*_array)                          item/size   domain/mem-pool           c-type        comment   
+------ --------------------------------------- ----------- ------------------------- ------------- --------- 
+0      argmax_output_output                    1/4         activations/**default**   s32                     
+1      array_feature_extractor_result_output   1/4         activations/**default**   float                   
+2      classes_0_cast_output                   2/8         activations/**default**   float                   
+3      classes                                 2/8         weights/weights           const s32               
+4      label_output                            1.0/4       activations/**default**   s32           /output   
+5      mul_result1_bias                        4/16        weights/weights           const float             
+6      mul_result1_output                      4/16        activations/**default**   float                   
+7      mul_result1_weights                     32/128      weights/weights           const float             
+8      mul_result2_bias                        1/4         weights/weights           const float             
+9      mul_result2_output                      1/4         activations/**default**   float                   
+10     mul_result2_weights                     4/16        weights/weights           const float             
+11     mul_result_bias                         8/32        weights/weights           const float             
+12     mul_result_output                       8/32        activations/**default**   float                   
+13     mul_result_weights                      16/64       weights/weights           const float             
+14     negative_class_proba_output             1/4         activations/**default**   float                   
+15     next_activations1_output                4/16        activations/**default**   float                   
+16     next_activations_output                 8/32        activations/**default**   float                   
+17     out_activations_result_output           1/4         activations/**default**   float                   
+18     probabilities_output                    2/8         activations/**default**   float         /output   
+19     unity_2D                                1/4         weights/weights           const float             
+20     x_output                                2/8         activations/**default**   float         /input    
+------ --------------------------------------- ----------- ------------------------- ------------- --------- 
+
+C-Layers (12)
+------ -------------------------------- ---- ------------------------ ------ ----- ------------------------------------------ ------------------ 
+c_id   name (*_layer)                   id   layer_type               macc   rom   tensors                                    shape (array id)   
+------ -------------------------------- ---- ------------------------ ------ ----- ------------------------------------------ ------------------ 
+0      mul_result                       2    Dense                    24     96    I: x_output                                f32(1x2) (20)      
+                                                                                   W: mul_result_weights                      f32(8x2) (13)      
+                                                                                   W: mul_result_bias                         f32(8) (11)        
+                                                                                   O: mul_result_output                       f32(1x8) (12)      
+------ -------------------------------- ---- ------------------------ ------ ----- ------------------------------------------ ------------------ 
+1      next_activations                 3    Nonlinearity             80     0     I: mul_result_output                       f32(1x8) (12)      
+                                                                                   O: next_activations_output                 f32(1x8) (16)      
+------ -------------------------------- ---- ------------------------ ------ ----- ------------------------------------------ ------------------ 
+2      mul_result1                      5    Dense                    36     144   I: next_activations_output                 f32(1x8) (16)      
+                                                                                   W: mul_result1_weights                     f32(4x8) (7)       
+                                                                                   W: mul_result1_bias                        f32(4) (5)         
+                                                                                   O: mul_result1_output                      f32(1x4) (6)       
+------ -------------------------------- ---- ------------------------ ------ ----- ------------------------------------------ ------------------ 
+3      next_activations1                6    Nonlinearity             40     0     I: mul_result1_output                      f32(1x4) (6)       
+                                                                                   O: next_activations1_output                f32(1x4) (15)      
+------ -------------------------------- ---- ------------------------ ------ ----- ------------------------------------------ ------------------ 
+4      mul_result2                      8    Dense                    5      20    I: next_activations1_output                f32(1x4) (15)      
+                                                                                   W: mul_result2_weights                     f32(1x4) (10)      
+                                                                                   W: mul_result2_bias                        f32(1) (8)         
+                                                                                   O: mul_result2_output                      f32(1x1) (9)       
+------ -------------------------------- ---- ------------------------ ------ ----- ------------------------------------------ ------------------ 
+5      out_activations_result           9    Nonlinearity             10     0     I: mul_result2_output                      f32(1x1) (9)       
+                                                                                   O: out_activations_result_output           f32(1x1) (17)      
+------ -------------------------------- ---- ------------------------ ------ ----- ------------------------------------------ ------------------ 
+6      negative_class_proba             10   Eltwise/sub              1      4     I: out_activations_result_output           f32(1x1) (17)      
+                                                                                   W: unity_2D                                f32(1) (19)        
+                                                                                   O: negative_class_proba_output             f32(1x1) (14)      
+------ -------------------------------- ---- ------------------------ ------ ----- ------------------------------------------ ------------------ 
+7      probabilities                    11   Concat                   0      0     I: negative_class_proba_output             f32(1x1) (14)      
+                                                                                   I: out_activations_result_output           f32(1x1) (14)      
+                                                                                   O: probabilities_output                    f32(1x2) (18)      
+------ -------------------------------- ---- ------------------------ ------ ----- ------------------------------------------ ------------------ 
+8      argmax_output                    12   ArgMinMax                0      0     I: probabilities_output                    f32(1x2) (18)      
+                                                                                   O: argmax_output_output                    int32(1x1) (0)     
+------ -------------------------------- ---- ------------------------ ------ ----- ------------------------------------------ ------------------ 
+10     array_feature_extractor_result   13   ArrayFeatureExtractor    0      0     I: classes_0_cast_output                   f32(1x2) (2)       
+                                                                                   I: argmax_output_output                    f32(1x2) (2)       
+                                                                                   O: array_feature_extractor_result_output   f32(1x1) (1)       
+------ -------------------------------- ---- ------------------------ ------ ----- ------------------------------------------ ------------------ 
+11     label                            15   Cast                     2      0     I: array_feature_extractor_result_output   f32(1x1) (1)       
+                                                                                   O: label_output                            int32(1) (4)       
+------ -------------------------------- ---- ------------------------ ------ ----- ------------------------------------------ ------------------ 
+
+
+
+Number of operations per c-layer
+------- ------ -------------------------------------------------------- ----- -------------- 
+c_id    m_id   name (type)                                                #op           type 
+------- ------ -------------------------------------------------------- ----- -------------- 
+0       2      mul_result (Dense)                                          24   smul_f32_f32 
+1       3      next_activations (Nonlinearity)                             80     op_f32_f32 
+2       5      mul_result1 (Dense)                                         36   smul_f32_f32 
+3       6      next_activations1 (Nonlinearity)                            40     op_f32_f32 
+4       8      mul_result2 (Dense)                                          5   smul_f32_f32 
+5       9      out_activations_result (Nonlinearity)                       10     op_f32_f32 
+6       10     negative_class_proba (Eltwise/sub)                           1     op_f32_f32 
+7       11     probabilities (Concat)                                       0   smul_f32_f32 
+8       12     argmax_output (ArgMinMax)                                    0   smul_f32_s32 
+9       13     classes_0_cast (Cast)                                        4   smul_s32_s32 
+10      13     array_feature_extractor_result (ArrayFeatureExtractor)       0   smul_f32_f32 
+11      15     label (Cast)                                                 2   smul_f32_s32 
+------- ------ -------------------------------------------------------- ----- -------------- 
+total                                                                     202 
+
+Number of operation types
+---------------- ----- ----------- 
+operation type       #           % 
+---------------- ----- ----------- 
+smul_f32_f32        65       32.2% 
+op_f32_f32         131       64.9% 
+smul_f32_s32         2        1.0% 
+smul_s32_s32         4        2.0% 
+
+Complexity report (model)
+------ ------------------------ ------------------------- ------------------------- --------- 
+m_id   name                     c_macc                    c_rom                     c_id      
+------ ------------------------ ------------------------- ------------------------- --------- 
+2      intercepts               |||||             11.9%   |||||||||||       35.3%   [0]       
+5      intercepts1              |||||||           17.8%   ||||||||||||||||  52.9%   [2]       
+8      intercepts2              |                  2.5%   |||                7.4%   [4]       
+10     unity                    |                  0.5%   |                  1.5%   [6]       
+13     classes                  |                  2.0%   |                  2.9%   [9, 10]   
+3      next_activations         ||||||||||||||||  39.6%   |                  0.0%   [1]       
+6      next_activations1        ||||||||          19.8%   |                  0.0%   [3]       
+9      out_activations_result   ||                 5.0%   |                  0.0%   [5]       
+11     probabilities            |                  0.0%   |                  0.0%   [7]       
+12     argmax_output            |                  0.0%   |                  0.0%   [8]       
+15     label                    |                  1.0%   |                  0.0%   [11]      
+------ ------------------------ ------------------------- ------------------------- --------- 
+macc=202 weights=272 act=48 ram_io=0
+
+Generated files (7)
+------------------------------------------------------------------------------------------------------------------------------------------- 
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\test0816_RealtimeDecoupling\stm32_deploy_moe_v3\gate_data_params.h   
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\test0816_RealtimeDecoupling\stm32_deploy_moe_v3\gate_data_params.c   
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\test0816_RealtimeDecoupling\stm32_deploy_moe_v3\gate_data.h          
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\test0816_RealtimeDecoupling\stm32_deploy_moe_v3\gate_data.c          
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\test0816_RealtimeDecoupling\stm32_deploy_moe_v3\gate_config.h        
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\test0816_RealtimeDecoupling\stm32_deploy_moe_v3\gate.h               
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\test0816_RealtimeDecoupling\stm32_deploy_moe_v3\gate.c               

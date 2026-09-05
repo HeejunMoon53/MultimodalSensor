@@ -101,26 +101,27 @@ void LDC1614_Init(void) {
 	HAL_Delay(5);
 
 	//LDC Initialization
-	LDC1614_WriteReg(LDC2, 0x08, 0x0250); // RCOUNT_CH0
+	LDC1614_WriteReg(LDC2, 0x08, 0x0250); // RCOUNT_CH0 0x0250
 	LDC1614_WriteReg(LDC2, 0x09, 0x04D6); // RCOUNT_CH1
 	LDC1614_WriteReg(LDC2, 0x0A, 0x04D6); // RCOUNT_CH2
 	LDC1614_WriteReg(LDC2, 0x0B, 0x04D6); // RCOUNT_CH3
-	LDC1614_WriteReg(LDC2, 0x10, 0x0001); // SETTLECOUNT_CH0
+	LDC1614_WriteReg(LDC2, 0x10, 0x0001); // SETTLECOUNT_CH0: auto-amp 수렴 여유 (0x0001)
 	LDC1614_WriteReg(LDC2, 0x11, 0x000A); // SETTLECOUNT_CH1
 	LDC1614_WriteReg(LDC2, 0x12, 0x000A); // SETTLECOUNT_CH2
 	LDC1614_WriteReg(LDC2, 0x13, 0x000A); // SETTLECOUNT_CH3
-//	LDC1614_WriteReg(LDC2, 0x14, 0x1001); // CLOCK_DIVIDERS_CH0 (FIN_DIV=1, FREF_DIV=2)
-	LDC1614_WriteReg(LDC2, 0x14, 0x2001);
+	LDC1614_WriteReg(LDC2, 0x14, 0x2001); // CLOCK_DIVIDERS_CH0 (FIN_DIV=1, FREF_DIV=2) 0x2001
 	LDC1614_WriteReg(LDC2, 0x15, 0x1002); // CLOCK_DIVIDERS_CH1 (FIN_DIV=1, FREF_DIV=2)
 	LDC1614_WriteReg(LDC2, 0x16, 0x1002); // CLOCK_DIVIDERS_CH2 (FIN_DIV=1, FREF_DIV=2)
 	LDC1614_WriteReg(LDC2, 0x17, 0x1002); // CLOCK_DIVIDERS_CH3 (FIN_DIV=1, FREF_DIV=2)
-	LDC1614_WriteReg(LDC2, 0x19, 0x0001); // ERROR_CONFIG (default)
-	LDC1614_WriteReg(LDC2, 0x1B, 0x020C); // MUX_CONFIG (enable CH0 continuous; deglitch)
-	LDC1614_WriteReg(LDC2, 0x1E, 0xF800); // DRIVE_CURRENT_CH0
+	LDC1614_WriteReg(LDC2, 0x19, 0x0001); // ERROR_CONFIG: DRDY_2INT only (AL_ERR2OUT 비활성 — 우리 센서 Rp₀<Rp_min이라 항상 세트됨)
+	LDC1614_WriteReg(LDC2, 0x1B, 0x020C); // MUX_CONFIG (enable CH0 continuous; deglitch)0x020C
+	LDC1614_WriteReg(LDC2, 0x1E, 0xF800); // DRIVE_CURRENT_CH0: IDRIVE=31 고정 (AUTO_AMP_DIS=1이라 자동조절 없음)
 	LDC1614_WriteReg(LDC2, 0x1F, 0x9000); // DRIVE_CURRENT_CH1
 	LDC1614_WriteReg(LDC2, 0x20, 0x9000); // DRIVE_CURRENT_CH2
 	LDC1614_WriteReg(LDC2, 0x21, 0x9000); // DRIVE_CURRENT_CH3
-	LDC1614_WriteReg(LDC2, 0x1A, 0x1401); // CONFIG: Device Activation, Use Internal Oscillator, etc.
+	/* CONFIG 0x1401: bit12=RP_OVERRIDE_EN, bit10=AUTO_AMP_DIS(고정전류모드), bit0=INTB_DIS
+	 * ※ AUTO_AMP 켜려면 0x0041 (bit6=HIGH_CURRENT_DRV) — AUTO_AMP_DIS=0 필요조건 확인 후 사용 */
+	LDC1614_WriteReg(LDC2, 0x1A, 0x1401);
 
 	LDC1614_SetMultiChannel(LDC2, ACTIVE_SENSOR_COUNT);
 }
@@ -188,11 +189,44 @@ void LDC1614_Parse_DMA_Data(void) {
 		uint16_t reg_msb = (ldc_dma_buffer[idx] << 8) | ldc_dma_buffer[idx+1];
 		uint16_t reg_lsb = (ldc_dma_buffer[idx+2] << 8) | ldc_dma_buffer[idx+3];
 
-		// 28-bit Data = (MSB[11:0] << 16) | LSB[15:0]
-		uint32_t val = ((uint32_t)(reg_msb & 0x0FFF) << 16) | reg_lsb;
+		/* DATA_CHn_MSB 에러 비트 검사 (datasheet Table 8.6.1.1)
+		 *   bit15 = ERR_UR  : 주파수 under-range
+		 *   bit14 = ERR_OR  : 주파수 over-range
+		 *   bit13 = ERR_WD  : Watchdog timeout (발진 정지)
+		 *   bit12 = ERR_AE  : 진폭 에러 (AL_ERR2OUT 필요 — 우리 센서는 항상 세트되므로 비활성)
+		 * → 에러 시 ldc_ch[i] 갱신 않고 마지막 유효값 유지 (hold-last-valid) */
+		if (reg_msb & 0xE000) {  // bits[15:13]: UR/OR/WD 만 체크 (bit12 ERR_AE 제외)
+			g_SensorData.ldc_err = (uint8_t)((reg_msb >> 12) & 0x0F); // 에러 종류: b3=UR b2=OR b1=WD b0=AE
+			/* ldc_ch[i] 갱신 안 함 → 이전 값 유지 */
+		} else {
+			uint32_t val = ((uint32_t)(reg_msb & 0x0FFF) << 16) | reg_lsb;
+			if (val > 0) {
+				g_SensorData.ldc_ch[i] = val;
+				g_SensorData.ldc_err   = 0;
+			}
+		}
+	}
+}
 
-		g_SensorData.ldc_ch[i] = val;
-	    }
+
+/* auto-amplitude 모드에서 LDC가 수렴시킨 IDRIVE 값(0~31)을 읽어 반환한다.
+ * IDRIVE 높음 → Rp 낮음(Q 저하) → 오버플로우 근접
+ * Rp_est(kΩ) ≈ 1500 / I_drive(µA)  (V_target ≈ 1.5V 기준) */
+uint8_t LDC1614_ReadIDRIVE(void) {
+    uint16_t reg = LDC1614_ReadReg(LDC2, 0x1E);
+    return (uint8_t)((reg >> 11) & 0x1F);  // bits[15:11] = IDRIVE
+}
+
+/* STATUS 레지스터(0x18) 읽기 — 읽으면 자동 클리어
+ * 주요 에러 비트:
+ *   bit 9  ERR_ALE : 진폭 < 1.2V (Q 저하, Rp 부족 → 우리 overflow 원인)
+ *   bit 10 ERR_AHE : 진폭 > 1.8V (IDRIVE 과다)
+ *   bit 11 ERR_WD  : Watchdog timeout (발진 완전 정지)
+ *   bit 14 ERR_OR  : 주파수 over-range
+ *   bit 15 ERR_UR  : 주파수 under-range
+ * Python 파싱: err_ale = (status >> 9) & 1 */
+uint16_t LDC1614_ReadSTATUS(void) {
+    return LDC1614_ReadReg(LDC2, 0x18);
 }
 
 

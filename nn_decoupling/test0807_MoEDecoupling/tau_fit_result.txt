@@ -1,0 +1,3 @@
+tau_L=1.3287
+tau_R=0.5942
+tau_overall=1.0125

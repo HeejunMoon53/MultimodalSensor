@@ -1,0 +1,133 @@
+# ======================================================================
+# realtime_test_seq.txt — 재학습 후 실시간 검증용 짧은 시퀀스
+#
+# 실행 전 물리적 준비:
+#   1) YA/YB: 센서가 완전히 이완된 상태(변형률 0%)로 맞춘다.
+#   2) Z    : 물체에서 약 25mm 떨어진 위치로 맞춘다.
+#   3) 모니터에서 ENABLE -> ZERO를 눌러 원점을 잡은 뒤 이 시퀀스를 실행한다.
+#      (아래 ZERO/ENABLE 명령은 안전을 위해 한 번 더 넣어뒀다.)
+#   4) Arduino/RFT 둘 다 연결돼 있어야 ground truth(YA_mm,Z_mm,Fz_act_N,
+#      strain_act_pct,value_act)가 정확히 기록된다.
+#
+# Z 부호 규약: 음수 = 물체 방향(누르는 방향). 최대 press 깊이는 -1.2mm
+# (= Z_FAR 대비 -26.2mm) — 이 부근에서 이미 ~10N에 도달함(RFT 실측 확인).
+#
+# 구성 (전부 동일 속도 세트 1/3/5 mm/s 사용 — 0.5mm/s는 시간이 너무 오래 걸려 뺐다):
+#   Part 1 — strain 고정(0%, 15%) / Z만 움직임, 압입(-26.2mm)까지 포함
+#            (strain이 고정돼 있을 때만 눌러도 안전하다)
+#            (30%는 Part 2 시작 시점에 추가로 이동해서 도달)
+#   Part 2 — Z 고정(far, -24mm) / strain만 움직임 (0<->30%), press는 안 함
+#   Part 3 — strain·Z 동시 이동, 매 구간 두 축 모두 같은 속도값 사용
+# 압입 중에는 strain을 절대 움직이지 않도록 Part 2/3의 Z는 -24mm(접촉 1mm
+# 전, train_prox_discrete.txt와 동일 기준)까지만 가고 그 이상(접촉/압입
+# -25~-26.2mm)은 Part 1에서만 다룬다.
+# ======================================================================
+
+
+ENABLE
+TARE_FZ
+WAIT 500
+RECORD ON
+
+# ==================== Part 1: strain 고정 / Z 연속 (압입 포함) ====================
+
+# ---- strain = 0% (YA=YB=0.0mm), 고정 ----
+  # -- Z 압입 프로파일 @ 1mm/s --
+  MOVE Z=-26.2@1
+  WAIT 500
+  MOVE Z=26.2@1
+  WAIT 500
+  # -- Z 압입 프로파일 @ 3mm/s --
+  MOVE Z=-26.2@3
+  WAIT 500
+  MOVE Z=26.2@3
+  WAIT 500
+  # -- Z 압입 프로파일 @ 5mm/s --
+  MOVE Z=-26.2@5
+  WAIT 500
+  MOVE Z=26.2@5
+  WAIT 500
+
+# ---- strain = 15% (YA=YB=9.0mm), 고정 ----
+MOVE YA=9.0@5 YB=9.0@5
+WAIT 500
+  # -- Z 압입 프로파일 @ 1mm/s --
+  MOVE Z=-26.2@1
+  WAIT 500
+  MOVE Z=26.2@1
+  WAIT 500
+  # -- Z 압입 프로파일 @ 3mm/s --
+  MOVE Z=-26.2@3
+  WAIT 500
+  MOVE Z=26.2@3
+  WAIT 500
+  # -- Z 압입 프로파일 @ 5mm/s --
+  MOVE Z=-26.2@5
+  WAIT 500
+  MOVE Z=26.2@5
+  WAIT 500
+
+# ==================== Part 2: Z 고정(far/contact) / strain 연속 ====================
+# 시작 위치: strain=15%(9mm), Z=far(0)  <- Part 1 마지막 상태
+# 아래 이동으로 strain을 15%->30%(max)까지 마저 올린 뒤 Part 2를 시작한다.
+  MOVE YA=9.0@5 YB=9.0@5
+  WAIT 500
+# ---- Z = far 기준 0mm, 고정 (press 없음) ----
+  # -- strain 연속 스윕 @ 1mm/s --
+  MOVE YA=-18.0@1 YB=-18.0@1
+  WAIT 500
+  MOVE YA=18.0@1 YB=18.0@1
+  WAIT 500
+  # -- strain 연속 스윕 @ 3mm/s --
+  MOVE YA=-18.0@3 YB=-18.0@3
+  WAIT 500
+  MOVE YA=18.0@3 YB=18.0@3
+  WAIT 500
+  # -- strain 연속 스윕 @ 5mm/s --
+  MOVE YA=-18.0@5 YB=-18.0@5
+  WAIT 500
+  MOVE YA=18.0@5 YB=18.0@5
+  WAIT 500
+
+# ---- Z = far 기준 -24mm, 고정 (press 없음) ----
+MOVE Z=-24.0@5
+WAIT 500
+  # -- strain 연속 스윕 @ 1mm/s --
+  MOVE YA=-18.0@1 YB=-18.0@1
+  WAIT 500
+  MOVE YA=18.0@1 YB=18.0@1
+  WAIT 500
+  # -- strain 연속 스윕 @ 3mm/s --
+  MOVE YA=-18.0@3 YB=-18.0@3
+  WAIT 500
+  MOVE YA=18.0@3 YB=18.0@3
+  WAIT 500
+  # -- strain 연속 스윕 @ 5mm/s --
+  MOVE YA=-18.0@5 YB=-18.0@5
+  WAIT 500
+  MOVE YA=18.0@5 YB=18.0@5
+  WAIT 500
+
+# ==================== Part 3: strain-Z 동시 이동 (두 축 동일 속도) ====================
+# 시작 위치: strain=30%(max), Z=-24(접촉 1mm 전)  <- Part 2 마지막 상태
+# -- 동시 이동 @ 1mm/s (두 축 동일 속도) --
+MOVE YA=-18.0@1 YB=-18.0@1 Z=24.0@1
+WAIT 300
+MOVE YA=18.0@1 YB=18.0@1 Z=-24.0@1
+WAIT 300
+# -- 동시 이동 @ 3mm/s (두 축 동일 속도) --
+MOVE YA=-18.0@3 YB=-18.0@3 Z=24.0@3
+WAIT 300
+MOVE YA=18.0@3 YB=18.0@3 Z=-24.0@3
+WAIT 300
+# -- 동시 이동 @ 5mm/s (두 축 동일 속도) --
+MOVE YA=-18.0@5 YB=-18.0@5 Z=24.0@5
+WAIT 300
+MOVE YA=18.0@5 YB=18.0@5 Z=-24.0@5
+WAIT 300
+
+# ==================== 종료: 안전 위치로 복귀 ====================
+# Part 3 마지막 상태: strain=max, Z=Z_NEAR_NO_TOUCH(-24)
+MOVE YA=-18.0@5 YB=-18.0@5 Z=24.0@5
+RECORD OFF
+DISABLE

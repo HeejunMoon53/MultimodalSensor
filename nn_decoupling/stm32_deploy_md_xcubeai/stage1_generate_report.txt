@@ -1,0 +1,201 @@
+ST Edge AI Core v2.2.0-20266 2adc00962
+Created date          : 2026-06-11 16:43:17
+Parameters            : generate --target stm32 --name stage1 --model C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\stm32_deploy_md_xcubeai\stage1_md.onnx --output C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\stm32_deploy_md_xcubeai
+
+Exec/report summary (generate)
+---------------------------------------------------------------------------------------------------------------------------------------
+model file         :   C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\stm32_deploy_md_xcubeai\stage1_md.onnx   
+type               :   onnx                                                                                                            
+c_name             :   stage1                                                                                                          
+compression        :   lossless                                                                                                        
+options            :   allocate-inputs, allocate-outputs                                                                               
+optimization       :   balanced                                                                                                        
+target/series      :   stm32                                                                                                           
+workspace dir      :   C:\Users\Korea University\ClaudeProject\MultimodalSensor\st_ai_ws                                               
+output dir         :   C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\stm32_deploy_md_xcubeai                  
+model_fmt          :   float                                                                                                           
+model_name         :   stage1_md                                                                                                       
+model_hash         :   0xe56d96b3edc7696495dc494b901b58a2                                                                              
+params #           :   209 items (836 B)                                                                                               
+---------------------------------------------------------------------------------------------------------------------------------------
+input 1/1          :   'dR_norm', f32(1x1), 4 Bytes, activations                                                                       
+output 1/1         :   'mul_result3', f32(1x1), 4 Bytes, activations                                                                   
+macc               :   237                                                                                                             
+weights (ro)       :   836 B (836 B) (1 segment)                                                                                       
+activations (rw)   :   96 B (96 B) (1 segment) *                                                                                       
+ram (total)        :   96 B (96 B) = 96 + 0 + 0                                                                                        
+---------------------------------------------------------------------------------------------------------------------------------------
+(*) 'input'/'output' buffers are allocated in the activations buffer
+
+Model name - stage1_md
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+m_id   layer (type,original)                    oshape       param/size     macc        connected to   | c_size           c_macc          c_type             
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+1      coefficient (Placeholder, MatMul)        [b:1,c:16]   16/64                                     | -64(-100.0%)                     
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+2      intercepts (Placeholder, Add)            [b:1,c:16]   16/64                                     | +64(+100.0%)     +32(+100.0%)    Dense_[0]          
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+4      coefficient1 (Placeholder, MatMul)       [b:16,c:8]   128/512                                   | -512(-100.0%)                    
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+5      intercepts1 (Placeholder, Add)           [b:1,c:8]    8/32                                      | +512(+1600.0%)   +136(+100.0%)   Dense_[2]          
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+7      coefficient2 (Placeholder, MatMul)       [b:8,c:4]    32/128                                    | -128(-100.0%)                    
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+8      intercepts2 (Placeholder, Add)           [b:1,c:4]    4/16                                      | +128(+800.0%)    +36(+100.0%)    Dense_[4]          
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+10     coefficient3 (Placeholder, MatMul)       [b:4,c:1]    4/16                                      | -16(-100.0%)                     
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+11     intercepts3 (Placeholder, Add)           [b:1,c:1]    1/4                                       | +16(+400.0%)     +5(+100.0%)     Dense_[o][6]       
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+0      dR_norm (Input, )                        [b:1,c:1]                                              |                                  
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+1      mul_result (Gemm, MatMul)                [b:1,c:16]                    32             dR_norm   |                  -32(-100.0%)    
+                                                                                         coefficient   | 
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+2      add_result (Eltwise, Add)                [b:1,c:16]                    16          mul_result   |                  -16(-100.0%)    
+                                                                                          intercepts   | 
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+3      next_activations (Nonlinearity, Relu)    [b:1,c:16]                    16          add_result   |                                  Nonlinearity_[1]   
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+4      mul_result1 (Gemm, MatMul)               [b:1,c:8]                    136    next_activations   |                  -136(-100.0%)   
+                                                                                        coefficient1   | 
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+5      add_result1 (Eltwise, Add)               [b:1,c:8]                      8         mul_result1   |                  -8(-100.0%)     
+                                                                                         intercepts1   | 
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+6      next_activations1 (Nonlinearity, Relu)   [b:1,c:8]                      8         add_result1   |                                  Nonlinearity_[3]   
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+7      mul_result2 (Gemm, MatMul)               [b:1,c:4]                     36   next_activations1   |                  -36(-100.0%)    
+                                                                                        coefficient2   | 
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+8      add_result2 (Eltwise, Add)               [b:1,c:4]                      4         mul_result2   |                  -4(-100.0%)     
+                                                                                         intercepts2   | 
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+9      next_activations2 (Nonlinearity, Relu)   [b:1,c:4]                      4         add_result2   |                                  Nonlinearity_[5]   
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+10     mul_result3 (Gemm, MatMul)               [b:1,c:1]                      5   next_activations2   |                  -5(-100.0%)     
+                                                                                        coefficient3   | 
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+11     add_result3 (Eltwise, Add)               [b:1,c:1]                      1         mul_result3   |                  -1(-100.0%)     
+                                                                                         intercepts3   | 
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+12     variable (Reshape, Reshape)              [b:1,c:1]                                add_result3   |                                  
+------ ---------------------------------------- ------------ ------------ ------ ------------------- --- ---------------- --------------- ------------------ 
+model/c-model: macc=266/237 -29(-10.9%) weights=836/836  activations=--/96 io=--/0
+
+
+
+Generated C-graph summary
+------------------------------------------------------------------------------------------------------------------------
+model name            : stage1_md
+c-name                : stage1
+c-node #              : 7
+c-array #             : 16
+activations size      : 96 (1 segment)
+weights size          : 836 (1 segment)
+macc                  : 237
+inputs                : ['dR_norm_output']
+outputs               : ['mul_result3_output']
+
+C-Arrays (16)
+------ -------------------------- ----------- ------------------------- ------------- --------- 
+c_id   name (*_array)             item/size   domain/mem-pool           c-type        comment   
+------ -------------------------- ----------- ------------------------- ------------- --------- 
+0      dR_norm_output             1/4         activations/**default**   float         /input    
+1      mul_result1_bias           8/32        weights/weights           const float             
+2      mul_result1_output         8/32        activations/**default**   float                   
+3      mul_result1_weights        128/512     weights/weights           const float             
+4      mul_result2_bias           4/16        weights/weights           const float             
+5      mul_result2_output         4/16        activations/**default**   float                   
+6      mul_result2_weights        32/128      weights/weights           const float             
+7      mul_result3_bias           1/4         weights/weights           const float             
+8      mul_result3_output         1/4         activations/**default**   float         /output   
+9      mul_result3_weights        4/16        weights/weights           const float             
+10     mul_result_bias            16/64       weights/weights           const float             
+11     mul_result_output          16/64       activations/**default**   float                   
+12     mul_result_weights         16/64       weights/weights           const float             
+13     next_activations1_output   8/32        activations/**default**   float                   
+14     next_activations2_output   4/16        activations/**default**   float                   
+15     next_activations_output    16/64       activations/**default**   float                   
+------ -------------------------- ----------- ------------------------- ------------- --------- 
+
+C-Layers (7)
+------ ------------------- ---- --------------- ------ ----- ----------------------------- ------------------ 
+c_id   name (*_layer)      id   layer_type      macc   rom   tensors                       shape (array id)   
+------ ------------------- ---- --------------- ------ ----- ----------------------------- ------------------ 
+0      mul_result          2    Dense           32     128   I: dR_norm_output             f32(1x1) (0)       
+                                                             W: mul_result_weights         f32(16x1) (12)     
+                                                             W: mul_result_bias            f32(16) (10)       
+                                                             O: mul_result_output          f32(1x16) (11)     
+------ ------------------- ---- --------------- ------ ----- ----------------------------- ------------------ 
+1      next_activations    3    Nonlinearity    16     0     I: mul_result_output          f32(1x16) (11)     
+                                                             O: next_activations_output    f32(1x16) (15)     
+------ ------------------- ---- --------------- ------ ----- ----------------------------- ------------------ 
+2      mul_result1         5    Dense           136    544   I: next_activations_output    f32(1x16) (15)     
+                                                             W: mul_result1_weights        f32(8x16) (3)      
+                                                             W: mul_result1_bias           f32(8) (1)         
+                                                             O: mul_result1_output         f32(1x8) (2)       
+------ ------------------- ---- --------------- ------ ----- ----------------------------- ------------------ 
+3      next_activations1   6    Nonlinearity    8      0     I: mul_result1_output         f32(1x8) (2)       
+                                                             O: next_activations1_output   f32(1x8) (13)      
+------ ------------------- ---- --------------- ------ ----- ----------------------------- ------------------ 
+4      mul_result2         8    Dense           36     144   I: next_activations1_output   f32(1x8) (13)      
+                                                             W: mul_result2_weights        f32(4x8) (6)       
+                                                             W: mul_result2_bias           f32(4) (4)         
+                                                             O: mul_result2_output         f32(1x4) (5)       
+------ ------------------- ---- --------------- ------ ----- ----------------------------- ------------------ 
+5      next_activations2   9    Nonlinearity    4      0     I: mul_result2_output         f32(1x4) (5)       
+                                                             O: next_activations2_output   f32(1x4) (14)      
+------ ------------------- ---- --------------- ------ ----- ----------------------------- ------------------ 
+6      mul_result3         11   Dense           5      20    I: next_activations2_output   f32(1x4) (14)      
+                                                             W: mul_result3_weights        f32(1x4) (9)       
+                                                             W: mul_result3_bias           f32(1) (7)         
+                                                             O: mul_result3_output         f32(1x1) (8)       
+------ ------------------- ---- --------------- ------ ----- ----------------------------- ------------------ 
+
+
+
+Number of operations per c-layer
+------- ------ ---------------------------------- ----- -------------- 
+c_id    m_id   name (type)                          #op           type 
+------- ------ ---------------------------------- ----- -------------- 
+0       2      mul_result (Dense)                    32   smul_f32_f32 
+1       3      next_activations (Nonlinearity)       16     op_f32_f32 
+2       5      mul_result1 (Dense)                  136   smul_f32_f32 
+3       6      next_activations1 (Nonlinearity)       8     op_f32_f32 
+4       8      mul_result2 (Dense)                   36   smul_f32_f32 
+5       9      next_activations2 (Nonlinearity)       4     op_f32_f32 
+6       11     mul_result3 (Dense)                    5   smul_f32_f32 
+------- ------ ---------------------------------- ----- -------------- 
+total                                               237 
+
+Number of operation types
+---------------- ----- ----------- 
+operation type       #           % 
+---------------- ----- ----------- 
+smul_f32_f32       209       88.2% 
+op_f32_f32          28       11.8% 
+
+Complexity report (model)
+------ ------------------- ------------------------- ------------------------- ------ 
+m_id   name                c_macc                    c_rom                     c_id   
+------ ------------------- ------------------------- ------------------------- ------ 
+2      intercepts          ||||              13.5%   ||||              15.3%   [0]    
+5      intercepts1         ||||||||||||||||  57.4%   ||||||||||||||||  65.1%   [2]    
+8      intercepts2         ||||              15.2%   ||||              17.2%   [4]    
+11     intercepts3         |                  2.1%   |                  2.4%   [6]    
+3      next_activations    ||                 6.8%   |                  0.0%   [1]    
+6      next_activations1   |                  3.4%   |                  0.0%   [3]    
+9      next_activations2   |                  1.7%   |                  0.0%   [5]    
+------ ------------------- ------------------------- ------------------------- ------ 
+macc=237 weights=836 act=96 ram_io=0
+
+Generated files (7)
+--------------------------------------------------------------------------------------------------------------------- 
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\stm32_deploy_md_xcubeai\stage1_data_params.h   
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\stm32_deploy_md_xcubeai\stage1_data_params.c   
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\stm32_deploy_md_xcubeai\stage1_data.h          
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\stm32_deploy_md_xcubeai\stage1_data.c          
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\stm32_deploy_md_xcubeai\stage1_config.h        
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\stm32_deploy_md_xcubeai\stage1.h               
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\nn_decoupling\stm32_deploy_md_xcubeai\stage1.c               

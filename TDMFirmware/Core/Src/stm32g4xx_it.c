@@ -362,4 +362,15 @@ void DMA2_Channel1_IRQHandler(void)
 
 /* USER CODE BEGIN 1 */
 
+/**
+  * @brief USART2 global interrupt — required for HAL DMA TX complete callback.
+  *        HAL sets TCIE after DMA TC; this handler clears it and calls
+  *        HAL_UART_TxCpltCallback → uart_tx_busy = 0.
+  */
+void USART2_IRQHandler(void)
+{
+    extern UART_HandleTypeDef huart2;
+    HAL_UART_IRQHandler(&huart2);
+}
+
 /* USER CODE END 1 */

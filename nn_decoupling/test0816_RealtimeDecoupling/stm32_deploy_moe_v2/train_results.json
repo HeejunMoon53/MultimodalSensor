@@ -1,0 +1,26 @@
+{
+  "n_rows": 59425,
+  "n_train": 46971,
+  "n_test": 12454,
+  "gate": {
+    "acc": 0.9398586799421873,
+    "f1": 0.872856900356476
+  },
+  "expert_a": {
+    "strain_r2": 0.9932395228677693,
+    "dist_r2": 0.9236834976244555,
+    "strain_rmse": 0.8599930480008725,
+    "dist_rmse": 2.2477183031606027
+  },
+  "expert_b": {
+    "strain_r2": 0.9993152192588,
+    "force_r2": 0.8488954152284311,
+    "strain_rmse": 0.2059721716601096,
+    "force_rmse": 1.76906022476828
+  },
+  "end_to_end_strain_r2": 0.9904310646695267,
+  "force_offset_removed": 0.011078228417266186,
+  "ema_halflife_s": 0.70176375,
+  "z_far_offset_mm": 25.0,
+  "contact_threshold_mm": -24.5
+}

@@ -33,3 +33,9 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# 대용량 미디어 (실험 촬영 영상 등)
+*.MOV
+*.mov
+*.mp4
+*.avi
