@@ -1,0 +1,31 @@
+{
+  "n_rows": 43577,
+  "n_train": 34938,
+  "n_test": 8639,
+  "sessions": [
+    "214746",
+    "222022",
+    "220210"
+  ],
+  "gate": {
+    "acc": 0.9870355365204306,
+    "f1": 0.9646241313960834
+  },
+  "expert_a": {
+    "strain_r2": 0.9934115985140862,
+    "dist_r2": 0.9902406060149418,
+    "strain_rmse": 0.8398509877090583,
+    "dist_rmse": 0.8418768529567948
+  },
+  "expert_b": {
+    "strain_r2": 0.9878373935009026,
+    "force_r2": 0.981792600772672,
+    "strain_rmse": 0.4091689259236695,
+    "force_rmse": 0.4627385601346551
+  },
+  "end_to_end_strain_r2": 0.9935774502685223,
+  "force_offset_removed": 0.17262664502289987,
+  "ema_halflife_s": 0.70176375,
+  "contact_threshold_mm": 0.3,
+  "saturation_strain_pct_excluded": 14.0
+}

@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file    gate_data_params.c
   * @author  AST Embedded Analytics Research Platform
-  * @date    2026-08-19T14:17:07+0900
+  * @date    2026-09-10T00:32:33+0900
   * @brief   AI Tool Automatic Code Generator for Embedded NN computing
   ******************************************************************************
   * Copyright (c) 2026 STMicroelectronics.
@@ -30,15 +30,15 @@ ai_handle g_gate_activations_table[1 + 2] = {
 /**  Weights Section  ********************************************************/
 AI_ALIGNED(32)
 const ai_u64 s_gate_weights_array_u64[34] = {
-  0x3e1e8a9d3f800000U, 0x3f5be0803ee6e824U, 0x3f2e2d60bf054f0eU, 0x3f46ab4cbdaa7736U,
-  0xbef84a76bee9c817U, 0x3ec7d3ca3ef4d12fU, 0xbe606f013f27e1b1U, 0x3f750f77bf22b234U,
-  0xbec80952bf4d3379U, 0x3f3f1d263f4c7551U, 0x3d91d12d3f337920U, 0xbc4f0abd3e521149U,
-  0xbf2650173f1f7ed9U, 0x3e7c57fa3f023578U, 0xbf145b3f3f728da6U, 0xbe5193483e9c95faU,
-  0xbdadb6b33f8505b2U, 0x3f2f911f3ea9dc4dU, 0xbf17b6123f42f55bU, 0x3e0601ac3c130906U,
-  0xbe49e1b3be2bd717U, 0xbf82da9abf501d00U, 0x3f2477a6bcf4b947U, 0xbe6c511abd23cd1fU,
-  0x3ea7b83dbf4ee718U, 0x3f164fcf3f6229fdU, 0xbf5d95fe3f626855U, 0x3d8e16d6bee5e2e6U,
-  0x3e1198f1bdd545f0U, 0xbe94d864be07dcb0U, 0xbf9b94373e0b3a33U, 0x3f89c1f8bf711db4U,
-  0xbf3dbe56bf92fdf8U, 0x100000000U,
+  0x3eaf08ea3f800000U, 0x3f532ce93ee7faedU, 0x3f3aa050bee05c1bU, 0x3f3899b6be6e931cU,
+  0xbeb575b4beb9f195U, 0x3f5c7dc33f3e16feU, 0xbefc92163a255332U, 0x3f18a9e5bff7cd09U,
+  0xbf210a31bf4c2fd3U, 0x3f71dd8a3f953608U, 0x3e46def73f65010fU, 0xbe5837df3f5d8816U,
+  0xbf33b6c13f434c3fU, 0x3f90c6023f51551dU, 0xbf0924e83fb5d9f7U, 0xbf0f11d83f80e496U,
+  0x3d9fe55b3f9d27adU, 0x3f7dc1873ef09f70U, 0xbf06063f3f682e75U, 0xbf2b12f53f91d769U,
+  0xbddd1297be15a546U, 0xbfe6f923bf85c105U, 0x3ea3b7d3be684c27U, 0x3cb352cdbf5f47b0U,
+  0x3ee81444bf67f3a0U, 0x3f88fc1c3f5e620fU, 0xbf306c1c3f65842fU, 0xbf1866243f04b753U,
+  0x3ec9ef3bbe4c04deU, 0xbefc1193be68c168U, 0xbff535dd3c91bb7eU, 0x3fff9117bffcb95bU,
+  0xbf25b1b5c005badaU, 0x100000000U,
 };
 
 

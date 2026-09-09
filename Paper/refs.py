@@ -8,6 +8,10 @@
   [13]–[15] 인장(자기수용감각) 감지의 필요성
   [16]–[23] 인덕티브 소프트 센서 및 전자기 모델
   [24]–[30] 학습 방법론·부품·소프트웨어
+  [31]–[32] TENG 기반 확장 방향(슬립 감지·재질 식별, 향후 과제)
+  [33]      근접 감지 기반 파지 사전 정렬(pre-shaping)
+  [34]–[35] 어레이형 다중 소자의 한계(크로스토크·배선·면적)
+  [36]–[37] 적층형 다중 소자의 한계(박리·크로스토크·배선)
 """
 
 REFS = [
@@ -89,4 +93,33 @@ REFS = [
     "STM32Cube, User Manual UM2526.",
     "F. Pedregosa et al., “Scikit-learn: Machine learning in Python,” Journal of "
     "Machine Learning Research, vol. 12, pp. 2825–2830, 2011.",
+
+    # [31]–[32] TENG 기반 확장 방향 (슬립 감지 · 재질 식별)
+    "W. Zhao et al., “Measurement of slips at contact interfaces using a self-powered "
+    "sensor based on triboelectric nanogenerators,” Nanomaterials, vol. 12, no. 19, "
+    "art. 3510, 2022.",
+    "Z. Song et al., “A flexible triboelectric tactile sensor for simultaneous "
+    "material and texture recognition,” Nano Energy, vol. 93, art. 106798, 2022.",
+
+    # [33] 근접 감지 기반 파지 사전 정렬 (pre-shaping)
+    "K. Koyama, Y. Suzuki, A. Ming, and M. Shimojo, “Pre-grasp control for various "
+    "objects by the robot hand equipped with the proximity sensor on the fingertip,” "
+    "Journal of the Robotics Society of Japan, vol. 33, no. 9, pp. 712–722, 2015.",
+
+    # [34]–[35] 어레이형 다중 소자의 한계 (크로스토크 · 배선 · 면적)
+    "W. Lin, B. Wang, G. Peng, Y. Shan, H. Hu, and Z. Yang, “Skin-inspired "
+    "piezoelectric tactile sensor array with crosstalk-free row+column electrodes "
+    "for spatiotemporally distinguishing diverse stimuli,” Advanced Science, "
+    "vol. 8, no. 6, art. 2002817, 2021.",
+    "W. W. Lee et al., “A neuro-inspired artificial peripheral nervous system for "
+    "scalable electronic skins,” Science Robotics, vol. 4, no. 32, art. eaax2198, "
+    "2019.",
+
+    # [36]–[37] 적층형 다중 소자의 한계 (박리 · 크로스토크 · 배선)
+    "Y. Zhang et al., “Highly stable flexible pressure sensors with a "
+    "quasi-homogeneous composition and interlinked interfaces,” Nature "
+    "Communications, vol. 13, art. 1317, 2022.",
+    "Mu et al., “Crosstalk-free hybrid integrated multimodal sensor for human "
+    "temperature, humidity, and pressure monitoring,” Cell Reports Physical "
+    "Science, 2024.",
 ]

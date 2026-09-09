@@ -106,9 +106,8 @@ def build(doc, L):
     intro.build(doc, L)
 
     # ── 2. 센서 설계 ────────────────────────────────────────────────────────
-    heading(doc, L, t("2. 센서 설계와 물리적 원리", "2. Sensor Design and Physical Principles"), 1)
-    heading(doc, L, t("2.1 단일 전극 EGaIn 나선 코일과 제작 공정",
-                      "2.1 Single-Electrode EGaIn Spiral Coil and Fabrication"), 2)
+    heading(doc, L, t("2. 설계 및 제작", "2. Design and Fabrication"), 1)
+    heading(doc, L, t("2.1 센서 설계", "2.1 Sensor Design"), 2)
     para(doc, L, t(
         "센서 전극은 EGaIn 액체금속을 일래스토머 기판 위에 DIW(Direct Ink Writing)로 인쇄한 평면 직사각형 "
         "나선 코일이다(그림 1a). 액체금속은 대변형에서도 도전 경로가 끊기지 않아 30 % 인장까지 반복 사용이 "
@@ -121,6 +120,62 @@ def build(doc, L):
         "conductive trace act simultaneously as a resistive element and an inductor. The "
         "initial effective length of the sensor is 120 mm, and tensile tests were performed "
         "over 0–36 mm of elongation (0–30 % strain)."), align="j")
+    heading(doc, L, t("2.2 멀티모달리티: 기계적·전자기적 특성",
+                      "2.2 Multi Modality: Mechanical and Electromagnetic Characteristics"), 2)
+    para(doc, L, t(
+        "동일한 코일에서 서로 다른 물리 기구로 세 신호가 생성된다. DC 저항은 도선의 기하에만 의존한다. 길이가 "
+        "(1+ε)배로 늘고 단면적이 그에 반비례해 줄면 저항은 다음과 같이 변한다.",
+        "Three signals are generated from the same coil through distinct mechanisms. The DC "
+        "resistance depends only on the conductor geometry: when the length increases by a "
+        "factor (1+ε) and the cross-section decreases inversely, the resistance follows"),
+        align="j")
+    eq(doc, L, "R_DC(ε) = R_DC,0 · (1 + ε)²")
+    para(doc, L, t(
+        "자기 인덕턴스는 직사각형 평면 나선에 대한 Rosa 계열의 부분 인덕턴스 식으로 기술되며, 권선 면적 A, "
+        "종횡비 t = b/a, 채널 반경 r이 인장에 따라 각각 다른 지수로 변한다.",
+        "The self-inductance is described by a Rosa-type partial-inductance expression for "
+        "a rectangular planar spiral, in which the turn area A, the aspect ratio t = b/a "
+        "and the channel radius r each scale with strain under a different exponent."),
+        align="j")
+    eq(doc, L, "A(ε) = A₀(1+ε)^0.5,   t(ε) = t₀(1+ε)^1.5,   r(ε) = r₀(1+ε)^(−0.5)")
+    para(doc, L, t(
+        "표적이 접근하면 코일과 표적 사이의 상호 인덕턴스 M(ε, d)를 통해 반사 임피던스가 나타나[22], [23], 실효 "
+        "인덕턴스와 AC 등가 직렬 저항이 다음과 같이 변한다.",
+        "When a target approaches, a reflected impedance appears through the mutual "
+        "inductance M(ε, d) between coil and target [22], [23], modifying the effective inductance and "
+        "the AC equivalent series resistance as"), align="j")
+    eq(doc, L, "L(ε, d) = L_self(ε) − ω²M(ε,d)²·L_t / (R_t² + ω²L_t²)")
+    eq(doc, L, "R_s(ε, d) = R_DC(ε) + ω²M(ε,d)²·R_t / (R_t² + ω²L_t²)")
+    para(doc, L, t(
+        "이로부터 그림 1c의 응답 시그니처가 도출된다. 인장은 L, R_s, R_DC를 모두 증가시킨다. 도체가 접근하면 "
+        "와전류 손실에 의해 L은 감소하고 R_s는 증가하지만 R_DC는 변하지 않는다. 유전체가 접근하면 유전율 변화와 "
+        "전기장 재분포로 L이 오히려 증가한다. 대전된 물체가 접촉하면 마찰전기 전하 이동으로 V_TENG에 피크가 "
+        "발생한다. 도체와 유전체에서 ΔL의 부호가 반대라는 점은 단순한 방해 요인이 아니라, 향후 물체의 전기적 "
+        "성질을 식별하는 데 쓸 수 있는 정보다(5절).",
+        "These relations yield the response signature of Fig. 1c. Stretching increases L, "
+        "R_s and R_DC together. An approaching conductor decreases L and increases R_s "
+        "through eddy-current loss while leaving R_DC unchanged. An approaching dielectric "
+        "instead increases L through the change in permittivity and the redistribution of "
+        "the electric field. Contact by a charged body produces a peak in V_TENG through "
+        "triboelectric charge transfer. That ΔL has opposite signs for conductors and "
+        "dielectrics is not merely a nuisance: it is information that can be used to "
+        "identify the electrical property of an object (Section 5)."), align="j")
+    para(doc, L, t(
+        "인덕턴스는 LDC1614가 측정하는 LC 탱크의 공진 주파수 f로부터 환산한다. f ∝ 1/√L 이므로 기준 상태 대비 "
+        "상대 변화는 다음과 같이 계산된다.",
+        "The inductance is derived from the resonant frequency f of the LC tank measured by "
+        "the LDC1614. Since f is proportional to 1/√L, the relative change with respect to "
+        "a reference state is computed as"), align="j")
+    eq(doc, L, "ΔL/L₀ = (f₀ / f)² − 1,    ΔR/R₀ = (r − r₀) / r₀")
+    para(doc, L, t(
+        "여기서 f₀, r₀은 무변형·최대 이격 조건에서 세션별로 취한 중앙값 기준선이다. 기준선을 세션마다 다시 "
+        "잡는 이유는 액체금속 센서의 초기 저항이 재장착·온도에 따라 수 % 수준에서 달라지기 때문이다.",
+        "Here f₀ and r₀ are session-wise median baselines taken in the undeformed, "
+        "maximum-separation condition. Baselines are re-estimated for each session because "
+        "the initial resistance of a liquid-metal sensor varies by a few percent with "
+        "remounting and temperature."), align="j")
+
+    heading(doc, L, t("2.3 센서 제작", "2.3 Sensor Fabrication"), 2)
     para(doc, L, t(
         "제작은 네 단계로 이루어진다(그림 1b). ① EGaIn DIW — 노즐로 액체금속을 압출하여 나선 채널을 "
         "인쇄한다. ② 브리징 — 나선의 안쪽 끝 단자를 권선 위로 넘겨 바깥으로 빼낸다. 이 단계가 본 센서를 진정한 "
@@ -156,113 +211,18 @@ def build(doc, L):
         "그림 1. 센서 설계 개요. (a) 평면 직사각형 나선 코일의 기하 — 짧은 변 a, 긴 변 b, 액체금속 채널 반경 r, "
         "표적까지의 거리 d, 표적의 등가 인덕턴스·저항 L_t, R_t. (b) 네 단계 제작 공정. 브리징이 나선을 두 가닥 "
         "단일 전극으로 완결시킨다. (c) 자극별 응답 시그니처. * 표시는 압축 시 실제 L은 감소하지만 Q-factor "
-        "저하 때문에 근사 역산 결과가 증가로 나타남을 뜻한다(5.2절).",
+        "저하 때문에 근사 역산 결과가 증가로 나타남을 뜻한다(3.3절).",
         "Fig. 1. Sensor design overview. (a) Geometry of the planar rectangular spiral: "
         "short side a, long side b, liquid-metal channel radius r, target distance d, and "
         "the equivalent target inductance and resistance L_t, R_t. (b) The four-step "
         "fabrication process; bridging is what completes the spiral as a two-wire single "
         "electrode. (c) Response signature of each stimulus. The asterisk indicates that "
         "under compression the true L decreases while the approximate inversion reports an "
-        "increase because the Q factor falls (Section 5.2)."))
-
-    heading(doc, L, t("2.2 전자기적 특성과 신호 생성 기구",
-                      "2.2 Electromagnetic Characteristics and Signal Generation"), 2)
-    para(doc, L, t(
-        "동일한 코일에서 서로 다른 물리 기구로 세 신호가 생성된다. DC 저항은 도선의 기하에만 의존한다. 길이가 "
-        "(1+ε)배로 늘고 단면적이 그에 반비례해 줄면 저항은 다음과 같이 변한다.",
-        "Three signals are generated from the same coil through distinct mechanisms. The DC "
-        "resistance depends only on the conductor geometry: when the length increases by a "
-        "factor (1+ε) and the cross-section decreases inversely, the resistance follows"),
-        align="j")
-    eq(doc, L, "R_DC(ε) = R_DC,0 · (1 + ε)²")
-    para(doc, L, t(
-        "자기 인덕턴스는 직사각형 평면 나선에 대한 Rosa 계열의 부분 인덕턴스 식으로 기술되며, 권선 면적 A, "
-        "종횡비 t = b/a, 채널 반경 r이 인장에 따라 각각 다른 지수로 변한다.",
-        "The self-inductance is described by a Rosa-type partial-inductance expression for "
-        "a rectangular planar spiral, in which the turn area A, the aspect ratio t = b/a "
-        "and the channel radius r each scale with strain under a different exponent."),
-        align="j")
-    eq(doc, L, "A(ε) = A₀(1+ε)^0.5,   t(ε) = t₀(1+ε)^1.5,   r(ε) = r₀(1+ε)^(−0.5)")
-    para(doc, L, t(
-        "표적이 접근하면 코일과 표적 사이의 상호 인덕턴스 M(ε, d)를 통해 반사 임피던스가 나타나[22], [23], 실효 "
-        "인덕턴스와 AC 등가 직렬 저항이 다음과 같이 변한다.",
-        "When a target approaches, a reflected impedance appears through the mutual "
-        "inductance M(ε, d) between coil and target [22], [23], modifying the effective inductance and "
-        "the AC equivalent series resistance as"), align="j")
-    eq(doc, L, "L(ε, d) = L_self(ε) − ω²M(ε,d)²·L_t / (R_t² + ω²L_t²)")
-    eq(doc, L, "R_s(ε, d) = R_DC(ε) + ω²M(ε,d)²·R_t / (R_t² + ω²L_t²)")
-    para(doc, L, t(
-        "이로부터 그림 1c의 응답 시그니처가 도출된다. 인장은 L, R_s, R_DC를 모두 증가시킨다. 도체가 접근하면 "
-        "와전류 손실에 의해 L은 감소하고 R_s는 증가하지만 R_DC는 변하지 않는다. 유전체가 접근하면 유전율 변화와 "
-        "전기장 재분포로 L이 오히려 증가한다. 대전된 물체가 접촉하면 마찰전기 전하 이동으로 V_TENG에 피크가 "
-        "발생한다. 도체와 유전체에서 ΔL의 부호가 반대라는 점은 단순한 방해 요인이 아니라, 향후 물체의 전기적 "
-        "성질을 식별하는 데 쓸 수 있는 정보다(9절).",
-        "These relations yield the response signature of Fig. 1c. Stretching increases L, "
-        "R_s and R_DC together. An approaching conductor decreases L and increases R_s "
-        "through eddy-current loss while leaving R_DC unchanged. An approaching dielectric "
-        "instead increases L through the change in permittivity and the redistribution of "
-        "the electric field. Contact by a charged body produces a peak in V_TENG through "
-        "triboelectric charge transfer. That ΔL has opposite signs for conductors and "
-        "dielectrics is not merely a nuisance: it is information that can be used to "
-        "identify the electrical property of an object (Section 9)."), align="j")
-    para(doc, L, t(
-        "인덕턴스는 LDC1614가 측정하는 LC 탱크의 공진 주파수 f로부터 환산한다. f ∝ 1/√L 이므로 기준 상태 대비 "
-        "상대 변화는 다음과 같이 계산된다.",
-        "The inductance is derived from the resonant frequency f of the LC tank measured by "
-        "the LDC1614. Since f is proportional to 1/√L, the relative change with respect to "
-        "a reference state is computed as"), align="j")
-    eq(doc, L, "ΔL/L₀ = (f₀ / f)² − 1,    ΔR/R₀ = (r − r₀) / r₀")
-    para(doc, L, t(
-        "여기서 f₀, r₀은 무변형·최대 이격 조건에서 세션별로 취한 중앙값 기준선이다. 기준선을 세션마다 다시 "
-        "잡는 이유는 액체금속 센서의 초기 저항이 재장착·온도에 따라 수 % 수준에서 달라지기 때문이다.",
-        "Here f₀ and r₀ are session-wise median baselines taken in the undeformed, "
-        "maximum-separation condition. Baselines are re-estimated for each session because "
-        "the initial resistance of a liquid-metal sensor varies by a few percent with "
-        "remounting and temperature."), align="j")
-
-    heading(doc, L, t("2.3 결합 구조와 해석적 역산의 한계",
-                      "2.3 Coupling Structure and Limits of Analytical Inversion"), 2)
-    para(doc, L, t(
-        "위 이론식은 상호 인덕턴스 M(ε, d)의 해석적 형태를 요구하므로, 실용적으로는 다음의 경험적 피팅 모델을 "
-        "사용한다.",
-        "The theoretical expressions above require an analytical form for the mutual "
-        "inductance M(ε, d); in practice the following empirical fitting model is used "
-        "instead."), align="j")
-    eq(doc, L, "ΔR/R₀ = α₁ε + α₂ε²,    ΔL/L₀ = β₁ε + β₂/(d+d₀)^k + β₃·ε·f(d)")
-    para(doc, L, t(
-        "두 물리량을 신호로부터 되찾으려면 이 관계를 역산해야 한다. 미소 변화에 대해 선형화하면 야코비안 J로 "
-        "표현되고, 역산은 J의 역행렬로 주어진다.",
-        "Recovering the two physical quantities from the signals requires inverting these "
-        "relations. Linearizing for small changes gives a Jacobian J, and the inversion is "
-        "its matrix inverse."), align="j")
-    eq(doc, L, "[ΔR, ΔL]ᵀ = J · [Δε, Δd]ᵀ,    [ε, d]ᵀ = [ε₀, d₀]ᵀ + J⁻¹ · [ΔR, ΔL]ᵀ")
-    para(doc, L, t(
-        "이 접근은 두 가지 이유로 실패한다. 첫째, 절단 오차다. 근거리에서는 M² 항이, 대변형에서는 sinh⁻¹와 "
-        "ln 항이 지배하는 강한 비선형 영역이므로 선형 근사가 국소적으로만 유효하다. 둘째, 특이점과 직교성 "
-        "상실이다. ∇R과 ∇L의 방향이 가까워지면 det(J) → 0이 되어 J⁻¹이 발산하고, 작은 측정 잡음이 크게 "
-        "증폭된다. 실제로 접촉 영역에서 교차항을 포함한 물리식을 직접 역산했을 때 결정계수는 0.26에 그쳤고, "
-        "품질이 낮은 데이터가 섞이면 변형률 0 근처에서 R² = −75까지 발산하였다(부록 S4). 반면 5.1절에서 "
-        "보이듯 ∇L과 ∇R은 전역적으로는 선형 독립이므로 정보 자체는 존재한다. 즉 문제는 정보의 부재가 아니라 "
-        "역산 방법에 있으며, 이것이 순방향 연산만 수행하여 특이점이 원리적으로 발생하지 않고 O(1) 지연으로 "
-        "동작하는 학습 기반 디커플러를 채택한 이유다.",
-        "This approach fails for two reasons. First, truncation error: the near field is "
-        "dominated by the M² term and large strain by sinh⁻¹ and ln terms, so the linear "
-        "approximation is valid only locally. Second, singularity and loss of "
-        "orthogonality: as the directions of ∇R and ∇L converge, det(J) approaches zero, "
-        "J⁻¹ diverges and small measurement noise is greatly amplified. In practice, direct "
-        "inversion of the physics expression including the cross term in the contact regime "
-        "reached a coefficient of determination of only 0.26, and diverged to R² = −75 near "
-        "zero strain when lower-quality data were included (Appendix S4). As Section 5.1 "
-        "shows, however, ∇L and ∇R are globally linearly independent, so the information "
-        "itself is present. The problem lies in the inversion method rather than in missing "
-        "information, which is why a learned decoupler was adopted: it performs only "
-        "forward operations, so singularities cannot arise in principle, and it runs with "
-        "O(1) latency."), align="j")
-
-    # ── 3. 측정 시스템 ──────────────────────────────────────────────────────
-    heading(doc, L, t("3. 측정 시스템", "3. Measurement System"), 1)
-    heading(doc, L, t("3.1 시분할 측정(TDM) 아키텍처",
-                      "3.1 Time-Division Measurement Architecture"), 2)
+        "increase because the Q factor falls (Section 3.3)."))
+    heading(doc, L, t("2.4 시분할 측정 아키텍처(다신호 스위칭 PCB)",
+                      "2.4 Time-Division Measurement Architecture (Multisignal Switching PCB)"), 2)
+    heading(doc, L, t("2.4.1 TDM 스케줄과 신호 경로",
+                      "2.4.1 TDM Schedule and Signal Path"), 3)
     para(doc, L, t(
         "하나의 코일에서 세 신호를 얻으려면 여기(excitation) 상태를 시간축에서 분리해야 한다. 본 시스템은 동일 "
         "코일에 AC 여기(공진 주파수 측정), DC 여기(전압 분배 저항 측정), 무여기(부유 상태 TENG 전압 측정)를 "
@@ -299,7 +259,7 @@ def build(doc, L):
         "multiplexer. (b) The 1 ms TDM schedule. I²C DMA and ADC DMA proceed in parallel, "
         "and MoE inference (measured at 260 µs) runs in the remaining time."))
 
-    heading(doc, L, t("3.2 다신호 스위칭 PCB", "3.2 Multisignal Switching PCB"), 2)
+    heading(doc, L, t("2.4.2 다신호 스위칭 PCB", "2.4.2 Multisignal Switching PCB"), 3)
     para(doc, L, t(
         "전용 보드는 EasyEDA Pro로 설계한 65 × 52 mm 6층 기판이며, 최대 4채널 센서 어레이를 지원한다(본 "
         "연구의 모든 실험은 1채널로 수행). 메인 MCU는 STM32G473CBT6(Cortex-M4F, 170 MHz, 플래시 128 KB, "
@@ -335,8 +295,10 @@ def build(doc, L):
         "against electrostatic discharge. The USB-UART interface is used for data streaming "
         "and is not required for system operation."), align="j")
 
-    heading(doc, L, t("3.3 5축 시험 플랫폼과 동기 취득",
-                      "3.3 Five-Axis Test Platform and Synchronized Acquisition"), 2)
+    # ── 3. 신호 특성화 ──────────────────────────────────────────────────────
+    heading(doc, L, t("3. 신호 특성화", "3. Signal Characterization"), 1)
+    heading(doc, L, t("3.1 실험 설정 (5축 시험 플랫폼과 동기 취득)",
+                      "3.1 Experimental Setup (Five-Axis Test Platform and Synchronized Acquisition)"), 2)
     para(doc, L, t(
         "인장과 근접·접촉을 독립적으로 제어하기 위해 시험 플랫폼을 직접 제작하였다. 상용 CNC 기반 인장 장치를 "
         "사용하지 않은 이유는 명확하다. 한쪽 축만 구동하는 일반적인 인장 시험 방식에서는 시편이 늘어나면서 "
@@ -380,8 +342,6 @@ def build(doc, L):
         "the non-contact region (z ≥ 0) was removed as a session-wise offset before the "
         "force was used as a label."), align="j")
 
-    # ── 4. 데이터셋 ─────────────────────────────────────────────────────────
-    heading(doc, L, t("4. 데이터셋", "4. Datasets"), 1)
     para(doc, L, t(
         "연구 진행에 따라 다섯 개의 데이터셋을 순차적으로 취득하였다(표 2). 모델 입력으로 실제 사용 가능한 값은 "
         "언제나 (ΔL/L₀, ΔR/R₀)와 그로부터 인과적으로 계산 가능한 값뿐이며, 스테이지 위치와 F/T 힘은 오직 정답 "
@@ -447,10 +407,7 @@ def build(doc, L):
         "be mapped onto present-time labels and dynamic-segment error would grow."),
         align="j")
 
-    # ── 5. 신호 특성화 ──────────────────────────────────────────────────────
-    heading(doc, L, t("5. 신호 특성화", "5. Signal Characterization"), 1)
-    heading(doc, L, t("5.1 (ε, d) 응답 곡면과 표적 의존성",
-                      "5.1 Response Surfaces and Target Dependence"), 2)
+    heading(doc, L, t("3.2 인장–근접", "3.2 Strain–Proximity"), 2)
     para(doc, L, t(
         "그림 3은 D2를 격자 평균하여 얻은 응답 곡면이다. 금속 표적에 대한 ΔR(그림 3b)의 등고선은 근접거리 축과 "
         "거의 완전히 평행하며, 이는 저항이 인장에만 의존한다는 2.2절의 관계가 실측으로 성립함을 뜻한다. 반면 "
@@ -474,23 +431,7 @@ def build(doc, L):
         "are vertical (strain only). (c),(d) Hand target: contours of both signals are "
         "nearly vertical, indicating that for a dielectric target the proximity information "
         "carried by the inductance is weak over this distance range."))
-    para(doc, L, t(
-        "표적 종류에 따른 차이는 2.2절의 기구 차이에서 직접 따라온다. 금속에서는 와전류 손실이 지배적이어서 "
-        "근접 시 실효 인덕턴스가 크게 감소하는 반면, 손(유전체)에서는 유전율 변화에 의한 신호 증폭만 작용하여 "
-        "ΔL이 항상 양수이고 크기도 작다. 그림 3c에서 손 표적의 ΔL 등고선이 거의 수직인 것은, 이 조건에서 "
-        "인덕턴스가 사실상 인장 센서로만 동작한다는 뜻이며, 결과적으로 유전체 표적에 대한 근접 디커플링은 도체 "
-        "표적보다 근본적으로 어렵다. 이후의 모든 모델링은 도체 표적을 대상으로 한다.",
-        "The difference between targets follows directly from the mechanisms of Section "
-        "2.2. For metal, eddy-current loss dominates and the effective inductance drops "
-        "substantially on approach; for a hand (a dielectric), only permittivity-driven "
-        "signal amplification acts, so ΔL remains positive and small. The nearly vertical "
-        "ΔL contours for the hand target in Fig. 3c mean that, under these conditions, the "
-        "inductance behaves essentially as a strain sensor alone, and proximity decoupling "
-        "for dielectric targets is therefore fundamentally harder than for conductive ones. "
-        "All subsequent modelling targets the conductive case."), align="j")
-
-    heading(doc, L, t("5.2 접촉 영역의 점탄성과 Q-factor 겉보기 효과",
-                      "5.2 Viscoelasticity and the Q-Factor Artefact in the Contact Regime"), 2)
+    heading(doc, L, t("3.3 인장–압력", "3.3 Strain–Pressure"), 2)
     para(doc, L, t(
         "접촉 모달리티를 추가하자 비접촉 실험에서는 없던 현상이 나타났다. 첫째, 같은 깊이·같은 사이클 안에서 "
         "인덕턴스의 샘플 간 표준편차가 압축이 깊어질수록 0.09 %p에서 0.52 %p까지 약 5배 증가하였다. 저항 측정은 "
@@ -575,11 +516,10 @@ def build(doc, L):
         "unloading paths is the hysteresis. (c) Relaxation of ΔR during a constant-depth "
         "dwell with an SLS exponential fit (τ = 0.93 s)."))
 
-    heading(doc, L, t("5.3 인장 × 접촉력 교차 민감도", "5.3 Strain-Force Cross-Sensitivity"), 2)
     para(doc, L, t(
         "셋째이자 모델 설계에 가장 큰 영향을 준 발견은, 인장 상태가 압력 민감도 자체를 바꾼다는 것이다. 그림 "
         "4에서 보듯 무변형 상태에서 10 N을 가해도 ΔR은 3.95 %p만 움직이지만, 30 % 인장 상태에서는 유사한 힘에 "
-        "대해 26.14 %p가 움직인다(약 6.6배). 이는 2.3절의 R_theory(ε) = α₁ε + α₂ε² 가정이 압력이 함께 작용하는 "
+        "대해 26.14 %p가 움직인다(약 6.6배). 이는 4.1절의 R_theory(ε) = α₁ε + α₂ε² 가정이 압력이 함께 작용하는 "
         "상황에서는 성립하지 않으며 ε×F 교차항이 필요함을 뜻한다. 두 자극의 민감도 방향 벡터를 선형 근사하면 "
         "인장 1 %p당 (ΔL, ΔR) = (+0.635, +0.664), 접촉력 1 N당 (+2.070, +11.575)이며, 두 벡터 사이 각도는 "
         "33.6°, 조건수는 약 23이다. 즉 두 자극은 완전히 겹치지는 않지만 선형 역산으로 분리하기에는 조건이 나쁘다.",
@@ -587,7 +527,7 @@ def build(doc, L):
         "state changes the pressure sensitivity itself. As Fig. 4 shows, applying 10 N at "
         "zero strain moves ΔR by only 3.95 %p, whereas at 30 % strain a comparable force "
         "moves it by 26.14 %p, a factor of about 6.6. The assumption "
-        "R_theory(ε) = α₁ε + α₂ε² of Section 2.3 therefore fails when pressure is applied "
+        "R_theory(ε) = α₁ε + α₂ε² of Section 4.1 therefore fails when pressure is applied "
         "simultaneously, and a strain-force cross term is required. A linear approximation "
         "of the two sensitivity directions gives (ΔL, ΔR) = (+0.635, +0.664) per %p of "
         "strain and (+2.070, +11.575) per newton of contact force; the angle between the "
@@ -595,17 +535,88 @@ def build(doc, L):
         "therefore not perfectly degenerate, but the problem is poorly conditioned for "
         "linear inversion."), align="j")
 
-    # ── 6. 디커플링 모델 ────────────────────────────────────────────────────
-    heading(doc, L, t("6. 디커플링 모델", "6. Decoupling Models"), 1)
-    heading(doc, L, t("6.1 2단계 물리 기반 디커플러(인장·근접)",
-                      "6.1 Two-Stage Physics-Guided Decoupler (Strain and Proximity)"), 2)
+    heading(doc, L, t("3.4 도체 대 유전체 표적", "3.4 Conductor vs. Dielectric Targets"), 2)
     para(doc, L, t(
-        "5.1절에서 확인한 비대칭을 그대로 구조로 옮기면 2단계 추정기가 된다. 1단계는 ΔR만으로 변형률을 "
+        "표적 종류에 따른 차이는 2.2절의 기구 차이에서 직접 따라온다. 금속에서는 와전류 손실이 지배적이어서 "
+        "근접 시 실효 인덕턴스가 크게 감소하는 반면, 손(유전체)에서는 유전율 변화에 의한 신호 증폭만 작용하여 "
+        "ΔL이 항상 양수이고 크기도 작다. 그림 3c에서 손 표적의 ΔL 등고선이 거의 수직인 것은, 이 조건에서 "
+        "인덕턴스가 사실상 인장 센서로만 동작한다는 뜻이며, 결과적으로 유전체 표적에 대한 근접 디커플링은 도체 "
+        "표적보다 근본적으로 어렵다. 이후의 모든 모델링은 도체 표적을 대상으로 한다.",
+        "The difference between targets follows directly from the mechanisms of Section "
+        "2.2. For metal, eddy-current loss dominates and the effective inductance drops "
+        "substantially on approach; for a hand (a dielectric), only permittivity-driven "
+        "signal amplification acts, so ΔL remains positive and small. The nearly vertical "
+        "ΔL contours for the hand target in Fig. 3c mean that, under these conditions, the "
+        "inductance behaves essentially as a strain sensor alone, and proximity decoupling "
+        "for dielectric targets is therefore fundamentally harder than for conductive ones. "
+        "All subsequent modelling targets the conductive case."), align="j")
+
+    heading(doc, L, t("3.5 TENG 채널", "3.5 TENG Channel"), 2)
+    para(doc, L, t(
+        "TDM의 무여기 슬롯은 세 번째 신호인 마찰전기 전압 V_TENG도 함께 취득한다. 2.2절에서 설명한 것처럼, "
+        "이 신호는 대전된 물체가 접촉하는 순간 전하 이동에 의한 피크로 나타나며 상태량이 아니라 이벤트 신호다. "
+        "본 연구는 접촉 게이트가 ΔL·ΔR만으로 98 % 이상의 정확도를 달성함을 확인했으므로(4.1.4절), TENG을 "
+        "디커플러 입력에 포함하지 않았다. 이 채널을 슬립 감지나 재질 식별로 확장하는 방향에 대한 물리적 근거와 "
+        "필요 조건은 1.3절과 5절에서 논의한다.",
+        "The no-excitation slot of the TDM schedule also acquires a third signal, the "
+        "triboelectric voltage V_TENG. As described in Section 2.2, this signal appears as "
+        "a charge-transfer peak at the instant a charged body makes contact, and it is an "
+        "event signal rather than a state quantity. Because the contact gate already "
+        "reaches over 98 % accuracy from ΔL and ΔR alone (Section 4.1.4), V_TENG was not "
+        "included as a decoupler input in this study. The physical rationale and "
+        "requirements for extending this channel toward slip sensing or material "
+        "identification are discussed in Sections 1.3 and 5."),
+        align="j")
+    # ── 4. 디커플링 모델과 실시간 추론을 위한 임베디드 구현 ──────────────────
+    heading(doc, L, t("4. 디커플링 모델과 실시간 추론을 위한 임베디드 구현",
+                      "4. Decoupling Model and Embedded Implementation for Real-Time Inference"), 1)
+    heading(doc, L, t("4.1 디커플링 모델", "4.1 Decoupling Model"), 2)
+    para(doc, L, t(
+        "위 이론식은 상호 인덕턴스 M(ε, d)의 해석적 형태를 요구하므로, 실용적으로는 다음의 경험적 피팅 모델을 "
+        "사용한다.",
+        "The theoretical expressions above require an analytical form for the mutual "
+        "inductance M(ε, d); in practice the following empirical fitting model is used "
+        "instead."), align="j")
+    eq(doc, L, "ΔR/R₀ = α₁ε + α₂ε²,    ΔL/L₀ = β₁ε + β₂/(d+d₀)^k + β₃·ε·f(d)")
+    para(doc, L, t(
+        "두 물리량을 신호로부터 되찾으려면 이 관계를 역산해야 한다. 미소 변화에 대해 선형화하면 야코비안 J로 "
+        "표현되고, 역산은 J의 역행렬로 주어진다.",
+        "Recovering the two physical quantities from the signals requires inverting these "
+        "relations. Linearizing for small changes gives a Jacobian J, and the inversion is "
+        "its matrix inverse."), align="j")
+    eq(doc, L, "[ΔR, ΔL]ᵀ = J · [Δε, Δd]ᵀ,    [ε, d]ᵀ = [ε₀, d₀]ᵀ + J⁻¹ · [ΔR, ΔL]ᵀ")
+    para(doc, L, t(
+        "이 접근은 두 가지 이유로 실패한다. 첫째, 절단 오차다. 근거리에서는 M² 항이, 대변형에서는 sinh⁻¹와 "
+        "ln 항이 지배하는 강한 비선형 영역이므로 선형 근사가 국소적으로만 유효하다. 둘째, 특이점과 직교성 "
+        "상실이다. ∇R과 ∇L의 방향이 가까워지면 det(J) → 0이 되어 J⁻¹이 발산하고, 작은 측정 잡음이 크게 "
+        "증폭된다. 실제로 접촉 영역에서 교차항을 포함한 물리식을 직접 역산했을 때 결정계수는 0.26에 그쳤고, "
+        "품질이 낮은 데이터가 섞이면 변형률 0 근처에서 R² = −75까지 발산하였다(부록 S4). 반면 3.2절에서 "
+        "보이듯 ∇L과 ∇R은 전역적으로는 선형 독립이므로 정보 자체는 존재한다. 즉 문제는 정보의 부재가 아니라 "
+        "역산 방법에 있으며, 이것이 순방향 연산만 수행하여 특이점이 원리적으로 발생하지 않고 O(1) 지연으로 "
+        "동작하는 학습 기반 디커플러를 채택한 이유다.",
+        "This approach fails for two reasons. First, truncation error: the near field is "
+        "dominated by the M² term and large strain by sinh⁻¹ and ln terms, so the linear "
+        "approximation is valid only locally. Second, singularity and loss of "
+        "orthogonality: as the directions of ∇R and ∇L converge, det(J) approaches zero, "
+        "J⁻¹ diverges and small measurement noise is greatly amplified. In practice, direct "
+        "inversion of the physics expression including the cross term in the contact regime "
+        "reached a coefficient of determination of only 0.26, and diverged to R² = −75 near "
+        "zero strain when lower-quality data were included (Appendix S4). As Section 3.2 "
+        "shows, however, ∇L and ∇R are globally linearly independent, so the information "
+        "itself is present. The problem lies in the inversion method rather than in missing "
+        "information, which is why a learned decoupler was adopted: it performs only "
+        "forward operations, so singularities cannot arise in principle, and it runs with "
+        "O(1) latency."), align="j")
+
+    heading(doc, L, t("4.1.1 2단계 물리 기반 디커플러(인장·근접)",
+                      "4.1.1 Two-Stage Physics-Guided Decoupler (Strain and Proximity)"), 3)
+    para(doc, L, t(
+        "3.2절에서 확인한 비대칭을 그대로 구조로 옮기면 2단계 추정기가 된다. 1단계는 ΔR만으로 변형률을 "
         "추정하고(ε̂), 2단계는 ΔL과 ε̂을 함께 받아 근접거리를 추정한다(d̂). 이 구조는 저항이 변형률만의 함수라는 "
         "물리 사실을 귀납 편향으로 부여하므로, 동일 파라미터 예산에서 단일 종단 모델보다 유리하다. 약 50 K "
         "파라미터로 예산을 맞춘 공정 비교에서 2단계 구조(50,306 파라미터, 49,664 MACs)의 근접 MAE는 1.783 mm로 "
         "종단 구조(49,592 파라미터, 49,140 MACs)의 1.827 mm보다 우수하였다.",
-        "Transferring the asymmetry established in Section 5.1 directly into the "
+        "Transferring the asymmetry established in Section 3.2 directly into the "
         "architecture yields a two-stage estimator: stage 1 estimates strain from ΔR alone, "
         "and stage 2 receives both ΔL and the estimated strain to predict distance. The "
         "structure imposes the physical fact that resistance is a function of strain only "
@@ -635,17 +646,17 @@ def build(doc, L):
         "in extrapolation regions."), align="j")
     para(doc, L, t(
         "오차 구조에는 뚜렷한 비대칭이 있다. 변형률 오차는 전 구간에서 분산이 일정한 동분산 특성을 보이는 반면, "
-        "근접거리 오차는 이분산 특성을 보여 d > 10 mm에서 급격히 불안정해진다. 이는 5.1절에서 본 ΔL 곡면의 "
+        "근접거리 오차는 이분산 특성을 보여 d > 10 mm에서 급격히 불안정해진다. 이는 3.2절에서 본 ΔL 곡면의 "
         "곡률이 근거리에 집중되어 있다는 사실의 직접적 귀결이며, 이후 모든 평가에서 d ≤ 15 mm와 d ≤ 10 mm "
         "구간을 별도로 보고하는 이유다.",
         "The error structure is markedly asymmetric. The strain error is homoscedastic "
         "across the range, whereas the distance error is heteroscedastic and becomes "
         "unstable beyond d = 10 mm. This follows directly from the concentration of ΔL "
-        "surface curvature in the near field seen in Section 5.1, and is the reason the "
+        "surface curvature in the near field seen in Section 3.2, and is the reason the "
         "d ≤ 15 mm and d ≤ 10 mm ranges are reported separately in all subsequent "
         "evaluations."), align="j")
 
-    heading(doc, L, t("6.2 아키텍처 탐색과 양자화", "6.2 Architecture Search and Quantization"), 2)
+    heading(doc, L, t("4.1.2 아키텍처 탐색과 양자화", "4.1.2 Architecture Search and Quantization"), 3)
     para(doc, L, t(
         "임베딩 비용을 최소화하기 위해 동일한 2단계 구조를 유지한 채 13가지 크기의 신경망을 학습하여 파라미터 "
         "수와 정확도의 상충 관계를 조사하였다(그림 5, 부록 S2). 46 파라미터의 최소 모델도 근접 MAE 2.115 mm를 "
@@ -684,14 +695,14 @@ def build(doc, L):
         "experience is the direct reason the later MoE model was designed at the "
         "1,413-parameter scale."), align="j")
 
-    heading(doc, L, t("6.3 점탄성에서 유도한 이력 피처 (SLS-EMA)",
-                      "6.3 History Features Derived from Viscoelasticity (SLS-EMA)"), 2)
+    heading(doc, L, t("4.1.3 점탄성에서 유도한 이력 피처 (SLS-EMA)",
+                      "4.1.3 History Features Derived from Viscoelasticity (SLS-EMA)"), 3)
     para(doc, L, t(
-        "5.2절에서 확인한 것처럼, 접촉 구간의 신호는 현재 깊이만으로 결정되지 않고 얼마나 오래 눌려 있었는지에 "
+        "3.3절에서 확인한 것처럼, 접촉 구간의 신호는 현재 깊이만으로 결정되지 않고 얼마나 오래 눌려 있었는지에 "
         "의존한다. 따라서 순간값만 입력받는 모델은 원리적으로 이 정보를 복원할 수 없다. SLS 모델의 지수 완화 "
         "해에서 출발하면, 과거 샘플의 기여가 exp(−Δt/τ)로 감쇠하는 가중평균, 즉 인과적 지수이동평균(EMA)이 "
         "자연스럽게 도출된다.",
-        "As established in Section 5.2, the signal in the contact regime is determined not "
+        "As established in Section 3.3, the signal in the contact regime is determined not "
         "by the instantaneous depth alone but by how long the sensor has been compressed. A "
         "model receiving only instantaneous values therefore cannot in principle recover "
         "this information. Starting from the exponential relaxation solution of the SLS "
@@ -717,8 +728,8 @@ def build(doc, L):
         "truth itself fluctuates by ±0.19 N under the same conditions, so this error is "
         "close to the measurement limit of the label."), align="j")
 
-    heading(doc, L, t("6.4 게이트–전문가(Gate-MoE) 구조와 절제 실험",
-                      "6.4 Gate-Expert (Gate-MoE) Architecture and Ablation"), 2)
+    heading(doc, L, t("4.1.4 게이트–전문가(Gate-MoE) 구조와 절제 실험",
+                      "4.1.4 Gate-Expert (Gate-MoE) Architecture and Ablation"), 3)
     para(doc, L, t(
         "비접촉 구간과 접촉 구간은 출력 물리량 자체가 다르다. 전자는 (변형률, 근접거리)를, 후자는 (변형률, "
         "접촉력)을 추정해야 하며, 입력–출력 관계의 형태도 다르다. 하나의 회귀 모델로 두 영역을 모두 담당하게 "
@@ -789,9 +800,8 @@ def build(doc, L):
         "state to be carried between calls, eliminating the risk of error accumulation "
         "under quantization."), align="j")
 
-    # ── 7. 임베디드 구현 ────────────────────────────────────────────────────
-    heading(doc, L, t("7. 임베디드 구현", "7. Embedded Implementation"), 1)
-    heading(doc, L, t("7.1 배포 파이프라인", "7.1 Deployment Pipeline"), 2)
+    heading(doc, L, t("4.2 임베디드 구현", "4.2 Embedded Implementation"), 2)
+    heading(doc, L, t("4.2.1 배포 파이프라인", "4.2.1 Deployment Pipeline"), 3)
     para(doc, L, t(
         "학습된 scikit-learn[30] 모델은 skl2onnx로 ONNX로 변환한 뒤 ST의 stedgeai 도구[29]로 STM32용 C 코드로 "
         "생성하였다. sklearn과 ONNX 사이의 수치 검증 오차는 게이트 1e−6, 전문가 1e−5 미만이었다. "
@@ -811,7 +821,7 @@ def build(doc, L):
         "update → expert in that order, after which the result is streamed over UART. "
         "Inference time is measured directly with the DWT cycle counter."), align="j")
 
-    heading(doc, L, t("7.2 자원 사용량과 지연", "7.2 Resource Usage and Latency"), 2)
+    heading(doc, L, t("4.2.2 자원 사용량과 지연", "4.2.2 Resource Usage and Latency"), 3)
     para(doc, L, t(
         "표 4은 임베디드 구현의 자원 사용량을 정리한 것이다. MoE 모델은 전체 가중치가 5.7 KB에 불과해 캐시에 "
         "상주하며, 실측 지연이 중앙값 260.4 µs, 95 백분위수 262.5 µs로 1 ms 주기 안에서 여유 있게 완결된다. "
@@ -849,8 +859,8 @@ def build(doc, L):
                     "128 KB flash, 32 KB SRAM)."),
           widths=[4.0, 4.2, 3.4, 4.2])
 
-    heading(doc, L, t("7.3 실기에서만 드러난 실패 모드",
-                      "7.3 A Failure Mode Visible Only on Hardware"), 2)
+    heading(doc, L, t("4.2.3 실기에서만 드러난 실패 모드",
+                      "4.2.3 A Failure Mode Visible Only on Hardware"), 3)
     para(doc, L, t(
         "최초 배포한 게이트는 EMA를 포함한 4입력 구조로, 오프라인 held-out 정확도가 100.0 %였다(표 3 모델 A). "
         "그러나 보드를 실제로 눌렀다 떼자 게이트가 접촉 해제 후에도 한동안 접촉 판정을 유지하는 현상이 "
@@ -893,9 +903,8 @@ def build(doc, L):
         "reproduced at deployment, this case shows that embedded validation cannot be "
         "replaced by offline evaluation."), align="j")
 
-    # ── 8. 실시간 검증 ──────────────────────────────────────────────────────
-    heading(doc, L, t("8. 실시간 검증", "8. Real-Time Validation"), 1)
-    heading(doc, L, t("8.1 검증 프로토콜", "8.1 Validation Protocol"), 2)
+    heading(doc, L, t("4.3 실시간 검증", "4.3 Real-Time Validation"), 2)
+    heading(doc, L, t("4.3.1 검증 프로토콜", "4.3.1 Validation Protocol"), 3)
     para(doc, L, t(
         "검증은 학습에 쓰인 세션과 별개로 수행한 세 개의 연속 세션(D5)에서 이루어졌다. 각 세션은 세 부분으로 "
         "구성된다. Part 1(0–398 s)에서는 변형률을 단계적으로 고정한 채 Z축을 25 mm에서 접촉까지 반복 "
@@ -922,7 +931,7 @@ def build(doc, L):
         "gate reports non-contact. (d) Contact force, shown only where the gate reports "
         "contact. Dotted lines mark the Part boundaries."))
 
-    heading(doc, L, t("8.2 구간별 결과", "8.2 Part-Wise Results"), 2)
+    heading(doc, L, t("4.3.2 구간별 결과", "4.3.2 Part-Wise Results"), 3)
     para(doc, L, t(
         "그림 7과 표 5가 결과를 요약한다. Part 1에서는 세 물리량이 모두 잘 복원된다. 두 번째 세션 기준으로 "
         "변형률 R² = 0.981(RMSE 1.37 %p), 근접거리 R² = 0.940(RMSE 2.11 mm)이며, 게이트 정확도는 98.3 %였다. "
@@ -987,15 +996,15 @@ def build(doc, L):
                     "two-stage (strain and proximity) decoupler."),
           widths=[4.6, 3.4, 3.6, 4.2])
 
-    heading(doc, L, t("8.3 준정적 구간의 성능 저하와 원인",
-                      "8.3 Degradation in Quasi-Static Segments and Its Cause"), 2)
+    heading(doc, L, t("4.3.3 준정적 구간의 성능 저하와 원인",
+                      "4.3.3 Degradation in Quasi-Static Segments and Its Cause"), 3)
     para(doc, L, t(
         "Part 2와 Part 3에서 근접거리 추정의 R²가 음수로 떨어졌다. 음수 R²는 예측이 단순 평균보다 못하다는 "
         "뜻이므로 그대로 보고할 필요가 있다. 다만 이 구간에서 근접거리는 사실상 고정되어 있어 정답의 분산 "
         "자체가 매우 작다. R² = 1 − RMSE²/Var(y)이므로 분모가 작으면 절대 오차가 작아도 R²가 크게 나빠진다. "
         "실제로 Part 2의 근접 RMSE는 6.19 mm로, Part 1의 2.11 mm보다 3배가량 큰 데 그친다. 그럼에도 이 저하는 "
         "실재하며, 근접 신호가 준정적일 때 인덕턴스에 남는 정보가 잡음 수준으로 줄어든다는 사실을 보여준다. "
-        "이는 6.1절에서 확인한 근접 오차의 이분산 특성과 같은 뿌리를 갖는다.",
+        "이는 4.1.1절에서 확인한 근접 오차의 이분산 특성과 같은 뿌리를 갖는다.",
         "In Parts 2 and 3 the R² of the distance estimate became negative. A negative R² "
         "means the prediction is worse than the mean and must be reported as such. In these "
         "segments, however, the distance is essentially fixed, so the variance of the "
@@ -1004,7 +1013,7 @@ def build(doc, L):
         "Part 2 was 6.19 mm, only about three times the 2.11 mm of Part 1. The degradation "
         "is nonetheless real and shows that, when the proximity signal is quasi-static, the "
         "information remaining in the inductance falls to the noise level. This shares a "
-        "root with the heteroscedastic distance error identified in Section 6.1."),
+        "root with the heteroscedastic distance error identified in Section 4.1.1."),
         align="j")
     para(doc, L, t(
         "원인을 좁히기 위해 동일한 원시 ΔL·ΔR을 PC에서 float64로 재현하여 같은 게이트·EMA·라우팅 논리를 "
@@ -1033,8 +1042,7 @@ def build(doc, L):
         "accurate — it means that, in noise-dominated segments, the degree of smoothing "
         "propagates directly into the metric."), align="j")
 
-    # ── 9. 논의 ─────────────────────────────────────────────────────────────
-    heading(doc, L, t("9. 논의", "9. Discussion"), 1)
+    heading(doc, L, t("5. 논의", "5. Discussion"), 1)
     para(doc, L, t(
         "본 연구의 결과는 단일 전극 멀티모달 센싱에서 무엇이 이미 가능하고 무엇이 아직 한계인지를 비교적 "
         "분명하게 나눈다. 가능한 것부터 정리하면 다음과 같다. 첫째, 두 가닥 배선만으로 세 신호를 1 kHz로 "
@@ -1060,33 +1068,36 @@ def build(doc, L):
     para(doc, L, t(
         "한계도 분명하다. 첫째, 근접 추정은 표적이 도체일 때만 실용적이다. 그림 3c에서 확인했듯 유전체 "
         "표적에서는 인덕턴스에 실리는 근접 정보가 미약하다. 둘째, 근접거리가 준정적인 구간에서 성능이 크게 "
-        "저하된다(8.3절). 이는 모델의 결함이라기보다 단일 채널에 실린 정보량의 한계에 가깝다. 셋째, 접촉력 "
+        "저하된다(4.3.3절). 이는 모델의 결함이라기보다 단일 채널에 실린 정보량의 한계에 가깝다. 셋째, 접촉력 "
         "추정 정확도는 정답으로 사용한 F/T 센서의 잡음(±0.19 N)에 근접해 있어, 이보다 낮은 오차를 주장하려면 "
         "더 정밀한 기준 계측이 선행되어야 한다. 넷째, TENG 채널은 취득만 하고 디커플러 입력으로 사용하지 "
         "않았다. 접촉 이벤트 검출은 게이트가 ΔL·ΔR만으로 98 % 이상 해내므로 현재로서는 TENG의 추가 가치가 "
-        "확인되지 않았으나, 미세 접촉이나 동적 텍스처 인식에서는 유용할 수 있다. 다섯째, 압축 시 Q-factor "
+        "확인되지 않았으나, 이는 TENG이 불필요하다는 뜻이 아니라 정상상태 검출이 아닌 다른 역할 — 접촉 "
+        "동역학·재질 식별(5절 (v), (vi)) — 에 적합하다는 뜻이다. 다섯째, 압축 시 Q-factor "
         "저하로 인한 겉보기 효과를 별도로 보정하지 않았다. 학습 기반 디커플러가 이를 흡수하지만, R_s를 별도로 "
         "측정할 수 있게 되면 물리적으로 더 정확한 인덕턴스 복원이 가능해질 것이다.",
         "The limitations are equally clear. First, proximity estimation is practical only "
         "for conductive targets; as Fig. 3c shows, a dielectric target imprints little "
         "proximity information on the inductance. Second, performance degrades "
-        "substantially where the distance is quasi-static (Section 8.3) — less a defect of "
+        "substantially where the distance is quasi-static (Section 4.3.3) — less a defect of "
         "the model than a limit on the information carried by a single channel. Third, the "
         "accuracy of the force estimate approaches the ±0.19 N noise of the F/T sensor used "
         "as ground truth, so claiming lower error would require more precise reference "
         "instrumentation first. Fourth, the TENG channel was acquired but not used as a "
         "decoupler input: since the gate already detects contact events with over 98 % "
         "accuracy from ΔL and ΔR alone, no additional value from TENG has yet been "
-        "demonstrated, although it may prove useful for light touch or dynamic texture "
-        "recognition. Fifth, the apparent effect of the falling Q factor under compression "
+        "demonstrated for that role. This does not mean TENG is unnecessary, however, but "
+        "that it is suited to a different role than steady-state detection — contact "
+        "dynamics and material identification, discussed as future work in Section 5 "
+        "(items v–vi). Fifth, the apparent effect of the falling Q factor under compression "
         "was not separately corrected; the learned decoupler absorbs it, but physically "
         "more accurate inductance recovery would become possible if R_s could be measured "
         "independently."), align="j")
     para(doc, L, t(
         "향후 방향은 네 가지다. (i) AC 등가 직렬 저항 R_s의 추가 취득. 현재 TDM은 AC 여기에서 공진 주파수만 "
         "읽는데, 같은 슬롯에서 R_s까지 얻으면 그림 1c의 시그니처가 완성되어 도체와 유전체를 부호로 구분할 수 "
-        "있고, 5.2절의 Q-factor 보정도 직접 가능해진다. (ii) 다중 주파수 임피던스 측정. 여러 주파수에서 "
-        "임피던스의 실수부·허수부를 얻으면 재질 구분과 근접 추정을 동시에 개선할 수 있고, 8.3절의 준정적 구간 "
+        "있고, 3.3절의 Q-factor 보정도 직접 가능해진다. (ii) 다중 주파수 임피던스 측정. 여러 주파수에서 "
+        "임피던스의 실수부·허수부를 얻으면 재질 구분과 근접 추정을 동시에 개선할 수 있고, 4.3.3절의 준정적 구간 "
         "문제도 추가 채널로 완화될 여지가 있다. (iii) 2차원 변형 분해. 직사각형 나선은 x축과 y축에 대해 비대칭 "
         "감도를 가지며, ΔL이 (Δl, ΔA, Δd)의 함수인 반면 ΔR은 Δl만의 함수이므로 L과 R이 서로 다른 유효 고유 "
         "방향(effective eigen-direction)을 갖는다. 이를 이용하면 단일 전극에서 2축 변형을 분리할 수 있을 "
@@ -1097,11 +1108,11 @@ def build(doc, L):
         "resistance R_s. The present TDM reads only the resonant frequency during AC "
         "excitation; obtaining R_s in the same slot would complete the signature of "
         "Fig. 1c, allowing conductors and dielectrics to be distinguished by sign and "
-        "enabling the Q-factor correction of Section 5.2 to be applied directly. "
+        "enabling the Q-factor correction of Section 3.3 to be applied directly. "
         "(ii) Multi-frequency impedance measurement. Obtaining the real and imaginary parts "
         "of the impedance at several frequencies could improve material discrimination and "
         "proximity estimation together, and the extra channels may also mitigate the "
-        "quasi-static problem of Section 8.3. (iii) Two-dimensional strain decomposition. A "
+        "quasi-static problem of Section 4.3.3. (iii) Two-dimensional strain decomposition. A "
         "rectangular spiral has asymmetric sensitivity along its x and y axes, and since ΔL "
         "is a function of (Δl, ΔA, Δd) whereas ΔR depends on Δl alone, L and R possess "
         "different effective eigen-directions. This should permit biaxial strain to be "
@@ -1110,9 +1121,35 @@ def build(doc, L):
         "structure. In Table 3 the GRU matched the EMA-based models with 306 parameters; "
         "verifying X-CUBE-AI's recurrent-layer support, hidden-state reset logic and "
         "quantization stability on this board is the next task."), align="j")
+    para(doc, L, t(
+        "이 밖에도 TENG 채널이 이미 하드웨어·펌웨어에 존재한다는 점에서 비롯되는 두 방향을 별도로 남겨둔다. "
+        "(v) TENG 기반 접촉 동역학·슬립 감지. 마찰전기 신호는 상대적 미끄러짐이 있을 때만 발생하는 사건 "
+        "신호이므로, 정상상태 L·R 채널과 원리적으로 겹치지 않는 정보를 담을 수 있다[31]. 다만 현재 5축 "
+        "스테이지는 Z축이 순수 수직 접근·압축 전용이라 접촉을 유지한 채 접선 방향 미소 변위를 가할 수 없으므로, "
+        "검증하려면 시험 플랫폼에 슬립 전용 축이나 지그를 추가하는 하드웨어 확장이 선행되어야 한다. (vi) 접촉 "
+        "물체의 재질 식별. 2.2절과 3.4절에서 확인한 도체·유전체 간 ΔL 부호 차이를 넘어, 마찰전기 극성·크기를 "
+        "함께 활용하면 더 다양한 재질을 분류할 수 있을 것으로 기대된다[19], [32]. 이를 위해서는 현재의 금속·손 "
+        "2종 표적을 넘어서는 다중 재질 데이터셋을 새로 수집해야 한다. 두 방향 모두 본 연구에서는 구조와 물리적 "
+        "근거만 제시하며 실험적으로 검증하지 않았다.",
+        "Two further directions are set apart, both arising from the fact that the TENG "
+        "channel already exists in the hardware and firmware. (v) TENG-based contact "
+        "dynamics and slip sensing. Because the triboelectric signal is an event signal "
+        "that arises only under relative sliding motion, it can in principle carry "
+        "information that the steady-state L and R channels cannot [31]. Verifying this, "
+        "however, requires a hardware extension: the present five-axis stage's Z axis "
+        "provides only pure vertical approach and compression, so a dedicated slip axis "
+        "or jig would need to be added before in-contact lateral motion could be "
+        "applied. (vi) Identification of the contacted material. Beyond the sign "
+        "difference in ΔL between conductors and dielectrics established in Sections "
+        "2.2 and 4.4, combining the triboelectric polarity and magnitude is expected to "
+        "support classification across a wider range of materials [19], [32]. This "
+        "would require a new multi-material dataset beyond the metal and hand targets "
+        "used here. Neither direction is evaluated experimentally in this work; both "
+        "are presented here only at the level of structure and physical rationale."),
+        align="j")
 
-    # ── 10. 결론 ────────────────────────────────────────────────────────────
-    heading(doc, L, t("10. 결론", "10. Conclusion"), 1)
+    # ── 결론 ────────────────────────────────────────────────────────────────
+    heading(doc, L, t("6. 결론", "6. Conclusion"), 1)
     para(doc, L, t(
         "두 가닥 단일 전극 EGaIn 나선 코일에서 시분할 측정으로 인덕턴스·저항·마찰전기 전압을 1 ms 주기로 "
         "취득하고, 이를 임베디드 AI로 실시간 디커플링하는 멀티모달 센싱 시스템을 설계·제작·검증하였다. 브리징 "

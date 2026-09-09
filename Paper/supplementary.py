@@ -112,7 +112,7 @@ def build(doc, L):
         "인장이 가해지면 세 형상 인자가 각각 다른 지수로 변한다. 체적 보존과 평면 나선의 기하 구속에서 "
         "A(ε) = A₀(1+ε)^0.5, t(ε) = t₀(1+ε)^1.5, r(ε) = r₀(1+ε)^(−0.5)가 얻어지며, 이를 위 식에 대입하면 "
         "L_self(ε)가 결정된다. 반면 DC 저항은 R_DC(ε) = R_DC,0(1+ε)²로 단순하다. 이 비대칭 — 인덕턴스는 "
-        "초월함수를 포함한 복잡한 형상 의존성을, 저항은 단순한 멱함수 의존성을 갖는다는 점 — 이 본문 2.3절에서 "
+        "초월함수를 포함한 복잡한 형상 의존성을, 저항은 단순한 멱함수 의존성을 갖는다는 점 — 이 본문 4.1절에서 "
         "해석적 역산이 실패하는 이유의 일부다.",
         "Under tension the three shape factors scale with different exponents. Volume "
         "conservation together with the geometric constraints of a planar spiral gives "
@@ -121,7 +121,7 @@ def build(doc, L):
         "contrast, is simply R_DC(ε) = R_DC,0(1+ε)². This asymmetry — the inductance "
         "carrying a complicated shape dependence involving transcendental functions while "
         "the resistance follows a simple power law — is part of why analytical inversion "
-        "fails in Section 2.3."), size=9.5)
+        "fails in Section 4.1."), size=9.5)
 
     # S4 물리 파라미터
     heading(doc, L, t("S4. 학습된 물리 파라미터와 물리식 역산의 한계",
@@ -138,14 +138,14 @@ def build(doc, L):
         "접촉 영역에서 ε×F 교차항을 포함한 물리식을 직접 역산한 실험(후보 C4)에서는, 전방향 피팅 자체는 "
         "R² = 0.955로 양호했으나 역산 결과는 정답 변형률을 알려준 조건에서도 R² = 0.714, 추정 변형률을 사용한 "
         "실제 조건에서는 R² = 0.263에 그쳤다. 품질이 낮은 데이터를 포함했을 때는 변형률 0 근처에서 R² = −75까지 "
-        "발산하였다. 이는 조건수 23의 선형 근사(5.3절)와 일치하는 결과로, 물리식은 학습을 보조하는 제약항으로는 "
+        "발산하였다. 이는 조건수 23의 선형 근사(3.3절)와 일치하는 결과로, 물리식은 학습을 보조하는 제약항으로는 "
         "유효하나 그 자체로 안정적인 역산 수단이 아님을 보여준다.",
         "In an experiment that inverted the physics expression including the strain-force "
         "cross term directly (candidate C4), the forward fit itself was good (R² = 0.955), but "
         "inversion gave R² = 0.714 even when the true strain was supplied and only R² = 0.263 "
         "under realistic conditions using the estimated strain. When lower-quality data were "
         "included, the inversion diverged to R² = −75 near zero strain. This is consistent "
-        "with the condition number of 23 found in Section 5.3 and shows that the physics "
+        "with the condition number of 23 found in Section 3.3 and shows that the physics "
         "expression is useful as a training constraint but not as a stable inversion tool by "
         "itself."), size=9.5)
 

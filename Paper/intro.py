@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Paper/intro.py — 1. 서론 (국문/영문 동시 정의).
+"""Paper/intro.py — 1. Introduction (English primary, Korean translation).
 
-인용 번호는 content.py 하단 REFS 목록과 일치해야 한다.
+Section numbering (kept in sync with content.py):
+  1.1 Background
+  1.2 Limitations of Current Research
+  1.3 Purpose and Significance of This Study
+
+Citation numbers must match the REFS list at the bottom of content.py / refs.py.
 """
 from build_paper import bullets, heading, para, table
 
@@ -12,7 +17,7 @@ def build(doc, L):
 
     heading(doc, L, t("1. 서론", "1. Introduction"), 1)
 
-    # ── 1.1 멀티모달 인지의 필요성 ──────────────────────────────────────────
+    # ── opening: signal coupling problem ────────────────────────────────────
     para(doc, L, t(
         "로봇과 인간이 같은 공간을 공유하는 응용이 늘어나면서, 로봇 표면이 주변 상황과 자기 자신의 상태를 함께 "
         "인지할 것이 요구되고 있다[1]. 실제 상호작용에서는 여러 자극이 동시에 작용하기 때문에 단일 물리량만 "
@@ -33,14 +38,15 @@ def build(doc, L):
         "and at the same time must be treated together because they are mutually coupled."),
         align="j")
 
-    # ── 1.2 각 모달리티의 필요성 ────────────────────────────────────────────
-    heading(doc, L, t("1.1 각 모달리티의 필요성", "1.1 Why Each Modality Is Needed"), 2)
+    # ══ 1.1 Background ═══════════════════════════════════════════════════════
+    heading(doc, L, t("1.1 배경", "1.1 Background"), 2)
     para(doc, L, t(
         "근접(비접촉) 감지는 충돌이 일어나기 전에 개입할 수 있는 유일한 수단이다. 안전한 인간–로봇 물리적 "
         "상호작용(pHRI)에서는 접촉이 발생한 뒤 반응하는 것으로는 충분하지 않으며, 접촉 이전에 물체의 접근을 "
         "예측하고 궤적을 수정해야 한다[6], [7]. 이 때문에 로봇 팔 외피 전면에 근접 센서를 분포시켜 표면 전체에서 "
         "충돌을 회피하거나[8], 레이저 거리계 링을 몸체에 둘러 준전신(quasi whole-body) 감지를 구현하는[9] "
-        "연구가 이어져 왔다. 근접 감지는 파지에서도 유용해, 손이 물체에 닿기 전에 자세를 미리 정렬하는 데 쓰인다.",
+        "연구가 이어져 왔다. 근접 감지는 파지에서도 유용해, 손이 물체에 닿기 전에 자세를 미리 정렬하는 데 "
+        "쓰인다[33].",
         "Proximity (non-contact) sensing is the only means of intervening before a "
         "collision occurs. In safe physical human-robot interaction (pHRI), reacting after "
         "contact has already happened is insufficient: the approach of an object must be "
@@ -48,7 +54,8 @@ def build(doc, L):
         "work that distributes proximity sensors over the whole exterior of a manipulator "
         "to avoid collisions across its entire surface [8], or wraps laser-ranging rings "
         "around the body for quasi whole-body sensing [9]. Proximity sensing is also useful "
-        "in grasping, where it is used to pre-shape the hand before it reaches the object."),
+        "in grasping, where it is used to pre-shape the hand before it reaches the "
+        "object [33]."),
         align="j")
     para(doc, L, t(
         "접촉력 감지는 접촉이 시작된 순간부터 필요해진다. 파지 안정성은 가하는 힘의 크기에 직접 좌우되므로, "
@@ -81,7 +88,7 @@ def build(doc, L):
     para(doc, L, t(
         "세 모달리티를 같은 지점에서 동시에 얻어야 하는 이유는 단순한 편의가 아니다. 변형하는 표면 위에서는 "
         "근접·접촉 신호의 기준 자체가 변형 상태에 따라 달라지기 때문이다. 본 연구의 측정에서도 인장 상태가 "
-        "압력 민감도를 6.6배까지 바꾸는 교차 민감도가 관측되었다(5.3절). 즉 변형률을 모르면 같은 저항 변화가 "
+        "압력 민감도를 6.6배까지 바꾸는 교차 민감도가 관측되었다(3.3절). 즉 변형률을 모르면 같은 저항 변화가 "
         "어느 정도의 접촉력에 해당하는지 확정할 수 없다. 세 물리량을 각각 별개의 센서로 측정하더라도 이 결합은 "
         "사라지지 않으며, 오히려 서로 다른 위치에서 측정된 값을 정합해야 하는 문제가 추가된다. 따라서 결합이 "
         "발생하는 바로 그 지점에서 세 신호를 동시에 취득하고 함께 디커플링하는 것이 원리적으로 타당한 접근이다.",
@@ -89,7 +96,7 @@ def build(doc, L):
         "merely a matter of convenience. On a deforming surface, the very reference for the "
         "proximity and contact signals shifts with the deformation state. In the "
         "measurements reported here, the strain state was found to change the pressure "
-        "sensitivity by up to a factor of 6.6 (Section 5.3): without knowing the strain, it "
+        "sensitivity by up to a factor of 6.6 (Section 3.3): without knowing the strain, it "
         "is impossible to determine what contact force a given resistance change "
         "corresponds to. Measuring the three quantities with three separate sensors does "
         "not remove this coupling; it merely adds the problem of registering values "
@@ -97,85 +104,8 @@ def build(doc, L):
         "where the coupling arises, and decoupling them jointly, is therefore the "
         "principled approach."), align="j")
 
-    # ── 1.3 왜 소프트 단일 전극 센서인가 ────────────────────────────────────
-    heading(doc, L, t("1.2 왜 소프트 단일 전극 센서인가",
-                      "1.2 Why a Soft Single-Electrode Sensor"), 2)
-    para(doc, L, t(
-        "센서가 부착될 대상은 곡면이거나 크게 변형하는 표면이다. 강체 센서를 배열하면 이러한 표면에 밀착시킬 수 "
-        "없고, 배열 사이의 강성 불연속이 오히려 변형을 방해한다. 유연 센서는 등각 접촉(conformal contact)과 "
-        "대변형을 허용하므로 이 제약을 해소하며, 웨어러블 응용으로도 확장된다[4], [16].",
-        "The surfaces on which such a sensor must be mounted are curved or undergo large "
-        "deformation. An array of rigid sensors cannot conform to them, and the stiffness "
-        "discontinuities between elements actively impede deformation. Flexible sensors "
-        "permit conformal contact and large deformation, removing this constraint and "
-        "extending to wearable applications [4], [16]."), align="j")
-    para(doc, L, t(
-        "그러나 유연화만으로는 충분하지 않다. 세 모달리티를 세 개의 개별 소자로 구현하면 소자 수에 비례해 배선이 "
-        "늘어나고, 적층에 따른 두께 증가와 박리 위험, 인접 소자 간 크로스토크가 뒤따른다[1], [5]. 대면적 전자 "
-        "피부에서는 이 배선 복잡도가 실용화의 주된 병목으로 지적되어 왔다. 본 연구가 채택한 접근은 소자 수를 "
-        "늘리는 대신 하나의 소자를 시간축에서 나누어 쓰는 것이다. EGaIn 나선 코일 하나에 두 가닥 배선만 연결하고, "
-        "여기(excitation) 상태를 바꿔가며 인덕턴스·저항·마찰전기 전압을 순차 취득한다. 소자가 하나뿐이므로 소자 "
-        "간 크로스토크가 원리적으로 존재하지 않고, 배선 수는 모달리티 수와 무관하게 2로 고정되며, 평면성과 "
-        "신축성이 그대로 유지된다. 코일 형태를 유지한다는 점은 향후 무선 전력 전송이나 통신으로 확장할 여지도 "
-        "남긴다.",
-        "Flexibility alone, however, is not sufficient. Implementing the three modalities "
-        "as three separate devices increases the wiring in proportion to the device count "
-        "and brings with it added thickness, delamination risk from stacking, and "
-        "cross-talk between neighbouring elements [1], [5]. In large-area electronic skin "
-        "this wiring complexity has been identified as a principal bottleneck to practical "
-        "deployment. The approach adopted here is to divide one device in time rather than "
-        "to multiply devices. A single EGaIn spiral coil is connected through only two "
-        "wires, and inductance, resistance and triboelectric voltage are acquired in "
-        "sequence as the excitation state is switched. Because there is only one device, "
-        "cross-talk between devices cannot arise in principle; the wire count stays fixed "
-        "at two regardless of the number of modalities; and planarity and stretchability "
-        "are preserved. Retaining a coil geometry also leaves room for later extension to "
-        "wireless power transfer or communication."), align="j")
-
-    # ── 1.4 왜 임베디드 AI인가 ──────────────────────────────────────────────
-    heading(doc, L, t("1.3 왜 임베디드 AI인가", "1.3 Why Embedded AI"), 2)
-    para(doc, L, t(
-        "단일 소자에서 세 신호를 얻으면 신호 결합은 하드웨어가 아니라 계산으로 풀어야 한다. 문제는 그 계산을 "
-        "어디에서 수행하느냐다. 결합된 관계를 해석적으로 역산하는 방법은 야코비안 특이점에서 발산하므로 "
-        "실용적이지 않고(2.3절), 학습 기반 역매핑이 현실적인 대안이 된다. 그런데 데이터 기반 디커플링을 PC에서 "
-        "수행하면 매 샘플마다 MCU–PC 왕복이 발생한다. USB 시리얼 링크의 왕복 지연은 20–40 ms, 지터는 "
-        "±5–15 ms 수준이다. 접촉 전이(轉移)는 밀리초 단위로 진행되므로 이 지연은 되먹임 제어에 그대로 실패로 "
-        "이어진다. 병목은 모델이 아니라 통신 링크에 있으며, 모델을 아무리 빠르게 만들어도 링크를 거치는 한 "
-        "해소되지 않는다.",
-        "Once three signals are obtained from a single device, the signal coupling must be "
-        "resolved computationally rather than in hardware, and the question becomes where "
-        "that computation runs. Inverting the coupled relations analytically is impractical "
-        "because it diverges at Jacobian singularities (Section 2.3), leaving a learned "
-        "inverse mapping as the realistic alternative. Performing data-driven decoupling on "
-        "a host PC, however, incurs an MCU-PC round trip for every sample. The round-trip "
-        "delay of a USB serial link is 20-40 ms with ±5-15 ms of jitter. Since contact "
-        "transitions evolve on a millisecond scale, this delay translates directly into "
-        "failure of feedback control. The bottleneck is the communication link rather than "
-        "the model, and no amount of model acceleration removes it while the link remains "
-        "in the loop."), align="j")
-    para(doc, L, t(
-        "인덕턴스 계측을 LCR 미터 같은 탁상형 장비에 의존하는 것도 같은 성격의 제약이다. 정밀도는 확보되지만 "
-        "이동형·착용형 응용은 불가능해진다. 따라서 계측과 추론을 모두 센서 옆의 마이크로컨트롤러 안에서 끝내는 "
-        "구성이 필요하다. 온디바이스 추론은 네트워크 의존성 없이 결정론적인 지연을 제공하고, 배터리 구동이 "
-        "가능하며, 데이터를 외부로 내보내지 않는다. 다만 이 선택은 강한 제약을 동반한다. 모델은 플래시 128 KB와 "
-        "SRAM 32 KB 안에 들어가야 하고, 1 ms TDM 주기 안에서 취득과 추론을 모두 끝내야 한다. 본 연구에서 모델 "
-        "구조를 물리적 비대칭에 맞추어 설계하고 파라미터 수를 1,413개까지 줄인 것은 정확도만을 위한 선택이 "
-        "아니라 이 제약에서 출발한 결과다.",
-        "Relying on benchtop instruments such as LCR meters for the inductance measurement "
-        "is a constraint of the same kind: precision is obtained, but mobile and wearable "
-        "applications become impossible. What is needed is therefore a configuration in "
-        "which both measurement and inference complete inside a microcontroller beside the "
-        "sensor. On-device inference provides deterministic latency without network "
-        "dependency, permits battery operation, and keeps data local. This choice carries "
-        "hard constraints, however: the model must fit within 128 KB of flash and 32 KB of "
-        "SRAM, and acquisition and inference together must finish inside the 1 ms TDM "
-        "period. Designing the model structure around the physical asymmetry and reducing "
-        "it to 1,413 parameters was thus driven by these constraints, not by accuracy "
-        "alone."), align="j")
-
-    # ── 1.5 기존 연구의 한계 ────────────────────────────────────────────────
-    heading(doc, L, t("1.4 기존 연구의 한계와 본 연구의 대응",
-                      "1.4 Limitations of Prior Work and How This Work Responds"), 2)
+    # ══ 1.2 Limitations of Current Research ══════════════════════════════════
+    heading(doc, L, t("1.2 기존 연구의 한계", "1.2 Limitations of Current Research"), 2)
     para(doc, L, t(
         "인덕티브 소프트 센서 자체는 활발히 연구되어 왔다. 액체금속 코일을 이용한 고해상도 인장 센서[16], "
         "와전류 효과 기반 촉각 센서[17], 평면 코일 굽힘 센서[18], 마찰전기–인덕티브 하이브리드 물체 인식 "
@@ -192,6 +122,28 @@ def build(doc, L):
         "use only one of strain or magnetic-field variation because decoupling is "
         "difficult, or address at most two modalities. Table 1 summarizes the limitations "
         "of prior approaches and how the present work responds to each."), align="j")
+    para(doc, L, t(
+        "여러 소자로 멀티모달 센싱을 구현하는 접근은 배치 방식에 관계없이 근본적으로 세 가지 한계 중 하나에 "
+        "부딪힌다. 소자를 평면 어레이로 배치하면 소자 수만큼 배선이 늘고 인접 소자 간 크로스토크가 발생하며 "
+        "필요한 면적도 함께 커진다[34], [35]. 소자를 적층하면 배선과 크로스토크 문제는 그대로 남으면서 층간 "
+        "박리라는 새로운 취약점이 추가된다[36], [37]. 반대로 앞서 살펴본 것처럼 단일 소자에서 여러 신호를 "
+        "얻는 인덕티브 소프트 센서는 배선·면적·박리 문제를 피할 수 있지만, 이번에는 신호 디커플링 자체가 "
+        "어려워 인장 또는 근접 중 하나만 단독으로 다루는 데 그친다[16]–[18], [21]. 즉 배선·크로스토크·박리 "
+        "문제와 디커플링 문제는 서로 다른 원인에서 비롯되며, 하나를 피하려는 설계는 다른 하나를 떠안는 경향이 "
+        "있다.",
+        "Regardless of how the devices are arranged, a multi-device approach to "
+        "multimodal sensing runs into one of three fundamental limitations. Arranging "
+        "devices as a planar array increases wiring in proportion to the device count, "
+        "introduces cross-talk between neighbouring elements, and requires more area "
+        "[34], [35]. Stacking devices leaves the wiring and cross-talk problems in "
+        "place while adding a new failure mode, interlayer delamination [36], [37]. "
+        "Conversely, as noted above, inductive soft sensors that obtain several "
+        "signals from a single device avoid the wiring, area and delamination "
+        "problems, but then face the decoupling problem itself, which limits them to "
+        "handling only strain or only proximity alone [16]–[18], [21]. The "
+        "wiring/cross-talk/delamination problems and the decoupling problem thus stem "
+        "from different causes, and a design that avoids one tends to inherit the "
+        "other."), align="j")
     table(doc, L,
           [t("선행 접근", "Prior approach"), t("한계", "Limitation"),
            t("본 연구의 대응", "Response in this work")],
@@ -248,7 +200,116 @@ def build(doc, L):
                     "work."),
           widths=[4.6, 5.6, 5.6])
 
-    # ── 1.6 기여 ────────────────────────────────────────────────────────────
+    # ══ 1.3 Purpose and Significance of This Study ═══════════════════════════
+    heading(doc, L, t("1.3 본 연구의 목적 및 중요성",
+                      "1.3 Purpose and Significance of This Study"), 2)
+    para(doc, L, t(
+        "센서가 부착될 대상은 곡면이거나 크게 변형하는 표면이다. 강체 센서를 배열하면 이러한 표면에 밀착시킬 수 "
+        "없고, 배열 사이의 강성 불연속이 오히려 변형을 방해한다. 유연 센서는 등각 접촉(conformal contact)과 "
+        "대변형을 허용하므로 이 제약을 해소하며, 웨어러블 응용으로도 확장된다[4], [16].",
+        "The surfaces on which such a sensor must be mounted are curved or undergo large "
+        "deformation. An array of rigid sensors cannot conform to them, and the stiffness "
+        "discontinuities between elements actively impede deformation. Flexible sensors "
+        "permit conformal contact and large deformation, removing this constraint and "
+        "extending to wearable applications [4], [16]."), align="j")
+    para(doc, L, t(
+        "그러나 유연화만으로는 충분하지 않다. 세 모달리티를 세 개의 개별 소자로 구현하면 소자 수에 비례해 배선이 "
+        "늘어나고, 적층에 따른 두께 증가와 박리 위험, 인접 소자 간 크로스토크가 뒤따른다[1], [5]. 대면적 전자 "
+        "피부에서는 이 배선 복잡도가 실용화의 주된 병목으로 지적되어 왔다. 본 연구가 채택한 접근은 소자 수를 "
+        "늘리는 대신 하나의 소자를 시간축에서 나누어 쓰는 것이다. EGaIn 나선 코일 하나에 두 가닥 배선만 연결하고, "
+        "여기(excitation) 상태를 바꿔가며 인덕턴스·저항·마찰전기 전압을 순차 취득한다. 소자가 하나뿐이므로 소자 "
+        "간 크로스토크가 원리적으로 존재하지 않고, 배선 수는 모달리티 수와 무관하게 2로 고정되며, 평면성과 "
+        "신축성이 그대로 유지된다. 코일 형태를 유지한다는 점은 향후 무선 전력 전송이나 통신으로 확장할 여지도 "
+        "남긴다.",
+        "Flexibility alone, however, is not sufficient. Implementing the three modalities "
+        "as three separate devices increases the wiring in proportion to the device count "
+        "and brings with it added thickness, delamination risk from stacking, and "
+        "cross-talk between neighbouring elements [1], [5]. In large-area electronic skin "
+        "this wiring complexity has been identified as a principal bottleneck to practical "
+        "deployment. The approach adopted here is to divide one device in time rather than "
+        "to multiply devices. A single EGaIn spiral coil is connected through only two "
+        "wires, and inductance, resistance and triboelectric voltage are acquired in "
+        "sequence as the excitation state is switched. Because there is only one device, "
+        "cross-talk between devices cannot arise in principle; the wire count stays fixed "
+        "at two regardless of the number of modalities; and planarity and stretchability "
+        "are preserved. Retaining a coil geometry also leaves room for later extension to "
+        "wireless power transfer or communication."), align="j")
+    para(doc, L, t(
+        "단일 소자에서 세 신호를 얻으면 신호 결합은 하드웨어가 아니라 계산으로 풀어야 한다. 문제는 그 계산을 "
+        "어디에서 수행하느냐다. 결합된 관계를 해석적으로 역산하는 방법은 야코비안 특이점에서 발산하므로 "
+        "실용적이지 않고(4.1절), 학습 기반 역매핑이 현실적인 대안이 된다. 그런데 데이터 기반 디커플링을 PC에서 "
+        "수행하면 매 샘플마다 MCU–PC 왕복이 발생한다. USB 시리얼 링크의 왕복 지연은 20–40 ms, 지터는 "
+        "±5–15 ms 수준이다. 접촉 전이(轉移)는 밀리초 단위로 진행되므로 이 지연은 되먹임 제어에 그대로 실패로 "
+        "이어진다. 병목은 모델이 아니라 통신 링크에 있으며, 모델을 아무리 빠르게 만들어도 링크를 거치는 한 "
+        "해소되지 않는다.",
+        "Once three signals are obtained from a single device, the signal coupling must be "
+        "resolved computationally rather than in hardware, and the question becomes where "
+        "that computation runs. Inverting the coupled relations analytically is impractical "
+        "because it diverges at Jacobian singularities (Section 4.1), leaving a learned "
+        "inverse mapping as the realistic alternative. Performing data-driven decoupling on "
+        "a host PC, however, incurs an MCU-PC round trip for every sample. The round-trip "
+        "delay of a USB serial link is 20-40 ms with ±5-15 ms of jitter. Since contact "
+        "transitions evolve on a millisecond scale, this delay translates directly into "
+        "failure of feedback control. The bottleneck is the communication link rather than "
+        "the model, and no amount of model acceleration removes it while the link remains "
+        "in the loop."), align="j")
+    para(doc, L, t(
+        "인덕턴스 계측을 LCR 미터 같은 탁상형 장비에 의존하는 것도 같은 성격의 제약이다. 정밀도는 확보되지만 "
+        "이동형·착용형 응용은 불가능해진다. 따라서 계측과 추론을 모두 센서 옆의 마이크로컨트롤러 안에서 끝내는 "
+        "구성이 필요하다. 온디바이스 추론은 네트워크 의존성 없이 결정론적인 지연을 제공하고, 배터리 구동이 "
+        "가능하며, 데이터를 외부로 내보내지 않는다. 다만 이 선택은 강한 제약을 동반한다. 모델은 플래시 128 KB와 "
+        "SRAM 32 KB 안에 들어가야 하고, 1 ms TDM 주기 안에서 취득과 추론을 모두 끝내야 한다. 본 연구에서 모델 "
+        "구조를 물리적 비대칭에 맞추어 설계하고 파라미터 수를 1,413개까지 줄인 것은 정확도만을 위한 선택이 "
+        "아니라 이 제약에서 출발한 결과다.",
+        "Relying on benchtop instruments such as LCR meters for the inductance measurement "
+        "is a constraint of the same kind: precision is obtained, but mobile and wearable "
+        "applications become impossible. What is needed is therefore a configuration in "
+        "which both measurement and inference complete inside a microcontroller beside the "
+        "sensor. On-device inference provides deterministic latency without network "
+        "dependency, permits battery operation, and keeps data local. This choice carries "
+        "hard constraints, however: the model must fit within 128 KB of flash and 32 KB of "
+        "SRAM, and acquisition and inference together must finish inside the 1 ms TDM "
+        "period. Designing the model structure around the physical asymmetry and reducing "
+        "it to 1,413 parameters was thus driven by these constraints, not by accuracy "
+        "alone."), align="j")
+    para(doc, L, t(
+        "동일한 TDM 스케줄은 세 번째 신호인 마찰전기 전압 V_TENG도 함께 취득하는데, 본 연구에서 이 신호의 "
+        "역할은 L·R보다 의도적으로 제한적이다. V_TENG은 접촉과 분리 순간의 전하 이동에 의해서만 발생하므로 "
+        "상태량이 아니라 이벤트·동역학 신호다 — 센서와 접촉체 사이에 상대 운동이 없으면, 4.1.3절의 인과적 이력 "
+        "피처로 평활한 뒤에도 L·R 채널이 원리적으로 담을 수 없는 정보를 TENG은 상대 운동이 있을 때만 담아낸다. "
+        "이는 본 연구가 다루는 세 모달리티를 넘어서는 두 가지 가능성을 시사한다. 첫째는 접촉 동역학과 "
+        "슬립(미끄러짐) 감지다 — 마찰전기 전하 생성은 본질적으로 상대적 미끄러짐 운동에 민감하며, 접촉 "
+        "계면의 미세 슬립을 마찰전기 신호로 직접 측정한 자가발전 센서 연구에서 이미 이 기구가 활용된 바 "
+        "있다[31]. 둘째는 접촉 물체의 재질을 체계적으로 식별하는 것이다 — 2.2절에서 보인 것처럼 ΔL의 "
+        "부호만으로도 도체와 유전체를 구분할 수 있는데, 여기에 물질의 마찰전기 서열(triboelectric series)상 "
+        "위치에 좌우되는 마찰전기 극성·크기 정보를 결합하면 이 이분법을 더 넓은 재질 분류로 확장할 수 있을 "
+        "것으로 기대된다 — 실제로 마찰전기 촉각 신호와 딥러닝을 결합해 재질과 질감을 동시에 인식하는 유연 "
+        "센서가 보고되어 있다[19], [32]. 두 방향 모두 본 연구 범위를 넘어서는 전용 데이터 수집이 필요해 "
+        "향후 과제로 남겨두었으나(5절), 이러한 이유로 V_TENG은 디커플러 입력으로는 L·R만 사용하는 지금도 "
+        "하드웨어·펌웨어에 그대로 유지되어 있다(3.5절).",
+        "The same TDM schedule also acquires a third signal, the triboelectric voltage "
+        "V_TENG, whose role here is deliberately narrower than that of L and R. Because "
+        "V_TENG arises only from charge transfer during contact and separation, it is an "
+        "event/dynamics signal rather than a state signal: it carries no information at "
+        "all in the absence of relative motion between the sensor and a contacting body — "
+        "exactly the axis that the L and R channels, even after smoothing with the causal "
+        "history feature of Section 4.1.3, cannot register in principle. This points to two "
+        "capabilities beyond the three modalities addressed in this study. The first is "
+        "contact dynamics and slip sensing: triboelectric charge generation is intrinsically "
+        "sensitive to relative sliding motion, a mechanism already exploited by a "
+        "self-powered sensor that measures micro-slip at a contact interface directly from "
+        "its triboelectric signal [31]. The second is systematic identification of the "
+        "contacted material: Section 2.2 shows that the sign of ΔL already separates "
+        "conductors from dielectrics, and combining this with the triboelectric polarity "
+        "and magnitude — which depend on a material's position in the triboelectric "
+        "series — is expected to extend that binary distinction toward broader material "
+        "classification; flexible triboelectric tactile sensors combined with deep "
+        "learning have indeed been reported to recognize both material and texture "
+        "simultaneously [19], [32]. Both directions require dedicated data collection "
+        "beyond the scope of this study and are left for future work (Section 5); "
+        "V_TENG is nonetheless retained in the hardware and firmware for this reason, "
+        "even though only L and R are routed to the decoupler here (Section 3.5)."),
+        align="j")
     para(doc, L, t("본 논문의 기여는 다음과 같다.",
                    "The contributions of this paper are as follows."), align="j")
     bullets(doc, L, [

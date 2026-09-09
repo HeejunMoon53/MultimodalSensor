@@ -1,0 +1,18 @@
+{
+  "strain": {
+    "r2": 0.20516919298350667,
+    "rmse": 8.860028806858498,
+    "n": 18460
+  },
+  "proximity": {
+    "r2": -4.536168407432972,
+    "rmse": 23.50313615242826,
+    "n": 11053
+  },
+  "force": {
+    "r2": 0.5387186836186286,
+    "rmse": 2.0392514599758584,
+    "n": 3920
+  },
+  "force_note": "strain_act_pct < 14 only; higher-strain pressure rows excluded due to inductance saturation"
+}

@@ -29,6 +29,7 @@ PINK = RGBColor(0xFD, 0xF0, 0xF0)
 PINK2 = RGBColor(0xFD, 0xF2, 0xF5)
 BLUEBG = RGBColor(0xEE, 0xF4, 0xFF)
 HEADBG = RGBColor(0x44, 0x44, 0x44)
+TITLEBLUE = RGBColor(0x44, 0x54, 0x6A)   # 26.09.18 아웃라인 표지 제목 색
 C_L = RGBColor(0xFF, 0x8C, 0x00)   # 인덕턴스 L — 주황
 C_V = RGBColor(0x1F, 0x77, 0xB4)   # TENG V — 파랑
 C_F = RGBColor(0xD6, 0x2D, 0x2D)   # 접촉력 — 빨강
@@ -143,20 +144,37 @@ class Deck:
         self.blank = self.prs.slide_layouts[6]
         self.n = 0
 
-    def slide(self, title=None, sub=None):
+    def slide(self, chapter=None, subsection=None, headline=None):
+        """헤더 형식은 26.09.18 세미나 아웃라인을 그대로 따른다: 장(chapter, 예:
+        'I. Introduction')이 큰 제목, 절 번호(subsection, 예: '1.1 Background')이
+        그 아래 볼드 소제목, headline 은 그 슬라이드만의 짧은 보조 설명(선택)."""
         s = self.prs.slides.add_slide(self.blank)
-        if title is not None:
+        if chapter is not None:
             self.n += 1
-            tf = textbox(s, MARGIN, Cm(1.0), SW - 2 * MARGIN - Cm(3), Cm(1.2))
-            put(tf, title, 25, True, DARK, first=True, space_after=0)
-            if sub:
-                tf2 = textbox(s, MARGIN, Cm(2.22), SW - 2 * MARGIN - Cm(3), Cm(0.8))
-                put(tf2, sub, 12.5, False, GREY, first=True, space_after=0)
+            tf = textbox(s, MARGIN, Cm(0.65), SW - 2 * MARGIN, Cm(1.0))
+            put(tf, chapter, 24, True, DARK, first=True, space_after=0)
+            if subsection:
+                tf2 = textbox(s, MARGIN, Cm(1.62), SW - 2 * MARGIN, Cm(0.75))
+                put(tf2, subsection, 16, True, DARK, first=True, space_after=0)
+            if headline:
+                tf3 = textbox(s, MARGIN, Cm(2.36), SW - 2 * MARGIN, Cm(0.6))
+                put(tf3, headline, 12, False, MAROON, first=True, space_after=0)
             line(s, MARGIN, Cm(2.98), SW - 2 * MARGIN - Cm(4.2))
             line(s, SW - MARGIN - Cm(3.6), Cm(2.98), Cm(3.6), BEIGE, 2.5)
             tfn = textbox(s, SW - MARGIN - Cm(2.4), SH - Cm(1.15), Cm(2.4), Cm(0.7))
             put(tfn, str(self.n), 11, False, GREY, first=True,
                 align=PP_ALIGN.RIGHT, space_after=0)
+        return s
+
+    def divider(self, text):
+        """26.09.18 아웃라인의 장 구분 슬라이드: 전면 베이지 배경 + 흰색 로마숫자 장 제목."""
+        s = self.prs.slides.add_slide(self.blank)
+        self.n += 1
+        rect(s, 0, 0, SW, SH, BEIGE, radius=False)
+        tf = textbox(s, Cm(2.4), SH / 2 - Cm(2.0), SW - Cm(4.8), Cm(4.0),
+                     anchor=MSO_ANCHOR.MIDDLE)
+        put(tf, text, 30, True, WHITE, first=True, align=PP_ALIGN.CENTER,
+            space_after=0, line=1.2)
         return s
 
     def pic(self, slide, name, x, y, w=None, h=None):
@@ -177,63 +195,71 @@ def build(L):
 
     # ── 1. 표지 ─────────────────────────────────────────────────────────────
     s = d.slide()
-    rect(s, Cm(0), Cm(0), SW, Cm(0.45), MAROON, radius=False)
-    tf = textbox(s, MARGIN, Cm(4.8), FULLW, Cm(5.2))
-    put(tf, t("단일 전극 소프트 멀티모달 센서의 시분할 측정과",
-              "Time-Division Measurement and Embedded-AI Signal"),
-        t(32, 30), True, DARK, first=True, space_after=6)
-    put(tf, t("임베디드 AI 기반 실시간 신호 디커플링",
-              "Decoupling for a Soft Single-Electrode Multimodal Sensor"),
-        t(32, 30), True, DARK, space_after=14)
-    put(tf, t("인장 · 근접 · 접촉력의 동시 추정",
-              "Simultaneous Estimation of Strain, Proximity, and Contact Force"),
-        18, False, MAROON, space_after=0)
-    line(s, MARGIN, Cm(11.4), Cm(8))
-    tf = textbox(s, MARGIN, Cm(12.1), FULLW, Cm(3))
-    put(tf, t("문희준", "Heejun Moon"), 20, True, DARK, first=True, space_after=6)
-    put(tf, t("고려대학교 기계공학과  BioRobotics & Control Lab (BiRC)",
-              "BioRobotics and Control Lab (BiRC),  Dept. of Mechanical Engineering,  "
-              "Korea University"),
-        14, False, GREY, space_after=0)
-
+    d.pic(s, "logo_ku.png", MARGIN, Cm(0.6), h=Cm(2.0))
+    d.pic(s, "logo_birc.png", SW - MARGIN - Cm(2.6), Cm(0.6), h=Cm(2.0))
+    tf = textbox(s, MARGIN, Cm(4.8), FULLW, Cm(3.4))
+    put(tf, t("단일 전극 소프트 멀티모달 센서의 시분할 측정과 임베디드 AI 기반 "
+              "실시간 신호 디커플링",
+              "Time-Division Measurement and Embedded-AI Signal Decoupling for a "
+              "Soft Single-Electrode Multimodal Sensor"),
+        t(26, 24), True, TITLEBLUE, first=True, align=PP_ALIGN.CENTER, space_after=0,
+        line=1.25)
+    line(s, MARGIN, Cm(8.6), Cm(8), MAROON, 2.5)
+    line(s, MARGIN + Cm(8), Cm(8.6), Cm(3.6), BEIGE, 2.5)
+    tf = textbox(s, MARGIN, Cm(9.4), FULLW, Cm(3))
+    put(tf, t("고려대학교 기계공학과 BioRobotics & Control (BiRC) 연구실",
+              "Bio-Robotics and Control (BiRC) Lab"),
+        16, False, DARK, first=True, align=PP_ALIGN.CENTER, space_after=4)
+    put(tf, t("고려대학교 기계공학과", "Department of Mechanical Engineering"),
+        16, False, DARK, align=PP_ALIGN.CENTER, space_after=4)
+    put(tf, t("고려대학교", "Korea University"), 16, False, DARK,
+        align=PP_ALIGN.CENTER, space_after=14)
+    put(tf, t("문희준", "HeeJun Moon"), 17, True, DARK, align=PP_ALIGN.CENTER,
+        space_after=0)
     # ── 2. 목차 ─────────────────────────────────────────────────────────────
-    s = d.slide(t("목차", "Outline"))
+    s = d.slide(t("구조", "Outline"))
     items = [
-        ("1", t("연구 배경", "Motivation"),
-         t("멀티모달 인지의 필요성 · 각 모달리티의 역할",
-           "Why multimodal perception, and what each modality is for")),
-        ("2", t("문제 정의", "Problem Statement"),
-         t("신호 결합과 기존 연구의 한계",
-           "Signal coupling and the limitations of prior work")),
-        ("3", t("센서 설계", "Sensor Design"),
-         t("단일 전극 EGaIn 나선 코일 · 제작 공정",
-           "Single-electrode EGaIn spiral coil and fabrication")),
-        ("4", t("측정 시스템", "Measurement System"),
-         t("1 ms TDM 아키텍처 · PCB · 시험 플랫폼",
-           "1 ms TDM architecture, PCB and test platform")),
-        ("5", t("신호 특성화", "Signal Characterization"),
-         t("(ε, d) 응답 곡면 · 접촉 영역 점탄성",
-           "(strain, d) response surfaces and contact-regime viscoelasticity")),
-        ("6", t("디커플링 모델", "Decoupling Models"),
-         t("2단계 구조 → SLS-EMA + Gate-MoE",
-           "Two-stage structure → SLS-EMA + Gate-MoE")),
-        ("7", t("임베디드 구현 및 실시간 검증",
-                "Embedded Implementation and Real-Time Validation"),
-         t("STM32 온보드 추론 260 µs", "260 µs on-board inference on the STM32")),
-        ("8", t("결론 및 향후 계획", "Conclusion and Future Work"), ""),
+        ("I", t("서론", "Introduction"),
+         t("1.1 배경  ·  1.2 기존 연구의 한계  ·  1.3 연구 목적 및 중요성",
+           "1.1 Background · 1.2 Limitations of Current Research · "
+           "1.3 Purpose and Significance of This Study")),
+        ("II", t("센서 설계 및 제작", "Sensor Design and Fabrication"),
+         t("2.1 센서 설계  ·  2.2 기계적·전자기적 특성  ·  2.3 센서 제작",
+           "2.1 Sensor Design · 2.2 Mechanical and Electromagnetic Characteristics · "
+           "2.3 Sensor Fabrication")),
+        ("III", t("측정 시스템", "Measurement System"),
+         t("3.1 시분할 측정(TDM) 아키텍처  ·  3.2 다신호 스위칭 PCB",
+           "3.1 Time-Division Measurement (TDM) Architecture · "
+           "3.2 Multisignal Switching PCB")),
+        ("IV", t("신호 특성화", "Signal Characterization"),
+         t("4.1 실험 설정  ·  4.2 데이터 취득  ·  4.3 비접촉: 인장–근접  ·  "
+           "4.4 접촉: 인장–압력  ·  4.5 도체–유전체  ·  4.6 TENG",
+           "4.1 Experimental Setup · 4.2 Data Acquisition · 4.3 Non-Contact Mode: "
+           "Strain–Proximity · 4.4 Contact Mode: Strain–Pressure · "
+           "4.5 Conductor–Dielectric · 4.6 TENG")),
+        ("V", t("디커플링 모델과 실시간 추론을 위한 임베디드 구현",
+                "Decoupling Model and Embedded Implementation for Real-Time Inference"),
+         t("5.1 디커플링 모델  ·  5.2 임베디드 구현  ·  5.3 실시간 검증",
+           "5.1 Decoupling Model · 5.2 Embedded Implementation · "
+           "5.3 Real-Time Validation")),
+        ("VI", t("결론", "Conclusion"),
+         t("6.1 요약  ·  6.2 향후 계획", "6.1 Summary · 6.2 Future Work")),
     ]
-    y = BODY_TOP + Cm(0.4)
+    y = BODY_TOP + Cm(0.3)
     for num, t1, t2 in items:
-        shp, tf = rect(s, MARGIN, y, Cm(1.5), Cm(1.28), MAROON)
+        shp, tf = rect(s, MARGIN, y, Cm(1.7), Cm(2.1), MAROON)
         put(tf, num, 16, True, WHITE, first=True, align=PP_ALIGN.CENTER, space_after=0)
-        tf = textbox(s, MARGIN + Cm(2.0), y + Cm(0.06), Cm(28), Cm(1.28))
-        put(tf, t1, 17, True, DARK, first=True, space_after=1)
+        tf = textbox(s, MARGIN + Cm(2.2), y + Cm(0.02), Cm(28.5), Cm(2.1))
+        put(tf, t1, t(15.5, 15), True, DARK, first=True, space_after=2, line=1.1)
         if t2:
-            put(tf, t2, 12, False, GREY, space_after=0)
-        y += Cm(1.72)
+            put(tf, t2, 10.5, False, GREY, space_after=0, line=1.2)
+        y += Cm(2.5)
 
+
+    # ── divider I ───────────────────────────────────────────────────────────
+    d.divider(t("I. 서론", "I. Introduction"))
     # ── 3. 연구 배경 ────────────────────────────────────────────────────────
-    s = d.slide(t("연구 배경", "Motivation"),
+    s = d.slide(t("I. 서론", "I. Introduction"), t("1.1 배경", "1.1 Background"),
                 t("로봇 표면은 주변 상황과 자기 자신의 상태를 함께 인지해야 한다",
                   "A robot surface must perceive both its surroundings and its own state"))
     boxes = [
@@ -267,10 +293,10 @@ def build(L):
     put(tf, t("→ 서로 다른 자극이 하나의 전기적 응답에 겹쳐 들어온다  =  신호 결합 (signal coupling)",
               "→ Distinct stimuli superimpose onto a single electrical response  =  "
               "signal coupling"), 15, True, MAROON, space_after=0)
-
     # ── 4. 각 모달리티의 필요성 ─────────────────────────────────────────────
-    s = d.slide(t("각 모달리티는 왜 필요한가", "Why Each Modality Is Needed"),
-                t("선행 연구가 말하는 근거", "The case made by prior work"))
+    s = d.slide(t("I. 서론", "I. Introduction"), t("1.1 배경", "1.1 Background"),
+                t("선행 연구가 말하는 근거 — 각 모달리티는 왜 필요한가",
+                  "The case made by prior work — why each modality is needed"))
     rows = [
         (t("근접", "Proximity"), C_V,
          t("충돌이 일어나기 전에 개입할 수 있는 유일한 수단",
@@ -314,12 +340,11 @@ def build(L):
         put(tf, head, 15, True, DARK, first=True, space_after=7)
         put(tf, body, t(12.5, 11.5), False, GREY, space_after=0, line=1.35)
         y += Cm(3.85)
-
     # ── 5. 왜 함께 측정해야 하는가 ──────────────────────────────────────────
-    s = d.slide(t("왜 한 지점에서 함께 측정해야 하는가",
-                  "Why They Must Be Measured Together, at One Point"),
-                t("세 모달리티는 독립적이지 않다",
-                  "The three modalities are not independent"))
+    s = d.slide(t("I. 서론", "I. Introduction"), t("1.1 배경", "1.1 Background"),
+                t("왜 한 지점에서 함께 측정해야 하는가 — 세 모달리티는 독립적이지 않다",
+                  "Why they must be measured together, at one point — the three "
+                  "modalities are not independent"))
     tf = textbox(s, MARGIN, BODY_TOP + Cm(0.4), FULLW, Cm(2))
     put(tf, t("변형하는 표면 위에서는 근접·접촉 신호의 기준 자체가 변형 상태에 따라 달라진다.",
               "On a deforming surface, the very reference for the proximity and contact "
@@ -353,10 +378,58 @@ def build(L):
               "Acquire the three signals at the very point where the coupling arises, and "
               "decouple them jointly."),
         16, True, MAROON, space_after=0, bullet="▶")
-
+    # ── 5b. Fundamental Challenge ───────────────────────────────────────────
+    s = d.slide(t("I. 서론", "I. Introduction"),
+                t("1.2 기존 연구의 한계", "1.2 Limitations of Current Research"),
+                t("Fundamental Challenge — 배치 방식과 무관하게 세 한계 중 하나에 부딪힌다",
+                  "Fundamental Challenge — every arrangement runs into one of three "
+                  "limitations"))
+    boxes3 = [
+        (t("어레이", "Array"),
+         t("크로스토크 · 배선 · 면적",
+           "Cross-talk · wiring · area"),
+         t("소자 수만큼 배선이 늘고 인접 소자 간 크로스토크가 발생하며, 필요한 면적도 "
+           "함께 커진다[34],[35]",
+           "Wiring grows with the device count, cross-talk arises between "
+           "neighbouring elements, and more area is needed [34],[35]"), LIGHT),
+        (t("적층", "Stacking"),
+         t("박리 · 크로스토크 · 배선",
+           "Delamination · cross-talk · wiring"),
+         t("배선·크로스토크 문제는 그대로 남고, 층간 박리라는 새 취약점이 더해진다"
+           "[36],[37]",
+           "Wiring and cross-talk problems remain, and interlayer delamination "
+           "is added as a new failure mode [36],[37]"), PINK),
+        (t("단일 소자 디커플링", "Single-Device Decoupling"),
+         t("배선·면적·박리는 피하지만…",
+           "Avoids wiring, area and delamination — but…"),
+         t("신호 디커플링 자체가 어려워 인장 또는 근접 중 하나만 단독으로 다루는 데 "
+           "그친다[16]–[18],[21]",
+           "Decoupling itself becomes hard, limiting most designs to only strain "
+           "or only proximity [16]–[18],[21]"), LIGHT),
+    ]
+    w3 = (FULLW - Cm(1.2)) / 3
+    for i, (name, sub, body, col) in enumerate(boxes3):
+        x = MARGIN + i * (w3 + Cm(0.6))
+        shp, tf = rect(s, x, BODY_TOP + Cm(0.3), w3, Cm(1.3), MAROON)
+        put(tf, name, 18, True, WHITE, first=True, align=PP_ALIGN.CENTER,
+            space_after=0)
+        shp, tf = rect(s, x, BODY_TOP + Cm(1.8), w3, Cm(1.5), col)
+        put(tf, sub, t(15, 14), True, MAROON, first=True, align=PP_ALIGN.CENTER,
+            space_after=0, line=1.25)
+        tf = textbox(s, x + Cm(0.3), BODY_TOP + Cm(3.6), w3 - Cm(0.6), Cm(6.5))
+        put(tf, body, t(13.5, 13), False, DARK, first=True, space_after=0, line=1.45)
+    tf = textbox(s, MARGIN, BODY_TOP + Cm(10.6), FULLW, Cm(2.2))
+    put(tf, t("→ 배선·크로스토크·박리 문제와 디커플링 문제는 서로 다른 원인에서 "
+              "비롯되며, 하나를 피하려는 설계는 다른 하나를 떠안는 경향이 있다",
+              "→ The wiring/cross-talk/delamination problems and the decoupling "
+              "problem stem from different causes — a design that avoids one tends "
+              "to inherit the other"),
+        15, True, MAROON, first=True, align=PP_ALIGN.CENTER, space_after=0, line=1.3)
     # ── 6. 기존 연구의 한계 ─────────────────────────────────────────────────
-    s = d.slide(t("기존 연구의 한계와 본 연구의 대응",
-                  "Limitations of Prior Work and How This Work Responds"))
+    s = d.slide(t("I. 서론", "I. Introduction"),
+                t("1.2 기존 연구의 한계", "1.2 Limitations of Current Research"),
+                t("기존 연구의 한계와 본 연구의 대응",
+                  "Limitations of prior work and how this work responds"))
     hdr = [t("선행 접근", "Prior approach"), t("한계", "Limitation"),
            t("본 연구의 대응", "Response in this work")]
     data = [
@@ -395,10 +468,45 @@ def build(L):
     table(s, hdr, data, cw, MARGIN, BODY_TOP + Cm(0.2),
           hdr_h=Cm(1.0), row_h=Cm(1.72), hdr_size=13,
           row_size=t(11.5, 11), left_cols=(0, 1, 2), accent_col=2)
-
+    # ── 6b. 왜 유연·단일 소자인가 ───────────────────────────────────────────
+    s = d.slide(t("I. 서론", "I. Introduction"),
+                t("1.3 연구 목적 및 중요성",
+                  "1.3 Purpose and Significance of This Study"),
+                t("왜 유연하고 소자 수를 늘리지 않는 센서가 필요한가 — 유연화만으로는 부족하다",
+                  "Why a flexible, single-device sensor is needed — flexibility alone "
+                  "is not enough"))
+    shp, tf = rect(s, MARGIN, BODY_TOP + Cm(0.3), FULLW, Cm(4.6), LIGHT)
+    put(tf, t("① 부착 대상은 곡면·대변형 표면이다", "① The mounting surface is curved and undergoes large deformation"),
+        16, True, MAROON, first=True, space_after=8)
+    put(tf, t("강체 센서를 배열하면 표면에 밀착시킬 수 없고, 배열 사이의 강성 불연속이 오히려 변형을 "
+              "방해한다. 유연 센서는 등각 접촉과 대변형을 허용하며, 웨어러블 응용으로도 확장된다[4],[16].",
+              "An array of rigid sensors cannot conform to such a surface, and the stiffness "
+              "discontinuities between elements actively impede deformation. Flexible sensors "
+              "permit conformal contact and large deformation, extending to wearable "
+              "applications [4],[16]."),
+        14.5, False, DARK, space_after=0, line=1.4)
+    shp, tf = rect(s, MARGIN, BODY_TOP + Cm(5.3), FULLW, Cm(5.2), PINK)
+    put(tf, t("② 하지만 세 모달리티를 세 개의 소자로 구현하면 배선이 그만큼 늘어난다",
+              "② But implementing three modalities as three devices multiplies the wiring"),
+        16, True, MAROON, first=True, space_after=8)
+    put(tf, t("소자 수에 비례한 배선 증가, 적층에 따른 두께 증가와 박리 위험, 인접 소자 간 "
+              "크로스토크가 뒤따른다[1],[5]. 대면적 전자 피부(e-skin)에서는 이 배선 복잡도가 "
+              "실용화의 주된 병목으로 지적되어 왔다.",
+              "Wiring grows in proportion to the device count, and stacking brings added "
+              "thickness, delamination risk and cross-talk between neighbouring elements "
+              "[1],[5]. In large-area electronic skin, this wiring complexity has been "
+              "identified as a principal bottleneck to practical deployment."),
+        14.5, False, DARK, space_after=10, line=1.4)
+    put(tf, t("→ 본 연구의 접근: 소자 수를 늘리는 대신 하나의 소자를 시간축에서 나누어 쓴다",
+              "→ The approach adopted here: divide one device in time rather than multiply "
+              "devices"),
+        15, True, MAROON, space_after=0, line=1.3)
     # ── 7. 접근 요약 ────────────────────────────────────────────────────────
-    s = d.slide(t("본 연구의 접근", "Our Approach"),
-                t("세 가지 설계 결정", "Three design decisions"))
+    s = d.slide(t("I. 서론", "I. Introduction"),
+                t("1.3 연구 목적 및 중요성",
+                  "1.3 Purpose and Significance of This Study"),
+                t("본 연구의 접근 — 세 가지 설계 결정",
+                  "Our approach — three design decisions"))
     cards = [
         (t("① 단일 전극", "① Single electrode"),
          t("소자를 늘리는 대신\n하나의 소자를 시간축에서 나눠 쓴다",
@@ -435,36 +543,37 @@ def build(L):
         tf = textbox(s, x + Cm(0.3), BODY_TOP + Cm(4.7), w - Cm(0.6), Cm(6))
         put(tf, t3, t(12.5, 12), False, GREY, first=True, space_after=0, line=1.5)
 
+    # ── divider II ──────────────────────────────────────────────────────────
+    d.divider(t("II. 센서 설계 및 제작", "II. Sensor Design and Fabrication"))
     # ── 8. 센서 설계 ────────────────────────────────────────────────────────
-    s = d.slide(t("센서 설계와 제작", "Sensor Design and Fabrication"),
+    s = d.slide(t("II. 센서 설계 및 제작", "II. Sensor Design and Fabrication"),
+                t("2.1 센서 설계", "2.1 Sensor Design"),
                 t("EGaIn 액체금속 평면 직사각형 나선 코일 (초기 길이 120 mm, 인장 0–30 %)",
                   "EGaIn liquid-metal planar rectangular spiral coil "
                   "(120 mm initial length, 0–30 % strain)"))
     d.pic(s, "fig0_sensor.png", MARGIN, BODY_TOP + Cm(0.2), w=Cm(20.5))
     tf = textbox(s, MARGIN + Cm(21.2), BODY_TOP + Cm(0.5), Cm(9.6), Cm(12))
-    put(tf, t("핵심 공정: 브리징", "Key step: bridging"), 16, True, MAROON,
+    put(tf, t("평면 직사각형 나선", "A planar rectangular spiral"), 16, True, MAROON,
         first=True, space_after=8)
-    put(tf, t("나선의 안쪽 끝 단자를 권선 위로 넘겨 바깥으로 빼낸다.",
-              "The inner terminal of the spiral is routed out over the windings."),
+    put(tf, t("EGaIn 액체금속을 일래스토머 기판 위에 DIW(Direct Ink Writing)로 인쇄한다.",
+              "EGaIn liquid metal is printed onto an elastomer substrate by direct ink "
+              "writing (DIW)."),
         13, False, DARK, space_after=8, line=1.4)
-    put(tf, t("이 단계가 없으면 내부 단자에 접근할 수 없어 관통 배선이나 대향 전극이 필요해지고, "
-              "그 순간 평면성과 신축성이 훼손된다.",
-              "Without it the inner terminal cannot be reached without a "
-              "through-connection or a counter electrode — which would immediately "
-              "compromise planarity and stretchability."),
+    put(tf, t("대변형에도 도전 경로가 끊기지 않아 30 % 인장까지 반복 사용이 가능하다.",
+              "The conductive path survives large deformation, allowing repeated use up "
+              "to 30 % strain."),
         t(12.5, 12), False, GREY, space_after=16, line=1.4)
-    put(tf, t("압력 민감도 향상: 돌기 구조", "Raising pressure sensitivity: bump array"),
-        16, True, MAROON, space_after=8)
-    put(tf, t("직경 5 mm · 높이 0.5 mm, 필름 마스킹 + 어플리케이터",
-              "5 mm diameter, 0.5 mm height, formed by film masking and an applicator"),
-        t(12.5, 12), False, GREY, space_after=8, line=1.4)
-    put(tf, t("ΔR/R₀ 100 % 도달 하중\n210 N  →  20 N  (약 10배)",
-              "Load for a 100 % ΔR/R₀ response\n210 N  →  20 N  (about 10×)"),
-        14, True, DARK, space_after=0, line=1.4)
-
+    put(tf, t("하나의 소자, 두 가지 역할", "One device, two roles"), 16, True, MAROON,
+        space_after=8)
+    put(tf, t("코일 형상 덕분에 하나의 도전 트레이스가 저항 소자와 인덕터 역할을 동시에 수행한다.",
+              "The coil geometry lets a single conductive trace act simultaneously as a "
+              "resistive element and an inductor."),
+        t(12.5, 12), False, GREY, space_after=0, line=1.4)
     # ── 9. 응답 시그니처 ────────────────────────────────────────────────────
-    s = d.slide(t("전자기적 특성 — 자극별 응답 시그니처",
-                  "Electromagnetic Characteristics — Response Signature"))
+    s = d.slide(t("II. 센서 설계 및 제작", "II. Sensor Design and Fabrication"),
+                t("2.2 기계적·전자기적 특성",
+                  "2.2 Mechanical and Electromagnetic Characteristics"),
+                t("자극별 응답 시그니처", "Response signature of each stimulus"))
     hdr = [t("자극", "Stimulus"), "L", "R_s (AC)", "R_DC", "V_TENG",
            t("지배 기구", "Dominant mechanism")]
     data = [
@@ -484,19 +593,42 @@ def build(L):
            "local section ↓ ;  Q ↓ → apparent L ↑")),
     ]
     cw = [Cm(5.0), Cm(2.2), Cm(3.0), Cm(2.6), Cm(3.0), Cm(14.8)]
-    y = table(s, hdr, data, cw, MARGIN, BODY_TOP + Cm(0.5),
-              hdr_h=Cm(1.0), row_h=Cm(1.4), hdr_size=13,
-              row_size=t(13, 12), left_cols=(0, 5))
-    tf = textbox(s, MARGIN, y + Cm(0.25), FULLW, Cm(2))
-    put(tf, t("도체와 유전체에서 ΔL의 부호가 반대  →  단순한 방해 요인이 아니라, "
-              "물체의 전기적 성질을 식별할 수 있는 정보",
-              "ΔL has opposite signs for conductors and dielectrics  →  not a nuisance, "
-              "but information for identifying an object's electrical property"),
-        14, True, MAROON, first=True, space_after=0)
+    y = table(s, hdr, data, cw, MARGIN, BODY_TOP + Cm(0.3),
+              hdr_h=Cm(0.9), row_h=Cm(1.12), hdr_size=13,
+              row_size=t(12.5, 11.5), left_cols=(0, 5))
+    d.pic(s, "seminar_response_signature.png", MARGIN, y + Cm(0.3), h=Cm(6.9))
+    tf = textbox(s, MARGIN + Cm(15.5), y + Cm(0.5), FULLW - Cm(15.5), Cm(6.4))
+    put(tf, t("도체와 유전체에서 ΔL의 부호가 반대",
+              "ΔL has opposite signs for conductors and dielectrics"),
+        16, True, MAROON, first=True, space_after=10, line=1.3)
+    put(tf, t("→ 단순한 방해 요인이 아니라, 물체의 전기적 성질을 식별할 수 있는 정보",
+              "→ not a nuisance, but information for identifying an object's electrical "
+              "property"),
+        14.5, False, DARK, space_after=0, line=1.35)
+    # ── 9b. 센서 제작 ───────────────────────────────────────────────────────
+    s = d.slide(t("II. 센서 설계 및 제작", "II. Sensor Design and Fabrication"),
+                t("2.3 센서 제작", "2.3 Sensor Fabrication"),
+                t("브리징과 돌기 구조로 완성되는 4단계 공정",
+                  "A four-step process completed by bridging and a bump array"))
+    d.pic(s, "seminar_fabrication.png", MARGIN + (FULLW - Cm(27.5)) / 2,
+          BODY_TOP + Cm(0.1), w=Cm(27.5))
+    tf = textbox(s, MARGIN, BODY_TOP + Cm(13.6), FULLW - Cm(3.2), Cm(1.6))
+    put(tf, t("핵심 공정: 브리징(안쪽 끝 단자를 권선 위로 넘겨 두 가닥 배선으로 완결)  ·  "
+              "돌기 구조로 ΔR/R₀ 100 % 도달 하중을 210 N → 20 N으로 낮춤 (약 10배)",
+              "Key step: bridging (routing the inner terminal out over the windings to "
+              "complete a two-wire structure)  ·  the bump array lowers the load for a "
+              "100 % ΔR/R₀ response from 210 N to 20 N (about 10×)"),
+        14, True, MAROON, first=True, align=PP_ALIGN.CENTER, space_after=0, line=1.3)
 
+    # ── divider III ─────────────────────────────────────────────────────────
+    d.divider(t("III. 측정 시스템", "III. Measurement System"))
     # ── 10. TDM ─────────────────────────────────────────────────────────────
-    s = d.slide(t("측정 시스템 — 1 ms 시분할 측정 (TDM)",
-                  "Measurement System — 1 ms Time-Division Measurement"))
+    s = d.slide(t("III. 측정 시스템", "III. Measurement System"),
+                t("3.1 시분할 측정(TDM) 아키텍처",
+                  "3.1 Time-Division Measurement (TDM) Architecture"),
+                t("1 ms 주기로 AC 여기 · DC 여기 · 무여기를 순환 인가",
+                  "AC excitation, DC excitation and no excitation cycled with a 1 ms "
+                  "period"))
     d.pic(s, "fig1_tdm.png", Cm((33.867 - 17.2) / 2), BODY_TOP + Cm(0.1), h=Cm(11.8))
     tf = textbox(s, MARGIN, SH - Cm(2.9), FULLW, Cm(2))
     put(tf, t("TIM7 인터럽트로 두 경로 동시 시작 → I²C DMA(LDC1614 28비트, ~200 µs)와 "
@@ -509,58 +641,70 @@ def build(L):
               "All transfers use DMA → no blocking wait · 93.9 % CPU idle · a fixed "
               "period prevents jitter when coupled to the AI model"),
         13.5, False, GREY, space_after=0)
-
-    # ── 11. 하드웨어 ────────────────────────────────────────────────────────
-    s = d.slide(t("하드웨어 구성", "Hardware"),
-                t("전용 PCB와 자체 제작 시험 플랫폼",
-                  "A dedicated PCB and an in-house test platform"))
-    groups = [
-        (t("다신호 스위칭 PCB", "Multisignal switching PCB"), [
-            t("STM32G473CBT6 — Cortex-M4F 170 MHz, Flash 128 KB, SRAM 32 KB",
-              "STM32G473CBT6 — Cortex-M4F 170 MHz, 128 KB flash, 32 KB SRAM"),
-            t("LDC1614 — 28비트, 1 kHz–10 MHz, I²C2 @ 0x2A",
-              "LDC1614 — 28-bit, 1 kHz–10 MHz, I²C2 at 0x2A"),
-            t("ADG734 — 4채널 아날로그 스위치, t_on 29 ns, BW 200 MHz",
-              "ADG734 — 4-channel analog switch, t_on 29 ns, 200 MHz BW"),
-            t("65 × 52 mm 6층 기판, 최대 4채널 센서 어레이",
-              "65 × 52 mm six-layer board, up to a 4-channel array"),
-            t("TENG 경로 TVS 다이오드 보호", "TVS diodes protecting the TENG path"),
-        ]),
-        (t("5축 시험 플랫폼", "Five-axis test platform"), [
-            t("XA/XB/YA/YB 4축 대칭 인장 + 독립 Z축 근접",
-              "Four symmetric tensile axes (XA/XB/YA/YB) + an independent Z proximity axis"),
-            t("700 × 700 mm 프레임, Nema23 + TB6600, Arduino Uno",
-              "700 × 700 mm frame, Nema23 + TB6600 drivers, Arduino Uno"),
-            t("320 step/mm, PyQt5 GUI 시퀀스 구동",
-              "320 steps/mm, PyQt5 GUI driving the sequence"),
-            t("6축 F/T 센서(CAN)로 접촉력 참값 동시 기록",
-              "Six-axis F/T sensor over CAN recording ground-truth force"),
-            t("PC-MCU 시각 동기 + 가감속 구간 is_steady 자동 태깅",
-              "PC-MCU time sync + automatic is_steady tagging of accel/decel transients"),
-        ]),
+    # ── 11. 하드웨어 (PCB) ──────────────────────────────────────────────────
+    s = d.slide(t("III. 측정 시스템", "III. Measurement System"),
+                t("3.2 다신호 스위칭 PCB", "3.2 Multisignal Switching PCB"),
+                t("EasyEDA Pro로 설계한 전용 6층 보드",
+                  "A dedicated six-layer board designed in EasyEDA Pro"))
+    items = [
+        t("STM32G473CBT6 — Cortex-M4F 170 MHz, Flash 128 KB, SRAM 32 KB",
+          "STM32G473CBT6 — Cortex-M4F 170 MHz, 128 KB flash, 32 KB SRAM"),
+        t("LDC1614 — 28비트, 1 kHz–10 MHz, I²C2 @ 0x2A",
+          "LDC1614 — 28-bit, 1 kHz–10 MHz, I²C2 at 0x2A"),
+        t("ADG734 — 4채널 아날로그 스위치, t_on 29 ns, BW 200 MHz",
+          "ADG734 — 4-channel analog switch, t_on 29 ns, 200 MHz BW"),
+        t("65 × 52 mm 6층 기판, 최대 4채널 센서 어레이",
+          "65 × 52 mm six-layer board, up to a 4-channel array"),
+        t("TENG 경로 TVS 다이오드 보호", "TVS diodes protecting the TENG path"),
     ]
-    for col, (title, its) in enumerate(groups):
-        x = MARGIN + col * (FULLW / 2 + Cm(0.4))
-        w = FULLW / 2 - Cm(0.4)
-        shp, tf = rect(s, x, BODY_TOP + Cm(0.4), w, Cm(1.15), MAROON)
-        put(tf, title, 16, True, WHITE, first=True, align=PP_ALIGN.CENTER, space_after=0)
-        tf = textbox(s, x + Cm(0.4), BODY_TOP + Cm(2.0), w - Cm(0.8), Cm(7))
-        for k, it in enumerate(its):
-            put(tf, it, t(13.5, 12.5), False, DARK, first=(k == 0), space_after=11,
-                bullet="•", line=1.35)
-    shp, tf = rect(s, MARGIN, BODY_TOP + Cm(9.6), FULLW, Cm(2.4), PINK)
+    d.pic(s, "seminar_pcb.png", MARGIN + Cm(21.0), BODY_TOP + Cm(0.2), h=Cm(11.5))
+    tf = textbox(s, MARGIN, BODY_TOP + Cm(0.6), Cm(19.8), Cm(11))
+    for k, it in enumerate(items):
+        put(tf, it, 16, False, DARK, first=(k == 0), space_after=16,
+            bullet="•", line=1.35)
+
+
+    # ── divider IV ──────────────────────────────────────────────────────────
+    d.divider(t("IV. 신호 특성화", "IV. Signal Characterization"))
+    # ── 12b. 시험 플랫폼 ────────────────────────────────────────────────────
+    s = d.slide(t("IV. 신호 특성화", "IV. Signal Characterization"),
+                t("4.1 실험 설정", "4.1 Experimental Setup"),
+                t("5축 대칭 인장 스테이지 — 자체 제작한 대칭 인장 + 근접 스테이지",
+                  "Five-axis symmetric tensile stage — an in-house symmetric "
+                  "tensile-and-proximity stage"))
+    items = [
+        t("XA/XB/YA/YB 4축 대칭 인장 + 독립 Z축 근접",
+          "Four symmetric tensile axes (XA/XB/YA/YB) + an independent Z proximity axis"),
+        t("700 × 700 mm 프레임, Nema23 + TB6600, Arduino Uno",
+          "700 × 700 mm frame, Nema23 + TB6600 drivers, Arduino Uno"),
+        t("320 step/mm, PyQt5 GUI 시퀀스 구동",
+          "320 steps/mm, PyQt5 GUI driving the sequence"),
+        t("6축 F/T 센서(CAN)로 접촉력 참값 동시 기록",
+          "Six-axis F/T sensor over CAN recording ground-truth force"),
+        t("PC-MCU 시각 동기 + 가감속 구간 is_steady 자동 태깅",
+          "PC-MCU time sync + automatic is_steady tagging of accel/decel transients"),
+    ]
+    tf = textbox(s, MARGIN, BODY_TOP + Cm(0.6), Cm(18), Cm(7.3))
+    for k, it in enumerate(items):
+        put(tf, it, 14, False, DARK, first=(k == 0), space_after=11,
+            bullet="•", line=1.3)
+    shp, tf = rect(s, MARGIN + Cm(18.8), BODY_TOP + Cm(0.6), FULLW - Cm(18.8), Cm(7.3),
+                   PINK)
     put(tf, t("왜 상용 인장 시험기를 쓰지 않았는가",
               "Why not a commercial tensile tester?"),
-        14, True, MAROON, first=True, space_after=6)
+        15, True, MAROON, first=True, space_after=8, line=1.3)
     put(tf, t("한쪽 축만 구동하면 시편이 늘어나며 중심점이 이동한다. 근접 표적은 코일 중심 "
               "바로 위에 있어야 하므로, 중심 이동이 곧 근접 거리 라벨의 오차가 된다.",
               "In single-sided tension the specimen centre translates as it elongates. "
               "The proximity target must sit directly above the coil centre, so that "
               "translation becomes an error in the distance label."),
-        13, False, DARK, space_after=0, line=1.3)
+        13.5, False, DARK, space_after=0, line=1.35)
+    d.pic(s, "seminar_testplatform.png", MARGIN + (FULLW - Cm(13.24)) / 2,
+          BODY_TOP + Cm(8.1), h=Cm(6.4))
 
     # ── 12. 데이터셋 ────────────────────────────────────────────────────────
-    s = d.slide(t("데이터셋", "Datasets"),
+    s = d.slide(t("IV. 신호 특성화", "IV. Signal Characterization"),
+                t("4.2 데이터 취득", "4.2 Data Acquisition"),
                 t("모델 입력은 언제나 (ΔL/L₀, ΔR/R₀)뿐 — 위치·힘은 정답 라벨로만 사용",
                   "Model inputs are always only (ΔL/L₀, ΔR/R₀); positions and forces are "
                   "used solely as ground-truth labels"))
@@ -594,12 +738,13 @@ def build(L):
     table(s, hdr, data, cw, MARGIN, BODY_TOP + Cm(0.4),
           hdr_h=Cm(0.95), row_h=Cm(1.85), hdr_size=13,
           row_size=t(12.5, 11.5), left_cols=(1, 3), accent_col=0)
-
     # ── 13. 핵심 근거 ───────────────────────────────────────────────────────
-    s = d.slide(t("핵심 근거 — (ε, d) 응답 곡면",
-                  "Key Evidence — the (ε, d) Response Surfaces"),
-                t("디커플링이 가능한 물리적 이유",
-                  "The physical reason decoupling is possible"))
+    s = d.slide(t("IV. 신호 특성화", "IV. Signal Characterization"),
+                t("4.3 비접촉 모드: 인장–근접",
+                  "4.3 Non-Contact Mode: Strain–Proximity"),
+                t("(ε, d) 응답 곡면 — 디커플링이 가능한 물리적 이유",
+                  "The (ε, d) response surfaces — the physical reason decoupling is "
+                  "possible"))
     d.pic(s, "fig2_surfaces.png", MARGIN, BODY_TOP + Cm(0.2), w=Cm(20.0))
     tf = textbox(s, MARGIN + Cm(20.8), BODY_TOP + Cm(0.6), Cm(10.0), Cm(12))
     put(tf, t("금속 표적", "Metal target"), 16, True, MAROON, first=True, space_after=8)
@@ -612,24 +757,162 @@ def build(L):
               "ΔL contours bend sharply for d < 10 mm\n"
               "→ at fixed strain it swings from −15.7 % to +14.5 %, changing sign"),
         t(13, 12), False, DARK, space_after=16, line=1.4)
-    put(tf, t("손(유전체) 표적", "Hand (dielectric) target"), 16, True, MAROON,
-        space_after=8)
-    put(tf, t("두 신호 모두 등고선이 거의 수직\n→ 이 거리 범위에서 인덕턴스에 실린 근접 정보가 미약",
-              "Contours of both signals are nearly vertical\n"
-              "→ little proximity information is carried by the inductance here"),
-        t(13, 12), False, DARK, space_after=16, line=1.4)
-    shp, tf2 = rect(s, MARGIN + Cm(20.8), BODY_TOP + Cm(9.0), Cm(10.0), Cm(2.6), PINK)
+    shp, tf2 = rect(s, MARGIN + Cm(20.8), BODY_TOP + Cm(6.8), Cm(10.0), Cm(2.6), PINK)
     put(tf2, t("∇L 과 ∇R 이 전역적으로 선형 독립\n→ 디커플링 가능성의 직접적 근거",
                "∇L and ∇R are globally linearly independent\n"
                "→ direct evidence that decoupling is feasible"),
         t(13.5, 12.5), True, MAROON, first=True, align=PP_ALIGN.CENTER,
         space_after=0, line=1.35)
+    # ── 15. 접촉 영역 물리 ──────────────────────────────────────────────────
+    s = d.slide(t("IV. 신호 특성화", "IV. Signal Characterization"),
+                t("4.4 접촉 모드: 인장–압력", "4.4 Contact Mode: Strain–Pressure"),
+                t("접촉 모달리티 추가로 새로 나타난 물리 현상 — 히스테리시스·크립·교차 민감도",
+                  "New physics appears when the contact modality is added — "
+                  "hysteresis, creep and cross-sensitivity"))
+    d.pic(s, "fig3_pressure.png", MARGIN, BODY_TOP + Cm(0.4), w=Cm(30.5))
+    tf = textbox(s, MARGIN, BODY_TOP + Cm(6.4), FULLW, Cm(5))
+    put(tf, t("깊이를 고정한 채 유지(dwell)하는 동안  ΔL 2.33 %p · ΔR 5.73 %p 추가 변화 "
+              "→ 힘 제거 후 잔차는 각각 0.57 %p · 0.08 %p",
+              "During a constant-depth dwell, ΔL drifts a further 2.33 %p and ΔR 5.73 %p "
+              "→ residuals after unloading are only 0.57 %p and 0.08 %p"),
+        14, False, DARK, first=True, space_after=8, bullet="•")
+    put(tf, t("즉 대부분이 영구 손상이 아니라 가역적인 시간 지연 성분 → 표준선형고체(SLS) 모델과 일치",
+              "So most of it is a reversible time-lag component, not permanent damage "
+              "→ consistent with a standard linear solid (SLS) model"),
+        14, False, DARK, space_after=8, bullet="•")
+    put(tf, t("dwell 구간 지수 완화 피팅 →  τ = 0.93 s   "
+              "(채널별: τ_L 1.33 s, τ_R 0.59 s, 통합 τ = 1.01 s)",
+              "Exponential relaxation fit over the dwell →  τ = 0.93 s   "
+              "(channel-wise: τ_L 1.33 s, τ_R 0.59 s; combined τ = 1.01 s)"),
+        14, True, MAROON, space_after=0, bullet="▶")
+    # ── 16. Q-factor ────────────────────────────────────────────────────────
+    s = d.slide(t("IV. 신호 특성화", "IV. Signal Characterization"),
+                t("4.4 접촉 모드: 인장–압력", "4.4 Contact Mode: Strain–Pressure"),
+                t("압축 시 인덕턴스가 증가해 보이는 이유 — Q-factor 저하에 의한 역산 "
+                  "겉보기 효과",
+                  "Why inductance appears to rise under compression — an inversion "
+                  "artefact caused by the falling Q factor"))
+    shp, tf = rect(s, MARGIN, BODY_TOP + Cm(0.4), FULLW, Cm(1.7), LIGHT)
+    put(tf, t("Q  =  ω · (최대 저장 에너지 / 주기당 소산 에너지)  =  X / R_s  =  ω L / R_s",
+              "Q  =  ω · (max. stored energy / energy dissipated per cycle)  "
+              "=  X / R_s  =  ω L / R_s"),
+        t(17, 15), True, DARK, first=True, align=PP_ALIGN.CENTER, space_after=0)
+    steps = [
+        (t("센서가 눌린다", "The sensor is pressed"),
+         "L ↓ ,  R_DC ↑ ,  R_eddy ↑", LIGHT, DARK),
+        (t("Q 가 급감한다", "Q falls sharply"), "Q = ω L / R_s", LIGHT, DARK),
+        (t("실제 공진주파수가 감소", "The true resonant frequency drops"),
+         "f = 1/(2π√(LC)) · √(1 − 1/Q²)", LIGHT, DARK),
+        (t("근사식으로 역산", "But we invert with the approximation"),
+         "f ≈ 1/(2π√(LC)) ,  ΔL/L₀ = f₀²/f² − 1", LIGHT, DARK),
+        (t("L 이 증가한 것처럼 보고됨", "L is reported as having increased"),
+         t("겉보기 효과 — 실제 인덕턴스 증가가 아님",
+           "an artefact — not a genuine rise in inductance"), PINK, MAROON),
+    ]
+    y = BODY_TOP + Cm(2.5)
+    for t1, t2, fill, col in steps:
+        shp, tf = rect(s, MARGIN, y, Cm(12.0), Cm(1.5), fill)
+        put(tf, t1, t(15, 14), True, col, first=True, space_after=0)
+        tf = textbox(s, MARGIN + Cm(12.8), y + Cm(0.35), Cm(17), Cm(1.5))
+        put(tf, t2, t(14.5, 13.5), False, GREY, first=True, space_after=0)
+        y += Cm(1.78)
+    shp, tf = rect(s, MARGIN, y + Cm(0.3), FULLW, Cm(2.1), PINK)
+    put(tf, t("본 연구는 이 항을 별도로 보정하지 않았다. 학습 기반 디커플러는 (ΔL, ΔR)에서 목표 "
+              "물리량으로 가는 매핑을 직접 학습하므로, Q 의존성이 입력에 일관되게 포함되어 있는 한 "
+              "역산 보정 없이도 올바른 출력을 낸다.",
+              "No correction was applied. The learned decoupler maps (ΔL, ΔR) directly "
+              "onto the target quantities, so as long as the Q dependence is consistently "
+              "present in its inputs it produces correct outputs without an explicit "
+              "inversion correction — a practical advantage over analytical inversion."),
+        13.5, False, DARK, first=True, space_after=0, line=1.35)
+    # ── 16c. 도체 대 유전체 표적 ────────────────────────────────────────────
+    s = d.slide(t("IV. 신호 특성화", "IV. Signal Characterization"),
+                t("4.5 도체–유전체", "4.5 Conductor–Dielectric"),
+                t("표적 종류에 따라 근접 정보량이 달라진다",
+                  "How much proximity information survives depends on the target"))
+    w = (FULLW - Cm(0.8)) / 2
+    shp, tf = rect(s, MARGIN, BODY_TOP + Cm(0.4), w, Cm(7.2), LIGHT)
+    put(tf, t("도체 (금속)", "Conductor (metal)"), 17, True, MAROON, first=True,
+        space_after=10)
+    put(tf, t("와전류 손실이 지배적 → 근접 시 실효 인덕턴스가 크게 감소",
+              "Eddy-current loss dominates → the effective inductance drops "
+              "substantially on approach"),
+        14, False, DARK, space_after=10, bullet="•", line=1.4)
+    put(tf, t("ΔL 등고선이 급격히 휘어짐 (그림 3a) → 근접 정보가 강하게 실림",
+              "ΔL contours bend sharply (Fig. 3a) → proximity information is strongly "
+              "carried"),
+        14, False, DARK, space_after=0, bullet="•", line=1.4)
+    shp, tf = rect(s, MARGIN + w + Cm(0.8), BODY_TOP + Cm(0.4), w, Cm(7.2), PINK)
+    put(tf, t("유전체 (손)", "Dielectric (hand)"), 17, True, MAROON, first=True,
+        space_after=10)
+    put(tf, t("유전율 변화에 의한 신호 증폭만 작용 → ΔL이 항상 양수이고 크기도 작음",
+              "Only permittivity-driven signal amplification acts → ΔL stays positive "
+              "and small"),
+        14, False, DARK, space_after=10, bullet="•", line=1.4)
+    put(tf, t("ΔL 등고선이 거의 수직 (그림 3c) → 인덕턴스가 사실상 인장 센서로만 동작",
+              "ΔL contours are nearly vertical (Fig. 3c) → the inductance behaves "
+              "essentially as a strain sensor alone"),
+        14, False, DARK, space_after=0, bullet="•", line=1.4)
+    tf = textbox(s, MARGIN, BODY_TOP + Cm(8.0), FULLW, Cm(2))
+    put(tf, t("→ 유전체 표적에 대한 근접 디커플링은 도체 표적보다 근본적으로 어렵다 — "
+              "이후의 모든 모델링은 도체 표적을 대상으로 한다",
+              "→ Proximity decoupling for dielectric targets is fundamentally harder than "
+              "for conductive ones — all subsequent modelling targets the conductive "
+              "case"),
+        15, True, MAROON, first=True, space_after=0, line=1.3)
+    # ── 16b. TENG 채널 ──────────────────────────────────────────────────────
+    s = d.slide(t("IV. 신호 특성화", "IV. Signal Characterization"),
+                t("4.6 TENG", "4.6 TENG"),
+                t("아직 검증하지 않은 확장 지점 — 게이트에는 불필요하지만, 하드웨어에서 "
+                  "계속 유지되는 이유가 있다",
+                  "An unvalidated extension — unnecessary for the gate, but retained "
+                  "in hardware for a reason"))
+    shp, tf = rect(s, MARGIN, BODY_TOP + Cm(0.4), FULLW, Cm(2.7), LIGHT)
+    put(tf, t("TDM의 무여기 슬롯이 취득하는 세 번째 신호 — 접촉 순간 전하 이동에 의한 피크로 나타나는 "
+              "이벤트 신호 (2.2절)",
+              "The third signal, acquired in the no-excitation slot — an event signal that "
+              "peaks on charge transfer at the instant of contact (Section 2.2)"),
+        14.5, True, DARK, first=True, space_after=8, line=1.3)
+    put(tf, t("접촉 게이트는 이미 ΔL·ΔR만으로 98 % 이상의 정확도를 달성 (4.1.4절) → 본 연구는 TENG을 "
+              "디커플러 입력에 포함하지 않았다",
+              "The contact gate already reaches over 98 % accuracy from ΔL and ΔR alone "
+              "(Section 4.1.4) → TENG was not included as a decoupler input here"),
+        13.5, False, GREY, space_after=0, line=1.3)
+    tf = textbox(s, MARGIN, BODY_TOP + Cm(3.2), FULLW, Cm(6.5))
+    put(tf, t("그렇다면 왜 계속 취득하는가 — 두 가지 확장 방향 (1.3절, 5절)",
+              "So why keep acquiring it? Two extension directions (Sections 1.3, 5)"),
+        15, True, MAROON, first=True, space_after=10)
+    put(tf, t("접촉 동역학 · 슬립 감지 — 마찰전기 신호는 상대적 미끄러짐이 있을 때만 발생하는 사건 "
+              "신호라, 정상상태 L·R 채널과 원리적으로 겹치지 않는 정보를 담는다[31]",
+              "Contact dynamics · slip sensing — a triboelectric signal is an event signal "
+              "that arises only under relative sliding motion, carrying information the "
+              "steady-state L and R channels cannot [31]"),
+        13.5, False, DARK, space_after=8, bullet="•", line=1.3)
+    put(tf, t("재질 식별 — 도체·유전체 간 ΔL 부호 차이(2.2절, 3.4절)에 마찰전기 극성·크기를 더하면 "
+              "더 넓은 재질 분류로 확장 가능[19],[32]",
+              "Material identification — combining the ΔL sign difference between "
+              "conductors and dielectrics (Sections 2.2, 3.4) with triboelectric polarity "
+              "and magnitude may extend this to broader material classification [19],[32]"),
+        13.5, False, DARK, space_after=14, bullet="•", line=1.3)
+    put(tf, t("두 방향 모두 이 연구에서는 구조와 물리적 근거만 제시 — 실험적으로 검증하지 않았다",
+              "Neither direction is evaluated experimentally here — both are presented "
+              "only at the level of structure and physical rationale"),
+        13.5, True, MAROON, space_after=0, line=1.3)
 
+    # ── divider V ───────────────────────────────────────────────────────────
+    CH5 = t("V. 디커플링 모델과 실시간 추론을 위한 임베디드 구현",
+            "V. Decoupling Model and Embedded Implementation for Real-Time "
+            "Inference")
+    CH5_SHORT = t("V. 디커플링 모델과 임베디드 구현",
+                  "V. Decoupling Model and Embedded Implementation")
+    d.divider(CH5)
     # ── 14. 해석적 역산의 한계 ──────────────────────────────────────────────
-    s = d.slide(t("그렇다면 해석적으로 역산하면 되지 않는가",
-                  "Why Not Simply Invert the Relations Analytically?"),
-                t("야코비안 역산이 실패하는 두 가지 이유",
-                  "Two reasons Jacobian inversion fails"))
+    s = d.slide(CH5_SHORT,
+                t("5.1 디커플링 모델", "5.1 Decoupling Model"),
+                t("그렇다면 해석적으로 역산하면 되지 않는가 — 야코비안 역산이 실패하는 "
+                  "두 가지 이유",
+                  "Why not simply invert the relations analytically? — two reasons "
+                  "Jacobian inversion fails"))
     shp, tf = rect(s, MARGIN, BODY_TOP + Cm(0.4), FULLW, Cm(2.3), LIGHT)
     put(tf, "[ΔR, ΔL]ᵀ  =  J · [Δε, Δd]ᵀ        →        "
             "[ε, d]ᵀ  =  [ε₀, d₀]ᵀ + J⁻¹ · [ΔR, ΔL]ᵀ",
@@ -665,73 +948,20 @@ def build(L):
               "a learned decoupler that performs only forward operations, so singularities "
               "cannot arise, and runs with O(1) latency"),
         t(14, 13), False, DARK, space_after=0, line=1.35)
-
-    # ── 15. 접촉 영역 물리 ──────────────────────────────────────────────────
-    s = d.slide(t("접촉 모달리티 추가 — 새로 나타난 물리 현상",
-                  "Adding the Contact Modality — New Physics Appears"),
-                t("히스테리시스 · 크립 · 교차 민감도",
-                  "Hysteresis, creep and cross-sensitivity"))
-    d.pic(s, "fig3_pressure.png", MARGIN, BODY_TOP + Cm(0.4), w=Cm(30.5))
-    tf = textbox(s, MARGIN, BODY_TOP + Cm(6.4), FULLW, Cm(5))
-    put(tf, t("깊이를 고정한 채 유지(dwell)하는 동안  ΔL 2.33 %p · ΔR 5.73 %p 추가 변화 "
-              "→ 힘 제거 후 잔차는 각각 0.57 %p · 0.08 %p",
-              "During a constant-depth dwell, ΔL drifts a further 2.33 %p and ΔR 5.73 %p "
-              "→ residuals after unloading are only 0.57 %p and 0.08 %p"),
-        14, False, DARK, first=True, space_after=8, bullet="•")
-    put(tf, t("즉 대부분이 영구 손상이 아니라 가역적인 시간 지연 성분 → 표준선형고체(SLS) 모델과 일치",
-              "So most of it is a reversible time-lag component, not permanent damage "
-              "→ consistent with a standard linear solid (SLS) model"),
-        14, False, DARK, space_after=8, bullet="•")
-    put(tf, t("dwell 구간 지수 완화 피팅 →  τ = 0.93 s   "
-              "(채널별: τ_L 1.33 s, τ_R 0.59 s, 통합 τ = 1.01 s)",
-              "Exponential relaxation fit over the dwell →  τ = 0.93 s   "
-              "(channel-wise: τ_L 1.33 s, τ_R 0.59 s; combined τ = 1.01 s)"),
-        14, True, MAROON, space_after=0, bullet="▶")
-
-    # ── 16. Q-factor ────────────────────────────────────────────────────────
-    s = d.slide(t("압축 시 인덕턴스가 증가해 보이는 이유",
-                  "Why Inductance Appears to Rise Under Compression"),
-                t("Q-factor 저하에 의한 역산 겉보기 효과",
-                  "An inversion artefact caused by the falling Q factor"))
-    shp, tf = rect(s, MARGIN, BODY_TOP + Cm(0.4), FULLW, Cm(1.7), LIGHT)
-    put(tf, t("Q  =  ω · (최대 저장 에너지 / 주기당 소산 에너지)  =  X / R_s  =  ω L / R_s",
-              "Q  =  ω · (max. stored energy / energy dissipated per cycle)  "
-              "=  X / R_s  =  ω L / R_s"),
-        t(17, 15), True, DARK, first=True, align=PP_ALIGN.CENTER, space_after=0)
-    steps = [
-        (t("센서가 눌린다", "The sensor is pressed"),
-         "L ↓ ,  R_DC ↑ ,  R_eddy ↑", LIGHT, DARK),
-        (t("Q 가 급감한다", "Q falls sharply"), "Q = ω L / R_s", LIGHT, DARK),
-        (t("실제 공진주파수가 감소", "The true resonant frequency drops"),
-         "f = 1/(2π√(LC)) · √(1 − 1/Q²)", LIGHT, DARK),
-        (t("근사식으로 역산", "But we invert with the approximation"),
-         "f ≈ 1/(2π√(LC)) ,  ΔL/L₀ = f₀²/f² − 1", LIGHT, DARK),
-        (t("L 이 증가한 것처럼 보고됨", "L is reported as having increased"),
-         t("겉보기 효과 — 실제 인덕턴스 증가가 아님",
-           "an artefact — not a genuine rise in inductance"), PINK, MAROON),
-    ]
-    y = BODY_TOP + Cm(2.5)
-    for t1, t2, fill, col in steps:
-        shp, tf = rect(s, MARGIN, y, Cm(12.0), Cm(1.5), fill)
-        put(tf, t1, t(15, 14), True, col, first=True, space_after=0)
-        tf = textbox(s, MARGIN + Cm(12.8), y + Cm(0.35), Cm(17), Cm(1.5))
-        put(tf, t2, t(14.5, 13.5), False, GREY, first=True, space_after=0)
-        y += Cm(1.78)
-    shp, tf = rect(s, MARGIN, y + Cm(0.3), FULLW, Cm(2.1), PINK)
-    put(tf, t("본 연구는 이 항을 별도로 보정하지 않았다. 학습 기반 디커플러는 (ΔL, ΔR)에서 목표 "
-              "물리량으로 가는 매핑을 직접 학습하므로, Q 의존성이 입력에 일관되게 포함되어 있는 한 "
-              "역산 보정 없이도 올바른 출력을 낸다.",
-              "No correction was applied. The learned decoupler maps (ΔL, ΔR) directly "
-              "onto the target quantities, so as long as the Q dependence is consistently "
-              "present in its inputs it produces correct outputs without an explicit "
-              "inversion correction — a practical advantage over analytical inversion."),
-        13.5, False, DARK, first=True, space_after=0, line=1.35)
-
+    shp, tf = rect(s, MARGIN, y + Cm(3.4), FULLW, Cm(1.7), GREY)
+    put(tf, t("[그림 필요] det(J) → 0 특이점 부근에서 역산이 발산하는 궤적 "
+              "(예: ε ≈ 0 근처 R² vs. 데이터 품질 히트맵 또는 산점도) — 아직 별도 플롯으로 만들지 않음",
+              "[Figure needed] The inversion's divergence trajectory near the det(J) → 0 "
+              "singularity (e.g. R² vs. data quality near ε ≈ 0, as a heatmap or scatter "
+              "plot) — not yet produced as a standalone figure"),
+        t(13, 12), True, WHITE, first=True, align=PP_ALIGN.CENTER, space_after=0,
+        line=1.3, italic=True)
     # ── 17. 모델 1 ──────────────────────────────────────────────────────────
-    s = d.slide(t("디커플링 모델 ① — 2단계 구조와 경량화",
-                  "Decoupling Model ① — Two-Stage Structure"),
-                t("물리적 비대칭을 그대로 구조로 옮긴다",
-                  "The physical asymmetry, transferred directly into the architecture"))
+    s = d.slide(CH5_SHORT, t("5.1 디커플링 모델", "5.1 Decoupling Model"),
+                t("디커플링 모델 ① 2단계 구조와 경량화 — 물리적 비대칭을 그대로 "
+                  "구조로 옮긴다",
+                  "Decoupling model ① two-stage structure — the physical asymmetry, "
+                  "transferred directly into the architecture"))
     shp, tf = rect(s, MARGIN, BODY_TOP + Cm(0.3), Cm(15.5), Cm(2.6), LIGHT)
     put(tf, "Stage 1 :  ΔR  →  ε̂          Stage 2 :  (ΔL, ε̂)  →  d̂",
         16, True, DARK, first=True, align=PP_ALIGN.CENTER, space_after=6)
@@ -766,16 +996,16 @@ def build(L):
               "The 978-parameter medium-deep sits at the Pareto knee — within 0.09 mm of "
               "the 50,306-parameter model"),
         12.5, False, GREY, first=True, space_after=0, line=1.3)
-
     # ── 18. 모델 2 ──────────────────────────────────────────────────────────
-    s = d.slide(t("디커플링 모델 ② — SLS-EMA + Gate-MoE",
-                  "Decoupling Model ② — SLS-EMA + Gate-MoE"),
-                t("접촉/비접촉은 출력 물리량 자체가 다르다",
-                  "Contact and non-contact differ in the very quantities to be produced"))
+    s = d.slide(CH5_SHORT, t("5.1 디커플링 모델", "5.1 Decoupling Model"),
+                t("디커플링 모델 ② SLS-EMA + Gate-MoE — 접촉/비접촉은 출력 물리량 "
+                  "자체가 다르다",
+                  "Decoupling model ② SLS-EMA + Gate-MoE — contact and non-contact "
+                  "differ in the very quantities to be produced"))
     d.pic(s, "fig5_moe.png", MARGIN + Cm(1.0), BODY_TOP + Cm(0.3), w=Cm(28.5))
     tf = textbox(s, MARGIN, BODY_TOP + Cm(6.0), FULLW, Cm(5))
-    put(tf, t("SLS-EMA:  5장에서 구한 τ = 1.01 s 를 인과적 지수이동평균 이력 피처로 환원",
-              "SLS-EMA: the τ = 1.01 s obtained in Section 5 is reduced to a causal "
+    put(tf, t("SLS-EMA:  3.3절에서 구한 τ = 1.01 s 를 인과적 지수이동평균 이력 피처로 환원",
+              "SLS-EMA: the τ = 1.01 s obtained in Section 3.3 is reduced to a causal "
               "exponential-moving-average history feature"),
         14.5, True, MAROON, first=True, space_after=7)
     put(tf, t("EMAₙ = EMAₙ₋₁ + α(xₙ − EMAₙ₋₁),   α = 1 − exp(−Δt/τ)   →   곱셈 1회 + 상태 변수 1개, "
@@ -791,12 +1021,12 @@ def build(L):
               "This single feature cuts the force RMSE from 0.521 N to 0.253 N "
               "(the F/T sensor's own noise is ±0.19 N)"),
         13.5, True, MAROON, space_after=0, bullet="▶")
-
     # ── 19. 절제 실험 ───────────────────────────────────────────────────────
-    s = d.slide(t("절제 실험", "Ablation Study"),
-                t("Gate-MoE 와 SLS-EMA 의 기여를 분리한다 (D4, 사이클 단위 held-out)",
-                  "Separating the contributions of Gate-MoE and SLS-EMA "
-                  "(D4, cycle-wise held-out)"))
+    s = d.slide(CH5_SHORT, t("5.1 디커플링 모델", "5.1 Decoupling Model"),
+                t("절제 실험 — Gate-MoE 와 SLS-EMA 의 기여를 분리한다 "
+                  "(D4, 사이클 단위 held-out)",
+                  "Ablation study — separating the contributions of Gate-MoE and "
+                  "SLS-EMA (D4, cycle-wise held-out)"))
     hdr = [t("모델", "Model"), t("게이트 정확도", "Gate acc."),
            t("변형률 RMSE", "Strain RMSE"), t("근접거리 RMSE", "Distance RMSE"),
            t("접촉력 RMSE", "Force RMSE"), t("파라미터", "Param.")]
@@ -830,9 +1060,8 @@ def build(L):
               "expert — yet A was deployed (mature dense-layer support in X-CUBE-AI, no "
               "hidden state to carry)"),
         13.5, False, DARK, space_after=0, bullet="•")
-
     # ── 20. 임베디드 ────────────────────────────────────────────────────────
-    s = d.slide(t("임베디드 구현", "Embedded Implementation"),
+    s = d.slide(CH5_SHORT, t("5.2 임베디드 구현", "5.2 Embedded Implementation"),
                 t("sklearn → ONNX → stedgeai → STM32,  매 TDM 주기마다 온보드 추론",
                   "sklearn → ONNX → stedgeai → STM32, with on-board inference once per "
                   "TDM cycle"))
@@ -863,67 +1092,12 @@ def build(L):
               "jitter  →  edge inference here is a requirement for real-time operation, "
               "not an optimization"),
         13.5, False, DARK, space_after=0, line=1.3)
-
-    # ── 21. 실시간 검증 ─────────────────────────────────────────────────────
-    s = d.slide(t("실기 실시간 검증", "On-Hardware Real-Time Validation"),
-                t("학습과 무관한 별도 세션 · PC 후처리 추론 없음 (세션 0819-153948, 809 s)",
-                  "A session separate from training · no post-hoc inference on the PC "
-                  "(session 0819-153948, 809 s)"))
-    d.pic(s, "fig6_realtime.png", Cm((33.867 - 18.0) / 2), BODY_TOP + Cm(0.1),
-          h=Cm(12.9))
-    tf = textbox(s, MARGIN, SH - Cm(2.3), FULLW, Cm(1.8))
-    put(tf, t("Part 1 (0–398 s) 변형률 고정 · 근접 반복 왕복    |    "
-              "Part 2 (400–730 s) 근접 고정 · 변형률 스윕    |    Part 3 (738 s~) 두 축 동시",
-              "Part 1 (0–398 s) strain held, proximity swept    |    "
-              "Part 2 (400–730 s) proximity held, strain swept    |    "
-              "Part 3 (from 738 s) both axes together"),
-        13.5, False, GREY, first=True, align=PP_ALIGN.CENTER, space_after=0)
-
-    # ── 22. 구간별 결과 ─────────────────────────────────────────────────────
-    s = d.slide(t("구간별 결과", "Part-Wise Results"),
-                t("각 축이 단독으로 변할 때와 동시에 변할 때를 분리해 관찰",
-                  "Isolating the case where each axis varies alone from where both vary"))
-    d.pic(s, "fig7_parity.png", MARGIN, BODY_TOP + Cm(0.4), w=Cm(16.5))
-    hdr = [t("구간", "Segment"), t("변형률 R²", "Strain R²"),
-           t("근접거리 R²", "Distance R²"), t("접촉력 R²", "Force R²")]
-    data = [
-        (t("Part 1 — 근접만 변화", "Part 1 — proximity only"), "0.981", "0.940", "0.430"),
-        (t("Part 2 — 인장만 변화", "Part 2 — strain only"), "0.492", "−0.797", "—"),
-        (t("Part 3 — 동시 변화", "Part 3 — simultaneous"), "0.602", "−2.051", "—"),
-    ]
-    cw = [Cm(6.0), Cm(2.9), Cm(3.1), Cm(2.6)]
-    x0 = MARGIN + Cm(17.4)
-    y = table(s, hdr, data, cw, x0, BODY_TOP + Cm(0.8),
-              hdr_h=Cm(1.35), row_h=Cm(1.15), hdr_size=t(11.5, 11),
-              row_size=12.5, left_cols=(0,), accent_row=0)
-    tf = textbox(s, x0, y + Cm(0.3), Cm(14.6), Cm(8.2))
-    put(tf, t("Part 1 — 세 물리량 모두 잘 복원",
-              "Part 1 — all three quantities recovered well"),
-        14, True, MAROON, first=True, space_after=6)
-    put(tf, t("변형률 RMSE 1.37 %p · 근접 RMSE 2.11 mm\n게이트 정확도 98.3 %",
-              "Strain RMSE 1.37 %p · distance RMSE 2.11 mm\nGate accuracy 98.3 %"),
-        12.5, False, DARK, space_after=14, line=1.35)
-    put(tf, t("Part 2 · 3 — 근접 R² 가 음수",
-              "Parts 2 and 3 — the distance R² goes negative"),
-        14, True, MAROON, space_after=6)
-    put(tf, t("근접이 준정적이라 정답의 분산 자체가 매우 작다.\n"
-              "R² = 1 − RMSE²/Var(y) 이므로 분모가 작으면\n"
-              "절대 오차가 작아도 R² 가 크게 나빠진다.\n"
-              "(Part 2 RMSE 6.19 mm — Part 1의 3배 수준)",
-              "Proximity is quasi-static, so the ground-truth\nvariance is very small. "
-              "Since R² = 1 − RMSE²/Var(y),\na small denominator degrades R² even for a "
-              "modest\nabsolute error. (Part 2 RMSE 6.19 mm — about 3× Part 1)"),
-        12.5, False, DARK, space_after=10, line=1.35)
-    put(tf, t("그럼에도 저하는 실재 — 근접이 준정적일 때 인덕턴스에 남는 정보가 잡음 수준으로 줄어든다.",
-              "The degradation is nonetheless real: when proximity is quasi-static, the "
-              "information left in the inductance falls to the noise level."),
-        12.5, True, DARK, space_after=0, line=1.35)
-
     # ── 23. 실패 모드 ───────────────────────────────────────────────────────
-    s = d.slide(t("실기에서만 드러난 실패 모드",
-                  "A Failure Mode Visible Only on Hardware"),
-                t("오프라인 지표만으로는 임베디드 성능을 담보할 수 없다",
-                  "Offline metrics alone cannot guarantee embedded performance"))
+    s = d.slide(CH5_SHORT, t("5.2 임베디드 구현", "5.2 Embedded Implementation"),
+                t("실기에서만 드러난 실패 모드 — 오프라인 지표만으로는 임베디드 성능을 "
+                  "담보할 수 없다",
+                  "A failure mode visible only on hardware — offline metrics alone "
+                  "cannot guarantee embedded performance"))
     shp, tf = rect(s, MARGIN, BODY_TOP + Cm(0.4), FULLW, Cm(1.6), PINK)
     put(tf, t("오프라인 held-out 게이트 정확도 100.0 %  →  그런데 실기에서 "
               "“뗀 뒤에도 계속 접촉으로 판정”",
@@ -972,9 +1146,107 @@ def build(L):
               "on hardware was restored.\nExperts A and B, where history genuinely helps "
               "regression, kept their four inputs."),
         13, False, DARK, space_after=0, line=1.3)
+    # ── 21. 실시간 검증 ─────────────────────────────────────────────────────
+    s = d.slide(CH5_SHORT, t("5.3 실시간 검증", "5.3 Real-Time Validation"),
+                t("실기 실시간 검증 — 학습과 무관한 별도 세션 · PC 후처리 추론 없음 "
+                  "(세션 0819-153948, 809 s)",
+                  "On-hardware real-time validation — a session separate from "
+                  "training, no post-hoc inference on the PC (session 0819-153948, "
+                  "809 s)"))
+    d.pic(s, "fig6_realtime.png", Cm((33.867 - 18.0) / 2), BODY_TOP + Cm(0.1),
+          h=Cm(12.9))
+    tf = textbox(s, MARGIN, SH - Cm(2.3), FULLW, Cm(1.8))
+    put(tf, t("Part 1 (0–398 s) 변형률 고정 · 근접 반복 왕복    |    "
+              "Part 2 (400–730 s) 근접 고정 · 변형률 스윕    |    Part 3 (738 s~) 두 축 동시",
+              "Part 1 (0–398 s) strain held, proximity swept    |    "
+              "Part 2 (400–730 s) proximity held, strain swept    |    "
+              "Part 3 (from 738 s) both axes together"),
+        13.5, False, GREY, first=True, align=PP_ALIGN.CENTER, space_after=0)
+    # ── 22. 구간별 결과 ─────────────────────────────────────────────────────
+    s = d.slide(CH5_SHORT, t("5.3 실시간 검증", "5.3 Real-Time Validation"),
+                t("구간별 결과 — 각 축이 단독으로 변할 때와 동시에 변할 때를 분리해 관찰",
+                  "Part-wise results — isolating the case where each axis varies "
+                  "alone from where both vary"))
+    d.pic(s, "fig7_parity.png", MARGIN, BODY_TOP + Cm(0.4), w=Cm(16.5))
+    hdr = [t("구간", "Segment"), t("변형률 R²", "Strain R²"),
+           t("근접거리 R²", "Distance R²"), t("접촉력 R²", "Force R²")]
+    data = [
+        (t("Part 1 — 근접만 변화", "Part 1 — proximity only"), "0.981", "0.940", "0.430"),
+        (t("Part 2 — 인장만 변화", "Part 2 — strain only"), "0.492", "−0.797", "—"),
+        (t("Part 3 — 동시 변화", "Part 3 — simultaneous"), "0.602", "−2.051", "—"),
+    ]
+    cw = [Cm(6.0), Cm(2.9), Cm(3.1), Cm(2.6)]
+    x0 = MARGIN + Cm(17.4)
+    y = table(s, hdr, data, cw, x0, BODY_TOP + Cm(0.8),
+              hdr_h=Cm(1.35), row_h=Cm(1.15), hdr_size=t(11.5, 11),
+              row_size=12.5, left_cols=(0,), accent_row=0)
+    tf = textbox(s, x0, y + Cm(0.3), Cm(14.6), Cm(8.2))
+    put(tf, t("Part 1 — 세 물리량 모두 잘 복원",
+              "Part 1 — all three quantities recovered well"),
+        14, True, MAROON, first=True, space_after=6)
+    put(tf, t("변형률 RMSE 1.37 %p · 근접 RMSE 2.11 mm\n게이트 정확도 98.3 %",
+              "Strain RMSE 1.37 %p · distance RMSE 2.11 mm\nGate accuracy 98.3 %"),
+        12.5, False, DARK, space_after=14, line=1.35)
+    put(tf, t("Part 2 · 3 — 근접 R² 가 음수",
+              "Parts 2 and 3 — the distance R² goes negative"),
+        14, True, MAROON, space_after=6)
+    put(tf, t("근접이 준정적이라 정답의 분산 자체가 매우 작다.\n"
+              "R² = 1 − RMSE²/Var(y) 이므로 분모가 작으면\n"
+              "절대 오차가 작아도 R² 가 크게 나빠진다.\n"
+              "(Part 2 RMSE 6.19 mm — Part 1의 3배 수준)",
+              "Proximity is quasi-static, so the ground-truth\nvariance is very small. "
+              "Since R² = 1 − RMSE²/Var(y),\na small denominator degrades R² even for a "
+              "modest\nabsolute error. (Part 2 RMSE 6.19 mm — about 3× Part 1)"),
+        12.5, False, DARK, space_after=10, line=1.35)
+    put(tf, t("그럼에도 저하는 실재 — 근접이 준정적일 때 인덕턴스에 남는 정보가 잡음 수준으로 줄어든다.",
+              "The degradation is nonetheless real: when proximity is quasi-static, the "
+              "information left in the inductance falls to the noise level."),
+        12.5, True, DARK, space_after=0, line=1.35)
+    # ── divider VI ──────────────────────────────────────────────────────────
+    CH6 = t("VI. 결론", "VI. Conclusion")
+    d.divider(CH6)
+    # ── 23b. 논의 ───────────────────────────────────────────────────────────
+    s = d.slide(CH6, t("6.1 요약", "6.1 Summary"),
+                t("무엇이 가능해졌고, 무엇이 남았는가",
+                  "What is achievable, and what remains limited"))
+    shp, tf = rect(s, MARGIN, BODY_TOP + Cm(0.3), FULLW / 2 - Cm(0.3), Cm(10.6),
+                   RGBColor(0xEA, 0xF4, 0xEA))
+    put(tf, t("가능한 것", "Achievable"), 17, True, RGBColor(0x2C, 0x7A, 0x2C), first=True,
+        space_after=10)
+    put(tf, t("두 가닥 배선으로 1 kHz 3신호 취득 — 상용 부품 + 6층 기판만으로 구현",
+              "Three signals at 1 kHz through two wires — built with commercial parts on a "
+              "six-layer board"), 13, False, DARK, first=True, space_after=8, bullet="•",
+        line=1.3)
+    put(tf, t("R–ε 단독 의존 비대칭이 실제로 성립 → 동일 예산에서 종단 모델보다 우수",
+              "The R–ε-only asymmetry genuinely holds → outperforms an end-to-end model at "
+              "equal budget"), 13, False, DARK, space_after=8, bullet="•", line=1.3)
+    put(tf, t("1,413 파라미터로 3 물리량 동시 추정, 260 µs 결정론적 지연",
+              "1,413 parameters estimate three quantities at once, with 260 µs deterministic "
+              "latency"), 13, False, DARK, space_after=8, bullet="•", line=1.3)
+    put(tf, t("점탄성처럼 방해가 될 것 같던 현상도 물리 모델화하면 오히려 정확도 개선",
+              "Even viscoelasticity, which seems to obstruct modelling, improves accuracy "
+              "once physically modelled"), 13, False, DARK, space_after=0, bullet="•",
+        line=1.3)
+    shp, tf = rect(s, MARGIN + FULLW / 2 + Cm(0.3), BODY_TOP + Cm(0.3),
+                   FULLW / 2 - Cm(0.3), Cm(10.6), RGBColor(0xFD, 0xEA, 0xEA))
+    put(tf, t("한계", "Limitations"), 17, True, MAROON, first=True, space_after=10)
+    put(tf, t("근접 추정은 도체 표적에서만 실용적 — 유전체 표적에서는 신호가 미약",
+              "Proximity estimation is practical only for conductive targets — dielectric "
+              "targets carry a weak signal"), 13, False, DARK, first=True, space_after=8,
+        bullet="•", line=1.3)
+    put(tf, t("근접이 준정적인 구간에서 SNR이 무너져 R²가 음수로 떨어짐",
+              "In quasi-static proximity segments the SNR collapses and R² turns negative"),
+        13, False, DARK, space_after=8, bullet="•", line=1.3)
+    put(tf, t("접촉력 오차가 F/T 센서 자체의 잡음 바닥(±0.19 N)에 근접",
+              "The contact-force error approaches the F/T sensor's own noise floor "
+              "(±0.19 N)"), 13, False, DARK, space_after=8, bullet="•", line=1.3)
+    put(tf, t("TENG은 게이트엔 불필요 — 슬립·재질식별 같은 다른 역할은 아직 미검증",
+              "TENG is unnecessary for the gate — other roles such as slip and material "
+              "identification remain unverified"), 13, False, DARK, space_after=0,
+        bullet="•", line=1.3)
 
     # ── 24. 결론 ────────────────────────────────────────────────────────────
-    s = d.slide(t("결론", "Conclusion"))
+    s = d.slide(CH6, t("6.1 요약", "6.1 Summary"))
     items = [
         (t("단일 전극에서 3종 신호 동시 취득",
            "Three signals acquired simultaneously from one electrode"),
@@ -1009,7 +1281,7 @@ def build(L):
         y += Cm(2.25)
 
     # ── 25. 향후 계획 ───────────────────────────────────────────────────────
-    s = d.slide(t("향후 계획", "Future Work"))
+    s = d.slide(CH6, t("6.2 향후 계획", "6.2 Future Work"))
     plans = [
         ("(i)", t("AC 등가 직렬 저항 R_s 추가 취득",
                   "Also acquire the AC equivalent series resistance R_s"),
@@ -1045,16 +1317,25 @@ def build(L):
         put(tf, t1, 16, True, DARK, first=True, space_after=6)
         put(tf, t2, 13, False, GREY, space_after=0, line=1.35)
         y += Cm(2.9)
-
     # ── 26. 마무리 ──────────────────────────────────────────────────────────
     s = d.slide()
-    rect(s, Cm(0), Cm(0), SW, Cm(0.45), MAROON, radius=False)
-    tf = textbox(s, MARGIN, Cm(7.2), FULLW, Cm(3))
-    put(tf, t("감사합니다", "Thank you"), 40, True, DARK, first=True,
-        align=PP_ALIGN.CENTER, space_after=16)
-    put(tf, t("문희준  ·  고려대학교 기계공학과  BioRobotics & Control Lab",
-              "Heejun Moon  ·  BioRobotics and Control Lab,  Korea University"),
-        15, False, GREY, align=PP_ALIGN.CENTER, space_after=0)
+    d.pic(s, "logo_ku.png", MARGIN, Cm(0.6), h=Cm(2.0))
+    d.pic(s, "logo_birc.png", SW - MARGIN - Cm(2.6), Cm(0.6), h=Cm(2.0))
+    tf = textbox(s, MARGIN, Cm(4.8), FULLW, Cm(2.0))
+    put(tf, t("감사합니다", "Thank you"), 36, True, MAROON, first=True,
+        align=PP_ALIGN.CENTER, space_after=0)
+    line(s, MARGIN, Cm(8.6), Cm(8), MAROON, 2.5)
+    line(s, MARGIN + Cm(8), Cm(8.6), Cm(3.6), BEIGE, 2.5)
+    tf = textbox(s, MARGIN, Cm(9.4), FULLW, Cm(3))
+    put(tf, t("고려대학교 기계공학과 BioRobotics & Control (BiRC) 연구실",
+              "Bio-Robotics and Control (BiRC) Lab"),
+        16, False, DARK, first=True, align=PP_ALIGN.CENTER, space_after=4)
+    put(tf, t("고려대학교 기계공학과", "Department of Mechanical Engineering"),
+        16, False, DARK, align=PP_ALIGN.CENTER, space_after=4)
+    put(tf, t("고려대학교", "Korea University"), 16, False, DARK,
+        align=PP_ALIGN.CENTER, space_after=14)
+    put(tf, t("문희준", "HeeJun Moon"), 17, True, DARK, align=PP_ALIGN.CENTER,
+        space_after=0)
 
     fn = t("발표자료_국문_단일전극_멀티모달센서.pptx",
            "Slides_EN_SingleElectrode_MultimodalSensor.pptx")
