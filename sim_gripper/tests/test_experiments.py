@@ -35,3 +35,10 @@ def test_run_without_video_when_render_fails(models, monkeypatch):
     sc = Scenario("short", SCENARIOS["E1_metal"].obj, t_end=0.1)
     df, frames = run(sc, moe_models=models, record_video=True)
     assert len(df) == 100 and frames == []
+
+
+def test_run_calls_on_step_every_tick(models):
+    calls = []
+    sc = Scenario("short", SCENARIOS["E1_metal"].obj, t_end=0.05)
+    run(sc, moe_models=models, on_step=lambda sim, row: calls.append(row["t"]))
+    assert len(calls) == 50 and calls[0] == 0.0

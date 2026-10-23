@@ -22,7 +22,8 @@ VIDEO_DT = 0.033
 
 
 def run(scenario, actuator="tendon", sensor_mode="pipeline", shift=None, moe_models=None,
-        record_video=False, seed=0, ctrl=None, fp=None):
+        record_video=False, seed=0, ctrl=None, fp=None, on_step=None):
+    """on_step(sim, row): 매 1 ms 호출 (실시간 뷰어용)."""
     fp, ctrl = fp or FingerParams(), ctrl or CtrlParams()
     sim = GripperSim(fp, scenario.obj)
     n_sub = round(DT / sim.model.opt.timestep)
@@ -87,6 +88,8 @@ def run(scenario, actuator="tendon", sensor_mode="pipeline", shift=None, moe_mod
         row.update(phase=phase, obj_z=sim.object_height_m(), broken=sim.object_broken, failed=sup.failed,
                    mat_true=mat_true)
         rows.append(row)
+        if on_step is not None:
+            on_step(sim, row)
         if record_video and t >= next_frame:
             f = sim.render_frame()
             if f is not None:
