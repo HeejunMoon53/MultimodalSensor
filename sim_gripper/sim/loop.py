@@ -84,7 +84,8 @@ def run(scenario, actuator="tendon", sensor_mode="pipeline", shift=None, moe_mod
             tau = np.stack([acts[i].step(u[i], q[i], sim.model.opt.timestep) for i in range(3)])
             sim.step(tau, lift)
 
-        row.update(phase=phase, obj_z=sim.object_height_m(), broken=sim.object_broken, failed=sup.failed)
+        row.update(phase=phase, obj_z=sim.object_height_m(), broken=sim.object_broken, failed=sup.failed,
+                   mat_true=mat_true)
         rows.append(row)
         if record_video and t >= next_frame:
             f = sim.render_frame()

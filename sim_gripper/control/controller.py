@@ -22,7 +22,7 @@ class CtrlParams:
     d0_mm: float = 20.0
     d1_mm: float = 3.0
     u_rate_max: float = 0.8
-    B_a: float = 2.0
+    B_a: float = 8.0
     F_dead: float = 0.1
     Fdot_max: float = 50.0
     tau_F: float = 0.05
