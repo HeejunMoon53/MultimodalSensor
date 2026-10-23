@@ -67,11 +67,9 @@ class MoE:
         self._prev = contact
 
         x = [dL, dR, self.ema[0], self.ema[1]]
-        if contact:
-            y = mlp_forward(m["expert_b"], _scale(m["sc_b"], x))[0]
-            lim = FORCE_LIM
-        else:
-            y = mlp_forward(m["expert_a"], _scale(m["sc_a"], x))[0]
-            lim = DIST_LIM
+        k, lim = ("b", FORCE_LIM) if contact else ("a", DIST_LIM)
+        y = mlp_forward(m[f"expert_{k}"], _scale(m[f"sc_{k}"], x))[0]
+        if f"lin_{k}" in m:                         # recal 방식의 출력 선형 보정 (M7)
+            y = m[f"lin_{k}"].predict(y[None])[0]
         return MoeOut(float(np.clip(y[0], *STRAIN_LIM)), float(np.clip(y[1], *lim)),
                       contact, p)
