@@ -42,3 +42,7 @@ Thumbs.db
 
 # Office 임시 잠금 파일
 ~$*
+
+# simulation outputs / workflow scratch
+sim_gripper/out/
+.superpowers/
