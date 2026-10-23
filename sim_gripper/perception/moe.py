@@ -52,10 +52,11 @@ class MoE:
         self.ema = (0.0, 0.0)
         self._prev = -1
 
-    def step(self, dL, dR, dt_s=0.001):
+    def step(self, dL, dR, dt_s=0.001, contact_hint=0):
+        """contact_hint: 외부 접촉 신호(TENG 래치). 게이트와 OR → 전문가 선택·EMA 리셋에 반영."""
         m = self.models
         p = float(mlp_forward(m["gate"], _scale(m["sc_gate"], [dL, dR]))[0])
-        contact = int(p >= GATE_THRESHOLD)
+        contact = int(p >= GATE_THRESHOLD or contact_hint)
 
         if self._prev < 0 or contact != self._prev:
             self.ema = (float(dL), float(dR))

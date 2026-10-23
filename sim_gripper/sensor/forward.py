@@ -35,6 +35,10 @@ class SensorForward:
     def dL_eps(self, eps):
         return float(np.interp(np.clip(eps, 0, 30), self.eps, self._dL_eps))
 
+    def eps_from_dR(self, dR):
+        """비접촉 시 ΔR = ΔR_ε(ε) (재질·근접 무관) → ε 역산. 단조 증가 곡선."""
+        return float(np.interp(dR, self._dR_eps, self.eps))
+
     def signals(self, eps, d_mm, F_N, material, shift=None, kappa_bar_per_mm=0.0):
         if shift is not None:
             eps = eps + shift.d_eps

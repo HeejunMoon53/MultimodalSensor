@@ -19,13 +19,16 @@ def test_open_goes_to_u_open():
     assert u == P.u_open
 
 
-def test_preshape_monotonic_bounded():
+def test_approach_speed_scheduled_by_proximity():
     c = FingerController(P)
-    us = []
-    for d in np.linspace(20, 3, 3000):
-        us.append(c.step(_m(d, 0), "conductor", "APPROACH", DT))
-    us = np.array(us)
-    assert np.all(np.diff(us) >= -1e-12) and us.max() <= P.u_pre + 1e-12 and us[-1] > 0.9 * P.u_pre
+    du = {}
+    for d in (30.0, 20.0, 11.5, 3.0, 1.0):
+        u0 = c.u
+        c.step(_m(d, 0), "conductor", "APPROACH", DT)
+        du[d] = (c.u - u0) / DT
+    assert abs(du[30.0] - P.v_far) < 1e-9 and abs(du[20.0] - P.v_far) < 1e-9
+    assert abs(du[11.5] - (P.v_far + P.v_near) / 2) < 1e-9
+    assert abs(du[3.0] - P.v_near) < 1e-9 and abs(du[1.0] - P.v_near) < 1e-9
 
 
 def test_admittance_increment():
@@ -44,9 +47,25 @@ def test_safety_on_force():
     c.step(_m(9.0, 1), "conductor", "GRASP", DT)
     u1 = c.step(_m(9.0, 1), "conductor", "GRASP", DT)
     assert c.safety_trip and u1 < 0.5
-    for _ in range(5):
+    for _ in range(300):
         c.step(_m(1.0, 1), "conductor", "GRASP", DT)
     assert not c.safety_trip
+
+
+def test_noisy_force_does_not_trip_rate_safety():
+    c, rng = FingerController(P), np.random.default_rng(0)
+    c.u = 0.4
+    for _ in range(1000):
+        c.step(_m(2.0 + 0.2 * rng.normal(), 1), "conductor", "GRASP", DT)
+        assert not c.safety_trip
+
+
+def test_fast_force_rise_trips_rate_safety():
+    c = FingerController(P)
+    c.u = 0.4
+    for k in range(100):
+        c.step(_m(0.1 * k, 1), "conductor", "GRASP", DT)   # 100 N/s
+    assert c.safety_trip
 
 
 def test_safety_on_eps_out_of_range():

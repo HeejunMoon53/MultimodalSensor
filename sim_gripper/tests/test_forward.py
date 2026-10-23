@@ -41,3 +41,9 @@ def test_teng_sign():
     peak_up, peak_dn = max(v_up), min(v_dn)
     assert peak_up > 0 and peak_dn < 0
     assert abs(v_up[-1]) < 0.05 * peak_up and abs(v_dn[-1]) < 0.05 * abs(peak_dn)
+
+
+def test_eps_from_dR_roundtrip():
+    f = SensorForward()
+    for eps in (2.0, 10.0, 15.0, 27.0):
+        assert abs(f.eps_from_dR(f.signals(eps, 30.0, 0.0, "conductor")[1]) - eps) < 0.05

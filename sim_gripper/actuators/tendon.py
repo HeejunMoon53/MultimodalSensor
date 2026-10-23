@@ -7,7 +7,7 @@ import numpy as np
 
 
 class TendonActuator:
-    def __init__(self, r_j=0.006, r_p=0.01, k_t=2000.0, theta_max=3.0, tau_m=0.02, omega_max=10.0):
+    def __init__(self, r_j=0.006, r_p=0.02, k_t=2000.0, theta_max=3.0, tau_m=0.02, omega_max=10.0):
         self.r_j, self.r_p, self.k_t = r_j, r_p, k_t
         self.theta_max, self.tau_m, self.omega_max = theta_max, tau_m, omega_max
         self.reset()

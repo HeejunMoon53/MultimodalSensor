@@ -1,7 +1,7 @@
 """MuJoCo 3지 PRBM 소프트 그리퍼 + 물체 (M0).
 
 손가락 = 세그먼트 4개 + hinge 4개, 관절 강성 k = E·w·t³/12 / (L/n).
-센서 pad는 세그먼트 1·2 안쪽면 (센서 구간 40 mm). 물체는 받침대 위, 중심 높이를 pad 구간 중앙에 맞춤.
+센서 pad는 원위 세그먼트 2·3 안쪽면 (센서 구간 40 mm, 손끝 포함). 물체는 테이블 위, 손끝은 테이블 위 10 mm.
 """
 from dataclasses import dataclass
 
@@ -9,9 +9,10 @@ import mujoco
 import numpy as np
 
 BASE_R = 0.05        # 손가락 장착 반경 [m]
-BASE_Z = 0.12        # 그리퍼 베이스 높이 [m]
+BASE_Z = 0.09        # 그리퍼 베이스 높이 [m] (손끝 z=10 mm)
 PAD_T = 0.0005       # pad 반두께 [m]
 DIST_CUTOFF = 0.03   # mj_geomDistance 탐색 한계 [m]
+SENSOR_SEGS = (2, 3)  # 센서(pad)가 붙은 세그먼트
 
 
 @dataclass
@@ -67,30 +68,26 @@ def _finger_xml(i, fp):
                 f'<joint name="q{i}_{j}" type="hinge" axis="0 -1 0" stiffness="{k:.5f}" damping="{c:.6f}" '
                 f'armature="1e-6" limited="true" range="-0.5 1.6"/>'
                 f'<geom type="box" size="{ht} {hw} {ell / 2}" pos="0 0 {-ell / 2}" mass="{fp.seg_mass():.6f}" '
-                f'rgba="0.9 0.9 0.85 1"/>')
-        if j in (1, 2):
+                f'{"contype=\"0\" conaffinity=\"0\" " if j in SENSOR_SEGS else ""}rgba="0.9 0.9 0.85 1"/>')
+        if j in SENSOR_SEGS:
             xml += (f'<geom name="pad_{i}_{j}" type="box" size="{PAD_T} {hw * 0.9} {ell / 2 * 0.95}" '
                     f'pos="{ht + PAD_T} 0 {-ell / 2}" mass="0.0001" friction="1.2" rgba="0.75 0.75 0.8 1"/>')
     return xml + "</body>" * (fp.n_joints + 1)
 
 
 def build_mjcf(fp, obj):
-    pad_mid = BASE_Z - 2 * fp.seg_m()             # pad 구간(세그먼트 1·2) 중앙 높이
-    hh = obj.half_height()
-    ped_h = max(pad_mid - hh, 0.002)
-    oz = ped_h + hh
+    oz = obj.half_height()
     size = " ".join(f"{s}" for s in obj.size)
     soft = ' solref="0.02 1"' if obj.soft else ""
     color = "0.7 0.72 0.75 1" if obj.material == "conductor" else "0.95 0.85 0.7 1"
     fingers = "".join(_finger_xml(i, fp) for i in range(3))
     return f"""
 <mujoco model="soft_gripper">
-  <option timestep="0.00025" integrator="implicitfast"/>
+  <option timestep="0.00025" integrator="implicitfast" cone="elliptic" impratio="10"/>
   <visual><global offwidth="1280" offheight="960"/></visual>
   <worldbody>
     <light pos="0 0 0.6" dir="0 0 -1"/>
     <geom name="table" type="plane" size="0.3 0.3 0.01" rgba="0.35 0.38 0.42 1"/>
-    <geom name="pedestal" type="cylinder" size="0.012 {ped_h / 2}" pos="0 0 {ped_h / 2}" rgba="0.3 0.3 0.3 1"/>
     <body name="obj" pos="0 0 {oz}">
       <freejoint/>
       <geom name="obj" type="{obj.shape}" size="{size}" mass="{obj.mass_kg}" friction="1.0"{soft} rgba="{color}"/>
@@ -113,7 +110,7 @@ class GripperSim:
         m = self.model
         self.dof = np.array([[m.jnt_dofadr[m.joint(f"q{i}_{j}").id] for j in range(fp.n_joints)] for i in range(3)])
         self.qadr = np.array([[m.jnt_qposadr[m.joint(f"q{i}_{j}").id] for j in range(fp.n_joints)] for i in range(3)])
-        self.pads = np.array([[m.geom(f"pad_{i}_{j}").id for j in (1, 2)] for i in range(3)])
+        self.pads = np.array([[m.geom(f"pad_{i}_{j}").id for j in SENSOR_SEGS] for i in range(3)])
         self.obj_geom, self.obj_body = m.geom("obj").id, m.body("obj").id
         self.pad_finger = {int(g): i for i in range(3) for g in self.pads[i]}
         self.object_broken = False
@@ -125,14 +122,14 @@ class GripperSim:
         self.data.ctrl[0] = lift_target_m
         mujoco.mj_step(self.model, self.data)
         if self.obj.fragile_F_N is not None and not self.object_broken:
-            self.object_broken = bool(self.pad_force_N().sum() > self.obj.fragile_F_N)
+            self.object_broken = bool(self.pad_force_N().max() > self.obj.fragile_F_N)   # 국부 접촉력 기준
 
     def joint_angles(self):
         return self.data.qpos[self.qadr].copy()
 
     def kappa_bar_per_mm(self):
         q = self.joint_angles()
-        return (q[:, 1] + q[:, 2]) / 40.0
+        return q[:, list(SENSOR_SEGS)].sum(axis=1) / 40.0
 
     def pad_distance_mm(self):
         out = np.empty(3)

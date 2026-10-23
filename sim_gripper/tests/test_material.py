@@ -42,3 +42,12 @@ def test_latched_after_contact(fwd):
 
 def test_strain_error_does_not_flip_material(fwd):
     assert _approach(fwd, "dielectric", eps_err=1.5)[1] != "conductor"
+
+
+@pytest.mark.parametrize("material", ["conductor", "dielectric"])
+def test_material_while_bending_with_eps_from_dR(fwd, material):
+    clf, s = MaterialClassifier(fwd), TdmSampler(0.12, 0.38, 3)
+    for d, eps in zip(np.linspace(20, 1, 2000), np.linspace(15, 10, 2000)):
+        dL, dR = s.sample(*fwd.signals(eps, d, 0.0, material))
+        out = clf.update(dL, fwd.eps_from_dR(dR), 0)
+    assert out == material

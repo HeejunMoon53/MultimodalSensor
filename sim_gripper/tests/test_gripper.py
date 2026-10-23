@@ -4,7 +4,7 @@ import pytest
 
 from sim_gripper.model.gripper import FingerParams, GripperSim, ObjectSpec, build_mjcf
 
-METAL = ObjectSpec("metal", "cylinder", (0.025, 0.025), 0.1, "conductor")
+METAL = ObjectSpec("metal", "cylinder", (0.025, 0.04), 0.1, "conductor")
 EGG = ObjectSpec("egg", "sphere", (0.025,), 0.06, "dielectric", fragile_F_N=3.5)
 
 
