@@ -1,4 +1,4 @@
-"""그리퍼 보정 MoE: v4와 같은 구조(1,413 파라미터)를 60A 벨로즈 그리퍼 시뮬 데이터로 mixed fine-tune.
+"""그리퍼 보정 MoE: v4와 같은 구조(1,413 파라미터)를 그리퍼 시뮬 데이터(판형 + 60A 벨로즈 절반씩)로 mixed fine-tune.
 
 논문 그림의 메인 추정기. 시뮬레이션 내 보정이며, 실물에서는 같은 절차를 그리퍼 장착 실측 데이터로 수행한다.
 python -m sim_gripper.experiments.calibrated  →  sim_gripper/out/moe_gripper.pkl
@@ -19,7 +19,9 @@ def make_gripper_moe(n=20000, seed=0, base=None, cache=CACHE):
         return pickle.loads(cache.read_bytes())
     if base is None:
         base = pickle.loads(DEFAULT_PKL.read_bytes())
-    data = collect_sim_data(DomainShift(), n, seed, finger="bellows60a", scenarios=CAL_SCENARIOS, models=base)
+    import pandas as pd
+    data = pd.concat([collect_sim_data(DomainShift(), n // 2, seed + k, finger=f, scenarios=CAL_SCENARIOS, models=base)
+                      for k, f in enumerate(("flat", "bellows60a"))], ignore_index=True)
     model = adapt("mixed", base, data, load_flat()[0])
     if cache is not None:
         cache.parent.mkdir(parents=True, exist_ok=True)
