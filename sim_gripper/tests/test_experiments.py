@@ -46,3 +46,7 @@ def test_run_calls_on_step_every_tick(models):
 
 def test_metrics_has_strain_rmse():
     assert abs(compute_metrics(_synthetic())["strain_rmse"]) < 1e-12
+
+
+def test_metrics_has_force_estimation_rmse():
+    assert abs(compute_metrics(_synthetic())["force_est_rmse"]) < 1e-12

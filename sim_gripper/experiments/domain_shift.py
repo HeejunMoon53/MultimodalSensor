@@ -49,11 +49,11 @@ def _finger_frame(df, i):
     return f.iloc[::DOWNSAMPLE]
 
 
-def collect_sim_data(shift, n_samples, seed):
+def collect_sim_data(shift, n_samples, seed, finger="flat", scenarios=SIM_SCENARIOS, models=None):
     frames, s = [], seed
     while sum(len(f) for f in frames) < n_samples:
-        for name in SIM_SCENARIOS:
-            df, _ = run(SCENARIOS[name], shift=shift, seed=s)
+        for name in scenarios:
+            df, _ = run(SCENARIOS[name], shift=shift, seed=s, finger=finger, moe_models=models)
             frames += [_finger_frame(df, i) for i in range(3)]
         s += 1
     data = pd.concat(frames, ignore_index=True)

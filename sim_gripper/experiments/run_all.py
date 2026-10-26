@@ -27,6 +27,13 @@ def _r2(y, yhat):
     return float(1 - np.sum((y - yhat) ** 2) / ss) if ss > 0 else float("nan")
 
 
+def _force_est_rmse(df):
+    """접촉(참 F > 0.05 N 이고 contact 판정) 구간의 F̂ − F RMSE — 추정 정확도 (제어 추종과 별개)."""
+    e = np.concatenate([(df[f"value_{i}"] - df[f"F_true_{i}"])[(df[f"F_true_{i}"] > 0.05) & (df[f"contact_{i}"] == 1)].values
+                        for i in range(3)])
+    return float(np.sqrt(np.mean(e ** 2))) if len(e) else float("nan")
+
+
 def compute_metrics(df):
     hold = df[df.phase == "HOLD"]
     grip = df[df.phase.isin(["GRASP", "HOLD"])]
@@ -61,6 +68,7 @@ def compute_metrics(df):
         "gate_acc": float(np.mean(touch == gate)),
         "strain_r2": _r2(eps, eps_hat),
         "strain_rmse": float(np.sqrt(np.mean((eps - eps_hat) ** 2))),
+        "force_est_rmse": _force_est_rmse(df),
         "material_acc": float(np.mean(mat)),
     }
 
