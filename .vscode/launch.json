@@ -43,6 +43,48 @@
             ],
             "runToEntryPoint": "main",
             "showDevDebugOutput": "none"
+        },
+        {
+            "name": "그리퍼 시뮬: 설정 패널",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "sim_gripper.panel",
+            "cwd": "${workspaceFolder}",
+            "python": "C:/ml_env/Scripts/python.exe",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "그리퍼 시뮬: 시나리오 선택 실행",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "sim_gripper.viewer",
+            "args": ["${input:gripperScenario}", "--actuator", "${input:gripperActuator}", "--sensor", "${input:gripperSensor}"],
+            "cwd": "${workspaceFolder}",
+            "python": "C:/ml_env/Scripts/python.exe",
+            "console": "integratedTerminal"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "gripperScenario",
+            "type": "pickString",
+            "description": "시나리오",
+            "options": ["E1_metal", "E2_hand", "E2_egg", "E3_sponge", "E3_small", "E3_large", "E4_disturb"],
+            "default": "E1_metal"
+        },
+        {
+            "id": "gripperActuator",
+            "type": "pickString",
+            "description": "액추에이터",
+            "options": ["tendon", "pneumatic"],
+            "default": "tendon"
+        },
+        {
+            "id": "gripperSensor",
+            "type": "pickString",
+            "description": "센서 모드 (pipeline = v4 MoE, ideal = 이상 센서)",
+            "options": ["pipeline", "ideal"],
+            "default": "pipeline"
         }
     ]
 }
