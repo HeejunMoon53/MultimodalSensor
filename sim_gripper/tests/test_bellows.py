@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 from sim_gripper.model.calibrate_bellows import FIG9_SLOPE_DEG_PER_KPA, P0_KPA, blocked_force_N, free_bending_deg
-from sim_gripper.model.gripper import BellowsParams, GripperSim, ObjectSpec, build_mjcf
+from sim_gripper.model.gripper import BellowsParams, FingerParams, GripperSim, ObjectSpec, build_mjcf
 
 METAL = ObjectSpec("metal", "cylinder", (0.025, 0.04), 0.2, "conductor")
 
@@ -29,3 +29,16 @@ def test_free_bending_matches_fig9(p_kpa):
 
 def test_blocked_force_200kpa():
     assert abs(blocked_force_N(200e3) - 6.28) < 1.0
+
+
+def test_bellows_auto_height_aligns_pads_with_object():
+    from sim_gripper.sim.scenarios import SCENARIOS
+    egg = SCENARIOS["E2_egg"].obj
+    sim = GripperSim(BellowsParams(), egg)
+    pad_z = np.mean([sim.data.geom_xpos[g][2] for g in sim.pads.ravel()])
+    assert abs(pad_z - egg.half_height()) < 0.006 or sim.lowest_finger_z() >= 0.005 - 1e-4
+    assert sim.lowest_finger_z() >= 0.005 - 1e-4
+
+
+def test_flat_finger_has_no_auto_height():
+    assert GripperSim(FingerParams(), METAL).lift0 == 0.0

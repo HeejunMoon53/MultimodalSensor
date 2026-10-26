@@ -61,3 +61,13 @@ def test_pneumatic_deadzone():
 def test_make_pneumatic60a_preset():
     a = make_actuator("pneumatic60a")
     assert a.P_max == 200e3 and a.P0 == 62e3 and a.beta == 0.0
+
+
+def test_pneumatic_deadzone_compensation():
+    a = make_actuator("pneumatic60a")
+    for _ in range(2000):
+        a.step(0.0, np.zeros(8), DT)
+    assert abs(a.P - a.P0) < 1e3 and np.all(a.torque(np.zeros(8)) < 1e-3)     # u=0 → P₀ 대기, 굽힘 없음
+    for _ in range(2000):
+        tau = a.step(0.1, np.zeros(8), DT)
+    assert np.all(tau > 0)                                                       # 작은 u에도 바로 토크

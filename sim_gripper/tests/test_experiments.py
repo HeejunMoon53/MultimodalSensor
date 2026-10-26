@@ -42,3 +42,7 @@ def test_run_calls_on_step_every_tick(models):
     sc = Scenario("short", SCENARIOS["E1_metal"].obj, t_end=0.05)
     run(sc, moe_models=models, on_step=lambda sim, row: calls.append(row["t"]))
     assert len(calls) == 50 and calls[0] == 0.0
+
+
+def test_metrics_has_strain_rmse():
+    assert abs(compute_metrics(_synthetic())["strain_rmse"]) < 1e-12

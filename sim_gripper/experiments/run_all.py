@@ -12,12 +12,14 @@ from sim_gripper.control.controller import MATERIAL_TABLE
 from sim_gripper.perception.moe import DEFAULT_PKL
 from sim_gripper.sim.loop import run
 from sim_gripper.sim.scenarios import SCENARIOS
-from sim_gripper.viz.plots import plot_actuator_compare, plot_ideal_vs_pipeline, plot_timeline
+from sim_gripper.viz.plots import (plot_actuator_compare, plot_bellows_calibration, plot_finger_compare,
+                                   plot_ideal_vs_pipeline, plot_timeline)
 from sim_gripper.viz.render import save_mp4
 
 OUT = Path(__file__).resolve().parents[1] / "out"
 LIFT_OK_M = 0.02
 GRID = ["E1_metal", "E2_hand", "E2_egg", "E3_sponge", "E3_small", "E3_large", "E4_disturb"]
+BELLOWS_GRID = GRID + ["E5_spool"]
 
 
 def _r2(y, yhat):
@@ -58,6 +60,7 @@ def compute_metrics(df):
         "broken": bool(df.broken.iloc[-1]),
         "gate_acc": float(np.mean(touch == gate)),
         "strain_r2": _r2(eps, eps_hat),
+        "strain_rmse": float(np.sqrt(np.mean((eps - eps_hat) ** 2))),
         "material_acc": float(np.mean(mat)),
     }
 
@@ -90,6 +93,18 @@ def run_all(out_dir=OUT):
             pipe, _ = run(SCENARIOS[name], moe_models=models)
         pairs[name] = {"ideal": ideal, "pipeline": pipe}
     plot_ideal_vs_pipeline(pairs, out_dir / "ideal_vs_pipeline.png")
+    # 60A 벨로즈 손가락 (공압 0~200 kPa, Meitani & Nisar 2025 보정)
+    bel = {}
+    for name in BELLOWS_GRID:
+        df, _ = run(SCENARIOS[name], finger="bellows60a", moe_models=models)
+        metrics[f"bellows60a_{name}"] = compute_metrics(df)
+        plot_timeline(df, 0, out_dir / f"timeline_bellows60a_{name}.png")
+        df.to_pickle(out_dir / f"log_bellows60a_{name}.pkl")
+        bel[name] = df
+        print("bellows60a", name, metrics[f"bellows60a_{name}"], flush=True)
+    plot_finger_compare({"판형 95A (텐던)": e1["tendon"], "벨로즈 60A (공압)": bel["E1_metal"]},
+                        out_dir / "compare_fingers.png")
+    metrics["bellows_calibration"] = plot_bellows_calibration(out_dir / "bellows_calibration.png")
     (out_dir / "metrics.json").write_text(json.dumps(metrics, indent=2, ensure_ascii=False), encoding="utf-8")
     return metrics
 

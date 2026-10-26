@@ -17,7 +17,8 @@ from sim_gripper.actuators.tendon import TendonActuator
 from sim_gripper.control.controller import MATERIAL_TABLE, CtrlParams
 from sim_gripper.experiments.domain_shift import DEFAULT_SHIFT
 from sim_gripper.experiments.run_all import OUT
-from sim_gripper.model.gripper import BASE_R, BASE_Z, SENSOR_SEGS, FingerParams, GripperSim
+from sim_gripper.actuators import PNEUMATIC_60A
+from sim_gripper.model.gripper import BASE_R, BASE_Z, SENSOR_SEGS, BellowsParams, FingerParams, GripperSim
 from sim_gripper.perception import moe as M
 from sim_gripper.perception.contact import TengContact
 from sim_gripper.perception.material import MaterialClassifier
@@ -31,7 +32,7 @@ CHAPTERS = [
     "1. 개요와 목적", "2. 시스템 구조 (Fig.1(b) 대응)", "3. M0 손가락 기구", "4. M1 센서 순방향 모델",
     "5. M2 TDM 샘플링", "6. M3 Gate-MoE 디커플링", "7. M4 재질 판별", "8. M5 제어기", "9. M6 액추에이터",
     "10. 실험 E1~E6 결과", "11. M7 도메인 시프트와 fine-tune", "12. 한계와 향후 과제",
-    "부록 A. 파라미터 표", "부록 B. 기호표",
+    "부록 A. 파라미터 표", "부록 B. 기호표", "부록 C. 60A 벨로즈 그리퍼",
 ]
 INK = RGBColor(0x22, 0x22, 0x22)
 
@@ -327,14 +328,10 @@ def build_report(out_dir=OUT):
         ["E6", "이상 센서 vs 파이프라인", "E1, E2_hand"],
     ], widths=[1.5, 5, 9])
     keys = ["success", "lift_m", "force_rmse", "max_force", "settle_s", "gate_acc", "strain_r2", "material_acc"]
-    rows = []
-    for name, m in met.items():
-        rows.append([name, "성공" if m["success"] else "실패", _f(m["lift_m"] * 100, 1), _f(m["force_rmse"]),
-                     _f(m["max_force"], 2), _f(m["settle_s"], 2), _f(m["gate_acc"], 2), _f(m["strain_r2"], 2),
-                     _f(m["material_acc"], 2)])
+    rows = _metric_rows({k: v for k, v in met.items() if not k.startswith("bellows")})
     R.p("지표: force_rmse = HOLD 구간 √mean((F − F_t)²) (참 힘 기준), settle_s = GRASP 진입 후 ±10 % 띠에 머물기 시작한 "
         "시간, gate_acc = contact 판단 vs 참 접촉(F > 0.05 N), strain_r2 = ε̂ vs ε 전 구간, material_acc = 최종 재질 정답 손가락 비율.")
-    R.table(["실행", "파지", "리프트 [cm]", "F RMSE [N]", "최대 F [N]", "정착 [s]", "접촉 정확도", "ε R²", "재질"], rows)
+    R.table(METRIC_HEAD, rows)
     e1, e1i = met.get("E1_metal_tendon", {}), met.get("E1_metal_ideal", {})
     R.h("해석", 2)
     R.bullets([
@@ -464,9 +461,84 @@ def build_report(out_dir=OUT):
         ["θ_m, T", "모터각, 텐던 장력", "rad, N"], ["P", "공압", "Pa"], ["δε, γ, s", "도메인 시프트 파라미터", "%, —, —"],
     ], widths=[3.5, 8.5, 4])
 
+    _appendix_bellows(R, met, out_dir)
+
     path = out_dir / DOC_NAME
-    R.d.save(str(path))
+    try:
+        R.d.save(str(path))
+    except PermissionError:                     # Word에서 열려 있으면 별도 이름으로 저장
+        path = out_dir / DOC_NAME.replace(".docx", "_갱신.docx")
+        R.d.save(str(path))
     return path
+
+
+def _metric_rows(met):
+    return [[name, "성공" if m["success"] else "실패", _f(m["lift_m"] * 100, 1), _f(m["force_rmse"]),
+             _f(m["max_force"], 2), _f(m["settle_s"], 2), _f(m["gate_acc"], 2), _f(m["strain_r2"], 2),
+             _f(m["material_acc"], 2)] for name, m in met.items() if "success" in m]
+
+
+METRIC_HEAD = ["실행", "파지", "리프트 [cm]", "F RMSE [N]", "최대 F [N]", "정착 [s]", "접촉 정확도", "ε R²", "재질"]
+CAD_DIR = Path(__file__).resolve().parents[1] / "cad" / "out"
+
+
+def _appendix_bellows(R, met, out_dir):
+    bp = BellowsParams()
+    R.h(CHAPTERS[14])
+    R.p("근거: K. Meitani, S. Nisar, \"Materials and Methods for Designing 3D-Printed Soft Robot Grippers in Low-Hardness "
+        "TPU (60A–70A)\", IEEE Access 13, 210465–210473, 2025 (doi 10.1109/ACCESS.2025.3642169). 논문의 Filaflex 60A "
+        "벨로즈 손가락을 출력용 CAD와 시뮬레이션 손가락으로 옮기고, 같은 폐루프(센서 → MoE → 제어)를 돌려 판형 손가락과 비교한다.")
+    R.h("논문 수치", 2)
+    R.table(["항목", "값 (논문)"], [
+        ["Yeoh 3차 (60A)", "C10 1.31309561, C20 −0.68049203, C30 0.45647907 MPa"],
+        ["탄성계수 (선형 영역)", "60A 4.43487 MPa, 70A 6.61786 MPa"],
+        ["손가락 (Table 3)", "l 105, l_b 6.43, l_c 30.8, w 7.00, w_c 8.00, h 32.0 mm; 벨로즈 8개, precurve 41°, 벽 2.5 mm"],
+        ["굽힘 (Fig.9)", "60A 40 kPa −10° → 200 kPa 63° (평균 0.45°/kPa); 총 굽힘 41° + 63° = 104°"],
+        ["끝단 힘 (Fig.7)", "60A 100 kPa 4.48 N, 200 kPa 6.28 N, 300 kPa 10.77 N"],
+        ["그리퍼", "3지 삼각 배치, 파지 영역 외접원 60 mm, PLA 베이스, 1297 g 스풀·55 g 계란 파지"],
+        ["출력", "Prusa MK4, 225 °C, 층 0.12 mm, 인필 100 %, 20 mm/s, 압출배율 1.1, 리트랙션 없음, 옆으로 눕혀 출력"],
+    ], widths=[4, 12])
+    R.h("출력용 3D 모델", 2)
+    R.p("sim_gripper/cad/ (build123d 파라미터 스크립트, python -m sim_gripper.cad.export): finger_60A.stl/.step, "
+        "gripper_base.stl, PRINT_SETTINGS.md. 안쪽면(바닥층) 원위 3개 벨로즈 구간에 센서 홈(폭 22 × 깊이 0.5 mm)을 추가했다. "
+        "논문 표만으로 정해지지 않는 값은 Fig.3 비율로 추정했다: 바닥층 3 mm, 공기 채널 4 mm, 벨로즈 높이 14 mm, 벨로즈는 "
+        "두께 l_b의 평판(둥근 로브·필렛 생략). 실제 출력 전 논문 그림과 대조해 FingerCAD 값을 조정할 것.")
+    R.fig(CAD_DIR / "finger_preview.png", "그림 C-1. 60A 벨로즈 손가락 CAD (옆면·등각).", 15)
+    R.h("시뮬레이션 모델과 보정", 2)
+    R.p(f"벨로즈 하나를 PRBM 관절 하나로 본다(관절 {bp.n_joints}개, 세그먼트 {bp.seg_m() * 1000:.2f} mm). 출력 형상의 "
+        "precurve는 관절 스프링 기준각으로 둔다. 공압은 데드존을 두어 Fig.9의 영점(≈ 62 kPa)을 재현한다:")
+    R.eq("springref_j = 41°/8,   τ_j = α·max(0, P − P₀),   Δθ = Σ_j (q_j − springref_j) ≈ 8·α·(P − P₀)/k",
+         f"P₀ = {PNEUMATIC_60A['P0'] / 1e3:.0f} kPa,  α = {PNEUMATIC_60A['alpha']:.4e} N·m/Pa,  k = {bp.k_joint:.4f} N·m/rad,  "
+         f"P_max = {PNEUMATIC_60A['P_max'] / 1e3:.0f} kPa")
+    R.p("α/k는 Fig.9 기울기로, α 크기는 200 kPa 끝단 차단력(6.28 N)으로 정했다. 차단력은 끝단 pad 중심을 공간에 고정한 "
+        "구속 반력의 굽힘 방향 성분으로 측정했다(판 접촉 방식은 끝단이 미끄러져 불안정). 선형 데드존 모델이라 100·300 kPa "
+        "힘은 논문보다 작게 나온다.")
+    cal = met.get("bellows_calibration")
+    if cal:
+        R.table(["압력 [kPa]", "시뮬 굽힘 [°]", "Fig.9 굽힘 [°]"], [[f"{a:.0f}", _f(b, 1), _f(c, 1)] for a, b, c in cal["bending"]])
+        R.table(["압력 [kPa]", "시뮬 차단력 [N]", "Fig.7 차단력 [N]"], [[f"{a:.0f}", _f(b, 2), _f(c, 2)] for a, b, c in cal["force"]])
+    R.fig(out_dir / "bellows_calibration.png", "그림 C-2. 보정 결과: 굽힘각(Fig.9)과 끝단 차단력(Fig.7).", 16)
+    R.h("센서 위치의 의미", 2)
+    R.p(f"센서는 물체와 닿는 안쪽 바닥층(strain-limiting layer)에 붙는다. 이 층은 굽힘의 중립축에 가까워 굽힘 인장이 거의 "
+        f"없다(h = {bp.h_sensor_mm} mm, 판형은 3 mm). 그래서 ε은 프리스트레치 ε₀ 근처에 머물고, 접촉 중 '변형률이 같이 변하는' "
+        "문제가 크게 줄어든다 — 판형에서 v4 MoE 힘 추정을 망친 바로 그 조건(10장)이 구조적으로 완화된다. 대신 인장 모달리티는 "
+        "굽힘 정보를 거의 주지 않으므로, 굽힘(자세)이 필요하면 바깥 벨로즈면에 두 번째 센서 채널을 두는 것이 대안이다.")
+    R.h("결과", 2)
+    bel = {k.replace("bellows60a_", "벨로즈 "): v for k, v in met.items() if k.startswith("bellows60a_")}
+    flat = {f"판형 {k[:-7]}": v for k, v in met.items() if k.endswith("_tendon")}
+    R.table(METRIC_HEAD, _metric_rows(bel) + _metric_rows(flat))
+    R.fig(out_dir / "compare_fingers.png", "그림 C-3. E1 금속 원통: 판형 vs 벨로즈 (힘, 인장, 명령).", 14)
+    R.fig(out_dir / "timeline_bellows60a_E1_metal.png", "그림 C-4. 벨로즈 E1 금속 원통, 손가락 0 타임라인.")
+    R.h("논문 대비 달라진 점", 2)
+    R.bullets([
+        f"장착 반경 {bp.base_R * 1000:.0f} mm (논문 형상은 끝단 반경 ≈ 30 mm) — 지름 50 mm 물체에서 근접 구간을 만들기 위해 10 mm 넓혔다.",
+        "벨로즈 외형·채널·바닥층 두께는 추정치, 둥근 로브·필렛 생략.",
+        "Yeoh 초탄성 FEM 대신 PRBM: 굽힘·끝단 힘의 전체 거동만 맞추고 벨로즈 국부 변형(ballooning)은 표현하지 않는다.",
+        "스풀(1.3 kg) 시나리오는 유전체 목표 힘(1.5 N)으로는 마찰이 부족하다 — 무게 추정(리프트 중 F̂ 증가)으로 목표 힘을 올리는 "
+        "적응이 필요하다는 근거.",
+        "수정 이력: 이전 버전은 MJCF 각도 단위(degree) 때문에 판형 관절 제한이 −0.5°…1.6°로 들어가 소프트 제한이 추가 강성처럼 "
+        "작용했다. compiler angle=\"radian\"으로 고친 뒤 이 보고서의 모든 수치를 다시 계산했다.",
+    ])
 
 
 if __name__ == "__main__":

@@ -12,6 +12,20 @@ COLOR_TRUE, COLOR_EST = "#333333", "#7B4FBF"
 PHASES = ["OPEN", "APPROACH", "GRASP", "HOLD", "RELEASE"]
 PHASE_BG = {"APPROACH": "#F2F2F2", "GRASP": "#E6E6E6", "HOLD": "#D9D9D9", "RELEASE": "#F2F2F2"}
 
+def _save(fig, path, dpi=130):
+    """Windows에서 백신·인덱서가 잠깐 파일을 잡는 경우(OSError 22/13) 몇 번 재시도."""
+    import time
+    for k in range(5):
+        try:
+            fig.savefig(path, dpi=dpi)
+            break
+        except OSError:
+            if k == 4:
+                raise
+            time.sleep(0.5)
+    plt.close(fig)
+
+
 plt.rcParams.update({"font.family": "Malgun Gothic", "axes.unicode_minus": False, "font.size": 9,
                      "axes.spines.top": False, "axes.spines.right": False, "axes.grid": True,
                      "grid.color": "#E5E5E5", "grid.linewidth": 0.6})
@@ -63,8 +77,7 @@ def plot_timeline(df, finger, path):
         ax.legend(loc="upper left", fontsize=7, frameon=False)
     fig.suptitle(f"손가락 {i} 모달리티 타임라인 (배경: APPROACH·GRASP·HOLD·RELEASE)", fontsize=10)
     fig.tight_layout()
-    fig.savefig(path, dpi=130)
-    plt.close(fig)
+    _save(fig, path)
 
 
 def plot_actuator_compare(results, path):
@@ -81,8 +94,7 @@ def plot_actuator_compare(results, path):
         ax.legend(frameon=False, fontsize=8)
     fig.suptitle("E1 금속 원통: 텐던 vs 공압", fontsize=10)
     fig.tight_layout()
-    fig.savefig(path, dpi=130)
-    plt.close(fig)
+    _save(fig, path)
 
 
 def plot_ideal_vs_pipeline(pairs, path):
@@ -100,5 +112,51 @@ def plot_ideal_vs_pipeline(pairs, path):
     axs[-1, 0].set_xlabel("시간 [s]")
     fig.suptitle("이상 센서 vs 전체 파이프라인 (순방향 모델 → TDM → v4 MoE)", fontsize=10)
     fig.tight_layout()
-    fig.savefig(path, dpi=130)
-    plt.close(fig)
+    _save(fig, path)
+
+
+def plot_finger_compare(results, path):
+    """E1 금속 원통: 손가락 종류별 힘·인장(참/추정)·명령 (손가락 0)."""
+    fig, axs = plt.subplots(3, 1, figsize=(8, 7), sharex=True)
+    styles = [("-", COLOR_TRUE), ("--", COLOR_EST)]
+    for (name, df), (ls, col) in zip(results.items(), styles):
+        axs[0].plot(df.t, df.F_true_0, ls=ls, color=col, lw=1.3, label=f"{name} F 참값")
+        axs[1].plot(df.t, df.eps_true_0, ls=ls, color=col, lw=1.3, label=f"{name} ε 참값")
+        axs[1].plot(df.t, df.eps_hat_0, ls=ls, color=col, lw=0.6, alpha=0.5, label=rf"{name} $\hat{{\varepsilon}}$")
+        axs[2].plot(df.t, df.u_0, ls=ls, color=col, lw=1.3, label=name)
+    axs[0].set_ylabel("F [N]")
+    axs[1].set_ylabel("인장 ε [%]")
+    axs[2].set_ylabel("명령 u")
+    axs[2].set_xlabel("시간 [s]")
+    for ax in axs:
+        ax.legend(frameon=False, fontsize=7, ncol=2)
+    fig.suptitle("E1 금속 원통: 판형 손가락 vs 60A 벨로즈 손가락 (손가락 0)", fontsize=10)
+    fig.tight_layout()
+    _save(fig, path)
+
+
+def plot_bellows_calibration(path):
+    """논문 Fig.9(굽힘)·Fig.7(차단력) vs 시뮬 보정 결과. 표 데이터(dict)도 반환."""
+    from sim_gripper.model.calibrate_bellows import (FIG7_FORCE_N, FIG9_SLOPE_DEG_PER_KPA, P0_KPA,
+                                                     blocked_force_N, free_bending_deg)
+    Ps = np.arange(70, 201, 10) * 1e3
+    bend = [free_bending_deg(P) for P in Ps]
+    force = {P: blocked_force_N(P) for P in FIG7_FORCE_N}
+    fig, axs = plt.subplots(1, 2, figsize=(10, 3.8))
+    axs[0].plot(Ps / 1e3, FIG9_SLOPE_DEG_PER_KPA * (Ps / 1e3 - P0_KPA), color=COLOR_TRUE, ls="--", lw=1.2,
+                label="논문 Fig.9 (선형 근사)")
+    axs[0].plot(Ps / 1e3, bend, color=COLOR_EST, marker="o", ms=4, lw=1.3, label="시뮬 (PRBM 8관절)")
+    axs[0].set_xlabel("압력 [kPa]")
+    axs[0].set_ylabel("추가 굽힘각 [°] (precurve 41° 제외)")
+    axs[0].legend(frameon=False, fontsize=8)
+    x = np.arange(len(FIG7_FORCE_N))
+    axs[1].bar(x - 0.18, list(FIG7_FORCE_N.values()), 0.34, color=COLOR_TRUE, label="논문 Fig.7 (60A 평균)")
+    axs[1].bar(x + 0.18, list(force.values()), 0.34, color=COLOR_EST, label="시뮬 (끝단 고정 반력)")
+    axs[1].set_xticks(x, [f"{P / 1e3:.0f} kPa" for P in FIG7_FORCE_N])
+    axs[1].set_ylabel("끝단 차단력 [N]")
+    axs[1].legend(frameon=False, fontsize=8)
+    fig.suptitle("60A 벨로즈 손가락 보정 (Meitani & Nisar, IEEE Access 2025)", fontsize=10)
+    fig.tight_layout()
+    _save(fig, path)
+    return {"bending": [[P / 1e3, b, FIG9_SLOPE_DEG_PER_KPA * (P / 1e3 - P0_KPA)] for P, b in zip(Ps, bend)],
+            "force": [[P / 1e3, f, FIG7_FORCE_N[P]] for P, f in force.items()]}

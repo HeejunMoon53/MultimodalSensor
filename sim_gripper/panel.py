@@ -18,7 +18,7 @@ from sim_gripper.viewer import PlayControl, play
 DESC = {
     "E1_metal": "금속 원통 (도체, 0.2 kg)", "E2_hand": "손 (유전체, 말랑함)", "E2_egg": "계란 (3.5 N 넘으면 파손)",
     "E3_sponge": "스펀지 (유전체, 말랑함)", "E3_small": "작은 금속 원통 (지름 30 mm)",
-    "E3_large": "큰 금속 원통 (지름 70 mm)", "E4_disturb": "금속 원통 + 6~7 s 수평 3 N 외란",
+    "E3_large": "큰 금속 원통 (지름 70 mm)", "E4_disturb": "금속 원통 + 6~7 s 수평 3 N 외란", "E5_spool": "실 스풀 대용 1.3 kg (논문 Fig.11)",
 }
 PHASE_KO = {"OPEN": "개방", "APPROACH": "접근", "GRASP": "파지", "HOLD": "리프트·유지", "RELEASE": "해제"}
 MAT_KO = {"unknown": "미정", "conductor": "도체", "dielectric": "유전체"}
@@ -33,6 +33,7 @@ class Panel:
         f.grid()
 
         self.scen = tk.StringVar(value="E1_metal")
+        self.finger = tk.StringVar(value="flat")
         self.act = tk.StringVar(value="tendon")
         self.sens = tk.StringVar(value="pipeline")
         self.speed = tk.DoubleVar(value=1.0)
@@ -44,37 +45,45 @@ class Panel:
         cb.bind("<<ComboboxSelected>>", lambda e: self.scen.set(names[cb.current()]))
         cb.grid(row=0, column=1, columnspan=3, sticky="we", pady=2)
 
-        ttk.Label(f, text="액추에이터").grid(row=1, column=0, sticky="w")
-        ttk.Radiobutton(f, text="텐던", variable=self.act, value="tendon").grid(row=1, column=1, sticky="w")
-        ttk.Radiobutton(f, text="공압", variable=self.act, value="pneumatic").grid(row=1, column=2, sticky="w")
+        ttk.Label(f, text="손가락").grid(row=1, column=0, sticky="w")
+        ttk.Radiobutton(f, text="판형 95A", variable=self.finger, value="flat",
+                        command=lambda: self.act.set("tendon")).grid(row=1, column=1, sticky="w")
+        ttk.Radiobutton(f, text="벨로즈 60A (논문)", variable=self.finger, value="bellows60a",
+                        command=lambda: self.act.set("pneumatic60a")).grid(row=1, column=2, sticky="w")
 
-        ttk.Label(f, text="센서").grid(row=2, column=0, sticky="w")
-        ttk.Radiobutton(f, text="전체 파이프라인 (v4 MoE)", variable=self.sens, value="pipeline").grid(row=2, column=1, sticky="w")
-        ttk.Radiobutton(f, text="이상 센서", variable=self.sens, value="ideal").grid(row=2, column=2, sticky="w")
+        ttk.Label(f, text="액추에이터").grid(row=2, column=0, sticky="w")
+        acts = ttk.Frame(f)
+        acts.grid(row=2, column=1, columnspan=3, sticky="w")
+        for text, val in (("텐던", "tendon"), ("공압", "pneumatic"), ("공압 60A (0~200 kPa)", "pneumatic60a")):
+            ttk.Radiobutton(acts, text=text, variable=self.act, value=val).pack(side="left", padx=(0, 8))
 
-        ttk.Label(f, text="배속").grid(row=3, column=0, sticky="w")
+        ttk.Label(f, text="센서").grid(row=3, column=0, sticky="w")
+        ttk.Radiobutton(f, text="전체 파이프라인 (v4 MoE)", variable=self.sens, value="pipeline").grid(row=3, column=1, sticky="w")
+        ttk.Radiobutton(f, text="이상 센서", variable=self.sens, value="ideal").grid(row=3, column=2, sticky="w")
+
+        ttk.Label(f, text="배속").grid(row=4, column=0, sticky="w")
         ttk.Scale(f, from_=0.1, to=3.0, variable=self.speed, command=self._speed_changed,
-                  length=220).grid(row=3, column=1, columnspan=2, sticky="we")
+                  length=220).grid(row=4, column=1, columnspan=2, sticky="we")
         self.speed_lbl = ttk.Label(f, text="1.0×", width=6)
-        self.speed_lbl.grid(row=3, column=3, sticky="w")
+        self.speed_lbl.grid(row=4, column=3, sticky="w")
 
         b = ttk.Frame(f)
-        b.grid(row=4, column=0, columnspan=4, pady=(8, 6), sticky="we")
+        b.grid(row=5, column=0, columnspan=4, pady=(8, 6), sticky="we")
         ttk.Button(b, text="▶ 실행 / 재시작", command=self.start).pack(side="left", expand=True, fill="x", padx=2)
         self.pause_btn = ttk.Button(b, text="⏸ 일시정지", command=self.toggle_pause)
         self.pause_btn.pack(side="left", expand=True, fill="x", padx=2)
         ttk.Button(b, text="■ 정지", command=self.stop).pack(side="left", expand=True, fill="x", padx=2)
 
         self.status = ttk.Label(f, text="설정을 고르고 [실행]을 누르세요.", font=("맑은 고딕", 10, "bold"))
-        self.status.grid(row=5, column=0, columnspan=4, sticky="w", pady=(4, 2))
+        self.status.grid(row=6, column=0, columnspan=4, sticky="w", pady=(4, 2))
         self.rows = []
         hdr = ["손가락", "실제 F [N]", "센서 추정", "ε̂ [%]", "재질", "안전"]
         for c, h in enumerate(hdr):
-            ttk.Label(f, text=h, foreground="#555").grid(row=6, column=c if c < 4 else c, sticky="w", padx=3)
+            ttk.Label(f, text=h, foreground="#555").grid(row=7, column=c, sticky="w", padx=3)
         for i in range(3):
             labels = [ttk.Label(f, text=str(i), width=w) for w in (6, 10, 14, 8, 8, 6)]
             for c, l in enumerate(labels):
-                l.grid(row=7 + i, column=c, sticky="w", padx=3)
+                l.grid(row=8 + i, column=c, sticky="w", padx=3)
             self.rows.append(labels)
         root.protocol("WM_DELETE_WINDOW", self.close)
         self._poll()
@@ -91,7 +100,7 @@ class Panel:
         self.ctrl = PlayControl(round(self.speed.get(), 1))
         self.ctrl.cam = cam
         args = (self.scen.get(), self.act.get(), self.sens.get(), self.ctrl)
-        self.thread = threading.Thread(target=play, args=args, daemon=True)
+        self.thread = threading.Thread(target=play, args=args, kwargs={"finger": self.finger.get()}, daemon=True)
         self.thread.start()
         self.pause_btn.config(text="⏸ 일시정지")
 

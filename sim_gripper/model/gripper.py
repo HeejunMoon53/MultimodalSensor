@@ -42,7 +42,7 @@ class FingerParams:
         inertia = self.seg_mass() * self.n_joints * L**2 / 3   # 손가락 전체를 근위 관절 기준 막대로 근사
         return 2 * self.zeta * np.sqrt(self.joint_stiffness() * inertia)
 
-    base_R, sensor_segs, h_sensor_mm, base_margin = BASE_R, SENSOR_SEGS, 3.0, 0.01
+    base_R, sensor_segs, h_sensor_mm, base_margin, auto_height = BASE_R, SENSOR_SEGS, 3.0, 0.01, False
 
     def base_z(self):
         return BASE_Z
@@ -71,6 +71,7 @@ class BellowsParams:
     h_sensor_mm: float = 0.5        # 센서면 ≈ 중립축(바닥층) → 굽힘 인장 작음
     pad_halfwidth_mm: float = 11.0  # 센서 홈 폭 22 mm
     base_margin: float = 0.012
+    auto_height: bool = True        # 팔이 그리퍼를 내려 센서 pad 중심 = 물체 중심 높이 (손끝 ≥ 5 mm)
 
     def __post_init__(self):
         if not self.k_joint:
@@ -84,7 +85,7 @@ class BellowsParams:
 
     def base_z(self):
         rho = self.arc_len_mm / 1000 / np.radians(self.precurve_deg)
-        return 0.012 + rho * np.sin(np.radians(self.precurve_deg)) + 0.008   # 손끝 ≈ 테이블 위 12 mm
+        return 0.025 + rho * np.sin(np.radians(self.precurve_deg)) + 0.008   # 손끝 ≈ 테이블 위 25 mm (계란 적도 위)
 
     def joint_damping(self):
         inertia = self.mass_g / 1000 * (self.arc_len_mm / 1000) ** 2 / 3
@@ -197,6 +198,12 @@ class GripperSim:
         self._renderer = None
         self.data.qpos[self.qadr] = m.qpos_spring[self.qadr]   # 손가락 초기 자세 = 스프링 기준각 (precurve)
         mujoco.mj_forward(m, self.data)
+        self.lift0 = 0.0
+        if fp.auto_height:                       # 접근 높이 사전 위치 (리프트 관절 오프셋)
+            pad_z = float(np.mean([self.data.geom_xpos[g][2] for g in self.pads.ravel()]))
+            self.lift0 = max(obj.half_height() - pad_z, 0.005 - self.lowest_finger_z())
+            self.data.qpos[m.jnt_qposadr[m.joint("lift").id]] = self.lift0
+            mujoco.mj_forward(m, self.data)
 
     def step(self, tau, lift_target_m):
         self.data.qfrc_applied[self.dof.ravel()] = np.asarray(tau, float).ravel()
@@ -204,6 +211,19 @@ class GripperSim:
         mujoco.mj_step(self.model, self.data)
         if self.obj.fragile_F_N is not None and not self.object_broken:
             self.object_broken = bool(self.pad_force_N().max() > self.obj.fragile_F_N)   # 국부 접촉력 기준
+
+    def lowest_finger_z(self):
+        """손가락 geom(박스) 꼭짓점 중 최저 높이 [m]."""
+        m, d, low = self.model, self.data, np.inf
+        base = m.body("base").id
+        for g in range(m.ngeom):
+            b = m.geom_bodyid[g]
+            if b in (0, base, self.obj_body) or m.geom_type[g] != mujoco.mjtGeom.mjGEOM_BOX:
+                continue
+            R, h = d.geom_xmat[g].reshape(3, 3), m.geom_size[g]
+            corners = np.array([[sx, sy, sz] for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)]) * h
+            low = min(low, float((d.geom_xpos[g] + corners @ R.T)[:, 2].min()))
+        return low
 
     def joint_angles(self):
         return self.data.qpos[self.qadr].copy()

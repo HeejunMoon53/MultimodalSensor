@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.linear_model import LinearRegression
-from sklearn.neural_network import MLPClassifier, MLPRegressor
+from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
 
 from sim_gripper.experiments.run_all import OUT, compute_metrics
@@ -118,13 +118,14 @@ def evaluate(models, data):
 
 # ── 적응 ──────────────────────────────────────────────────────────────────
 def _parts(data):
+    """적응 대상은 전문가 A·B만. 게이트는 v4 그대로 둔다: 유전체 접촉은 (ΔL, ΔR)에서 비접촉과 거의 겹쳐
+    2입력 게이트로 분리 불가 → 그리퍼 데이터로 게이트를 학습하면 개방 상태까지 접촉으로 판정(접촉은 TENG 융합이 담당)."""
     a, b = data[data.contact == 0], data[data.contact == 1]
-    return {"gate": (data[["dL", "dR"]].values, data.contact.values),
-            "expert_a": (a[FEAT].values, a[["strain", "dist"]].values),
+    return {"expert_a": (a[FEAT].values, a[["strain", "dist"]].values),
             "expert_b": (b[FEAT].values, b[["strain", "force"]].values)}
 
 
-SCALER = {"gate": "sc_gate", "expert_a": "sc_a", "expert_b": "sc_b"}
+SCALER = {"expert_a": "sc_a", "expert_b": "sc_b"}
 
 
 def adapt(method, base, data, flat=None):
@@ -135,24 +136,21 @@ def adapt(method, base, data, flat=None):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", ConvergenceWarning)
         for key, (X, Y) in parts.items():
-            if len(X) < 10 or (key == "gate" and len(np.unique(Y)) < 2):
+            if len(X) < 10:
                 continue
             sk = SCALER[key]
             if method == "recal":
                 m[sk] = StandardScaler().fit(X)
-                if key != "gate":
-                    k = key[-1]
-                    raw = mlp_forward(m[key], m[sk].transform(X))
-                    m[f"lin_{k}"] = LinearRegression().fit(raw, Y)
+                raw = mlp_forward(m[key], m[sk].transform(X))
+                m[f"lin_{key[-1]}"] = LinearRegression().fit(raw, Y)
             elif method in ("finetune", "mixed"):
                 m[key].set_params(warm_start=True, learning_rate_init=1e-4, max_iter=200, early_stopping=False)
                 if getattr(m[key], "best_loss_", None) is None:   # early_stopping으로 학습된 모델은 None
                     m[key].best_loss_ = np.inf
                 m[key].fit(m[sk].transform(X), Y)
             elif method == "scratch":
-                cls = MLPClassifier if key == "gate" else MLPRegressor
                 m[sk] = StandardScaler().fit(X)
-                m[key] = cls(hidden_layer_sizes=base[key].hidden_layer_sizes, activation="tanh", solver="adam",
+                m[key] = MLPRegressor(hidden_layer_sizes=base[key].hidden_layer_sizes, activation="tanh", solver="adam",
                              max_iter=2000, random_state=0, early_stopping=True, n_iter_no_change=30)
                 m[key].fit(m[sk].transform(X), Y)
             else:

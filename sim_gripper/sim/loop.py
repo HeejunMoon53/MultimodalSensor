@@ -26,7 +26,9 @@ DEFAULT_ACT = {"flat": "tendon", "bellows60a": "pneumatic60a"}
 def run(scenario, actuator=None, sensor_mode="pipeline", shift=None, moe_models=None,
         record_video=False, seed=0, ctrl=None, fp=None, on_step=None, finger="flat"):
     """on_step(sim, row): 매 1 ms 호출 (실시간 뷰어용)."""
-    fp, ctrl = fp or FINGERS[finger](), ctrl or CtrlParams()
+    fp = fp or FINGERS[finger]()
+    # 벨로즈는 과굽힘으로 물체를 밀어내지 않고 힘 여유가 작아(200 kPa 끝단 ~6 N) u 상한 없음
+    ctrl = ctrl or (CtrlParams(u_max=1.0) if finger == "bellows60a" else CtrlParams())
     actuator = actuator or DEFAULT_ACT[finger]
     sim = GripperSim(fp, scenario.obj)
     n_sub = round(DT / sim.model.opt.timestep)
@@ -44,7 +46,7 @@ def run(scenario, actuator=None, sensor_mode="pipeline", shift=None, moe_models=
     events = sorted(scenario.events)
     mat_true = scenario.obj.material
 
-    rows, frames, lift, next_frame = [], ([] if record_video else None), 0.0, 0.0
+    rows, frames, lift, next_frame = [], ([] if record_video else None), sim.lift0, 0.0
     for k in range(int(round(scenario.t_end / DT))):
         t = k * DT
         cmd = None
@@ -79,7 +81,7 @@ def run(scenario, actuator=None, sensor_mode="pipeline", shift=None, moe_models=
             row[f"u_{i}"], row[f"safety_{i}"] = u[i], int(ctrls[i].safety_trip)
 
         if phase == "HOLD":
-            lift = min(LIFT_H, lift + LIFT_V * DT)
+            lift = min(sim.lift0 + LIFT_H, lift + LIFT_V * DT)
         dist = scenario.disturbance
         sim.apply_object_force(np.array(dist[2]) if dist and dist[0] <= t < dist[1] else np.zeros(3))
 

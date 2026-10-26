@@ -16,7 +16,7 @@ def doc():
 
 def test_report_has_all_chapters(doc):
     heads = [p.text for p in doc.paragraphs if p.style.name == "Heading 1"]
-    assert len(CHAPTERS) == 14 and all(c in heads for c in CHAPTERS)
+    assert len(CHAPTERS) == 15 and all(c in heads for c in CHAPTERS)
 
 
 def test_report_has_disclaimer(doc):
@@ -31,3 +31,8 @@ def test_report_numbers_from_metrics(doc):
     text = "\n".join(p.text for p in doc.paragraphs) + "\n".join(
         c.text for t in doc.tables for r in t.rows for c in r.cells)
     assert f"{m['E1_metal_tendon']['force_rmse']:.3f}" in text
+
+
+def test_report_has_bellows_calibration_table(doc):
+    cells = [c.text for t in doc.tables for r in t.rows for c in r.cells]
+    assert "Fig.9 굽힘 [°]" in cells and "Fig.7 차단력 [N]" in cells

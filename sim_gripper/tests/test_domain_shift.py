@@ -29,3 +29,11 @@ def test_adapt_keeps_architecture(models, shifted):
             assert a.shape == b.shape
             n += a.size
     assert n == 1413
+
+
+def test_finetuned_gate_keeps_noncontact(models, shifted):
+    """그리퍼 데이터는 접촉 행이 다수 → 균형 없이 게이트를 fine-tune하면 개방 상태도 접촉으로 판정."""
+    train, test = shifted
+    m = adapt("finetune", models, train)
+    free = test[test.contact == 0]
+    assert evaluate(m, free)["gate_acc"] >= 0.9

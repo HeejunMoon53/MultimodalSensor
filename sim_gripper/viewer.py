@@ -2,6 +2,7 @@
 
 python -m sim_gripper.viewer E1_metal                  # 텐던, 실제 파이프라인
 python -m sim_gripper.viewer E2_egg --actuator pneumatic --speed 0.5
+python -m sim_gripper.viewer E1_metal --finger bellows60a   # 60A 벨로즈 손가락(공압 0~200 kPa)
 python -m sim_gripper.viewer --list
 python -m sim_gripper.panel                            # 설정 패널(시나리오·옵션 선택, 재시작, 일시정지)
 마우스: 왼쪽 드래그 회전, 오른쪽 드래그 이동, 휠 확대. 창 닫으면 종료.
@@ -50,7 +51,7 @@ def _overlay(row):
     return left, "\n".join(right)
 
 
-def play(scenario, actuator="tendon", sensor="pipeline", ctrl=None, keep_open=True):
+def play(scenario, actuator=None, sensor="pipeline", ctrl=None, keep_open=True, finger="flat"):
     """시나리오 하나를 MuJoCo 창에서 재생. ctrl.stop으로 중단, ctrl.paused로 일시정지, ctrl.speed 실시간 변경."""
     ctrl = ctrl or PlayControl()
     st = {"v": None, "next": None}
@@ -87,7 +88,7 @@ def play(scenario, actuator="tendon", sensor="pipeline", ctrl=None, keep_open=Tr
         wait_until()
 
     try:
-        run(SCENARIOS[scenario], actuator=actuator, sensor_mode=sensor, on_step=on_step)
+        run(SCENARIOS[scenario], actuator=actuator, sensor_mode=sensor, on_step=on_step, finger=finger)
         ctrl.done = True
         while keep_open and st["v"] is not None and st["v"].is_running() and not ctrl.stop.is_set():
             time.sleep(0.1)
@@ -103,7 +104,9 @@ def play(scenario, actuator="tendon", sensor="pipeline", ctrl=None, keep_open=Tr
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("scenario", nargs="?", default="E1_metal")
-    ap.add_argument("--actuator", default="tendon", choices=["tendon", "pneumatic"])
+    ap.add_argument("--finger", default="flat", choices=["flat", "bellows60a"])
+    ap.add_argument("--actuator", default=None, choices=["tendon", "pneumatic", "pneumatic60a"],
+                    help="생략하면 손가락 기본값 (판형=tendon, 벨로즈=pneumatic60a)")
     ap.add_argument("--sensor", default="pipeline", choices=["pipeline", "ideal"])
     ap.add_argument("--speed", type=float, default=1.0, help="재생 배속 (1 = 실시간)")
     ap.add_argument("--list", action="store_true")
@@ -111,7 +114,7 @@ def main():
     if a.list:
         print("\n".join(SCENARIOS))
         return
-    play(a.scenario, a.actuator, a.sensor, PlayControl(a.speed))
+    play(a.scenario, a.actuator, a.sensor, PlayControl(a.speed), finger=a.finger)
     print("종료")
 
 
