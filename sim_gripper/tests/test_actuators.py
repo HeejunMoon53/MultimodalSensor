@@ -48,3 +48,16 @@ def test_pneumatic_efficiency_drops_with_q():
 def test_make_actuator_kinds():
     assert isinstance(make_actuator("tendon"), TendonActuator)
     assert isinstance(make_actuator("pneumatic"), PneumaticActuator)
+
+
+def test_pneumatic_deadzone():
+    a = PneumaticActuator(P0=62e3)
+    a.P = 50e3
+    assert np.all(a.torque(Q0) == 0)
+    a.P = 100e3
+    assert np.allclose(a.torque(Q0), a.alpha * 38e3)
+
+
+def test_make_pneumatic60a_preset():
+    a = make_actuator("pneumatic60a")
+    assert a.P_max == 200e3 and a.P0 == 62e3 and a.beta == 0.0
