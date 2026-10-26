@@ -25,4 +25,6 @@ SCENARIOS = {s.name: s for s in [
     Scenario("E3_small", replace(_METAL, name="metal_small", size=(0.015, 0.04), mass_kg=0.1)),
     Scenario("E3_large", replace(_METAL, name="metal_large", size=(0.035, 0.04), mass_kg=0.3)),
     Scenario("E4_disturb", _METAL, disturbance=(6.0, 7.0, (3.0, 0.0, 0.0))),
+    # 논문 Fig.11(e) 실 스풀 1297 g 대용: 원통 지름 60 mm, 1.3 kg, 플라스틱(유전체)
+    Scenario("E5_spool", ObjectSpec("spool", "cylinder", (0.03, 0.035), 1.3, "dielectric")),
 ]}

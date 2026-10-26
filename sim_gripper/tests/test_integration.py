@@ -25,3 +25,23 @@ def test_e2_hand_low_force(models):
     hold = df[df.phase == "HOLD"]
     assert len(hold) > 0
     assert all(hold[f"F_true_{i}"].mean() < 3.0 for i in range(3))
+
+
+@pytest.fixture(scope="module")
+def bellows_e1(models):
+    return run(SCENARIOS["E1_metal"], finger="bellows60a", moe_models=models)[0]
+
+
+def test_bellows_e1_lifts(bellows_e1):
+    z0 = bellows_e1.obj_z.iloc[0]
+    assert bellows_e1.loc[bellows_e1.t >= 7.0, "obj_z"].iloc[0] - z0 >= 0.02
+    assert not bellows_e1.failed.iloc[-1]
+
+
+def test_bellows_egg_not_broken(models):
+    df, _ = run(SCENARIOS["E2_egg"], finger="bellows60a", moe_models=models)
+    assert not df.broken.iloc[-1]
+
+
+def test_spool_scenario_exists():
+    assert SCENARIOS["E5_spool"].obj.mass_kg == 1.3

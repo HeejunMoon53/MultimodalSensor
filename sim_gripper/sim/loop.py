@@ -7,7 +7,7 @@ import pandas as pd
 
 from sim_gripper.actuators import make_actuator
 from sim_gripper.control.controller import CtrlParams, FingerController, GraspSupervisor
-from sim_gripper.model.gripper import FingerParams, GripperSim
+from sim_gripper.model.gripper import BellowsParams, FingerParams, GripperSim
 from sim_gripper.perception.contact import DielectricEstimator, TengContact
 from sim_gripper.perception.material import MaterialClassifier
 from sim_gripper.perception.moe import MoE, MoeOut
@@ -19,15 +19,18 @@ SIGMA_L, SIGMA_R = 0.116, 0.382   # noise_from_data() 결과 (세션 214746)
 LIFT_H, LIFT_V = 0.04, 0.04       # 리프트 높이 [m], 속도 [m/s]
 CONTACT_F = 0.05                  # 참값 접촉 판정 [N]
 VIDEO_DT = 0.033
+FINGERS = {"flat": FingerParams, "bellows60a": BellowsParams}
+DEFAULT_ACT = {"flat": "tendon", "bellows60a": "pneumatic60a"}
 
 
-def run(scenario, actuator="tendon", sensor_mode="pipeline", shift=None, moe_models=None,
-        record_video=False, seed=0, ctrl=None, fp=None, on_step=None):
+def run(scenario, actuator=None, sensor_mode="pipeline", shift=None, moe_models=None,
+        record_video=False, seed=0, ctrl=None, fp=None, on_step=None, finger="flat"):
     """on_step(sim, row): 매 1 ms 호출 (실시간 뷰어용)."""
-    fp, ctrl = fp or FingerParams(), ctrl or CtrlParams()
+    fp, ctrl = fp or FINGERS[finger](), ctrl or CtrlParams()
+    actuator = actuator or DEFAULT_ACT[finger]
     sim = GripperSim(fp, scenario.obj)
     n_sub = round(DT / sim.model.opt.timestep)
-    fwd = SensorForward()
+    fwd = SensorForward(h_mm=fp.h_sensor_mm)
     moes = [MoE(models=moe_models) if moe_models else MoE() for _ in range(3)]
     tdms = [TdmSampler(SIGMA_L, SIGMA_R, seed + i) for i in range(3)]
     tengs = [TengModel() for _ in range(3)]
