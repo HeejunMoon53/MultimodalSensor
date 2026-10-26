@@ -1,18 +1,21 @@
 """MuJoCo 3지 PRBM 소프트 그리퍼 + 물체 (M0).
 
-손가락 = 세그먼트 4개 + hinge 4개, 관절 강성 k = E·w·t³/12 / (L/n).
-센서 pad는 원위 세그먼트 2·3 안쪽면 (센서 구간 40 mm, 손끝 포함). 물체는 테이블 위, 손끝은 테이블 위 10 mm.
+손가락 두 종류:
+- FingerParams (판형 TPU 95A 가정): 세그먼트 4개 + hinge 4개, k = E·w·t³/12 / (L/n), 센서 pad 원위 세그먼트 2·3.
+- BellowsParams (60A 벨로즈, Meitani & Nisar 2025): 벨로즈당 hinge 1개(8개), precurve 41° = springref,
+  k는 Fig.9·Fig.7 보정값, 센서 pad 원위 벨로즈 5·6·7 안쪽(바닥층)면.
+물체는 테이블 위, 손끝은 테이블 위 약 10 mm.
 """
 from dataclasses import dataclass
 
 import mujoco
 import numpy as np
 
-BASE_R = 0.05        # 손가락 장착 반경 [m]
-BASE_Z = 0.09        # 그리퍼 베이스 높이 [m] (손끝 z=10 mm)
+BASE_R = 0.05        # 판형: 손가락 장착 반경 [m]
+BASE_Z = 0.09        # 판형: 그리퍼 베이스 높이 [m] (손끝 z=10 mm)
 PAD_T = 0.0005       # pad 반두께 [m]
 DIST_CUTOFF = 0.03   # mj_geomDistance 탐색 한계 [m]
-SENSOR_SEGS = (2, 3)  # 센서(pad)가 붙은 세그먼트
+SENSOR_SEGS = (2, 3)  # 판형: 센서(pad)가 붙은 세그먼트
 
 
 @dataclass
@@ -39,6 +42,82 @@ class FingerParams:
         inertia = self.seg_mass() * self.n_joints * L**2 / 3   # 손가락 전체를 근위 관절 기준 막대로 근사
         return 2 * self.zeta * np.sqrt(self.joint_stiffness() * inertia)
 
+    base_R, sensor_segs, h_sensor_mm, base_margin = BASE_R, SENSOR_SEGS, 3.0, 0.01
+
+    def base_z(self):
+        return BASE_Z
+
+    def springref(self):
+        return 0.0
+
+    def finger_xml(self, i):
+        return _finger_xml(i, self)
+
+
+@dataclass
+class BellowsParams:
+    arc_len_mm: float = 105.0       # l
+    depth_mm: float = 32.0          # h
+    n_joints: int = 8               # 벨로즈 수
+    precurve_deg: float = 41.0
+    backbone_mm: float = 9.5        # 바닥층 3 + 채널 4 + 덮개 2.5 (CAD와 동일)
+    bellow_h_mm: float = 7.5        # 덮개 바깥 벨로즈 돌출 (CAD: 3+14−9.5)
+    bellow_t_mm: float = 6.43       # l_b
+    mass_g: float = 40.0            # CAD 부피 33.7 cm³ × 1.2 g/cm³
+    k_joint: float = 0.0            # 보정값으로 채움 (아래 CALIBRATED)
+    zeta: float = 0.3
+    base_R: float = 0.076           # 논문(끝단 반경 ≈ 30 mm)보다 10 mm 넓힘 → 지름 50 mm 물체에 근접 구간 ~20 mm
+    sensor_segs: tuple = (5, 6, 7)
+    h_sensor_mm: float = 0.5        # 센서면 ≈ 중립축(바닥층) → 굽힘 인장 작음
+    pad_halfwidth_mm: float = 11.0  # 센서 홈 폭 22 mm
+    base_margin: float = 0.012
+
+    def __post_init__(self):
+        if not self.k_joint:
+            self.k_joint = CALIBRATED["k_joint"]
+
+    def seg_m(self):
+        return self.arc_len_mm / 1000 / self.n_joints
+
+    def springref(self):
+        return np.radians(self.precurve_deg) / self.n_joints
+
+    def base_z(self):
+        rho = self.arc_len_mm / 1000 / np.radians(self.precurve_deg)
+        return 0.012 + rho * np.sin(np.radians(self.precurve_deg)) + 0.008   # 손끝 ≈ 테이블 위 12 mm
+
+    def joint_damping(self):
+        inertia = self.mass_g / 1000 * (self.arc_len_mm / 1000) ** 2 / 3
+        return 2 * self.zeta * np.sqrt(self.k_joint * inertia)
+
+    def finger_xml(self, i):
+        phi = 120 * i
+        ang = np.deg2rad(phi)
+        x, y = self.base_R * np.cos(ang), self.base_R * np.sin(ang)
+        ell, hd = self.seg_m(), self.depth_mm / 2000
+        bb, bh, bt = self.backbone_mm / 1000, self.bellow_h_mm / 1000, self.bellow_t_mm / 1000
+        m = self.mass_g / 1000 / self.n_joints
+        k, c, ref = self.k_joint, self.joint_damping(), self.springref()
+        xml = f'<body name="f{i}" pos="{x:.5f} {y:.5f} 0" euler="0 0 {np.radians(phi + 180):.6f}">'
+        for j in range(self.n_joints):
+            sensor = j in self.sensor_segs
+            pos = "0 0 0" if j == 0 else f"0 0 {-ell}"
+            xml += (f'<body name="f{i}_s{j}" pos="{pos}">'
+                    f'<joint name="q{i}_{j}" type="hinge" axis="0 -1 0" stiffness="{k:.6f}" springref="{ref:.6f}" '
+                    f'damping="{c:.6f}" armature="1e-6" limited="true" range="-0.3 0.8"/>'
+                    f'<geom type="box" size="{bb / 2} {hd} {ell / 2}" pos="{-bb / 2} 0 {-ell / 2}" mass="{m * 0.6:.6f}" '
+                    f'{"contype=\"0\" conaffinity=\"0\" " if sensor else ""}rgba="0.85 0.82 0.76 1"/>'
+                    f'<geom type="box" size="{bh / 2} {hd} {bt / 2}" pos="{-bb - bh / 2} 0 {-ell / 2}" '
+                    f'mass="{m * 0.4:.6f}" rgba="0.78 0.74 0.68 1"/>')
+            if sensor:
+                xml += (f'<geom name="pad_{i}_{j}" type="box" size="{PAD_T} {self.pad_halfwidth_mm / 1000} '
+                        f'{ell / 2 * 0.95}" pos="{PAD_T} 0 {-ell / 2}" mass="0.0001" friction="1.2" '
+                        f'rgba="0.75 0.75 0.8 1"/>')
+        return xml + "</body>" * (self.n_joints + 1)
+
+
+CALIBRATED = {"k_joint": 1.9834}   # calibrate_bellows.calibrate(): Fig.9 기울기 + Fig.7 200 kPa 6.28 N
+
 
 @dataclass
 class ObjectSpec:
@@ -61,7 +140,7 @@ def _finger_xml(i, fp):
     x, y = BASE_R * np.cos(ang), BASE_R * np.sin(ang)
     ell, hw, ht = fp.seg_m(), fp.w_mm / 2000, fp.t_mm / 2000
     k, c = fp.joint_stiffness(), fp.joint_damping()
-    xml = f'<body name="f{i}" pos="{x:.5f} {y:.5f} 0" euler="0 0 {phi + 180}">'
+    xml = f'<body name="f{i}" pos="{x:.5f} {y:.5f} 0" euler="0 0 {np.radians(phi + 180):.6f}">'
     for j in range(fp.n_joints):
         pos = "0 0 0" if j == 0 else f"0 0 {-ell}"
         xml += (f'<body name="f{i}_s{j}" pos="{pos}">'
@@ -80,9 +159,10 @@ def build_mjcf(fp, obj):
     size = " ".join(f"{s}" for s in obj.size)
     soft = ' solref="0.02 1"' if obj.soft else ""
     color = "0.7 0.72 0.75 1" if obj.material == "conductor" else "0.95 0.85 0.7 1"
-    fingers = "".join(_finger_xml(i, fp) for i in range(3))
+    fingers = "".join(fp.finger_xml(i) for i in range(3))
     return f"""
 <mujoco model="soft_gripper">
+  <compiler angle="radian"/>
   <option timestep="0.00025" integrator="implicitfast" cone="elliptic" impratio="10"/>
   <visual><global offwidth="1280" offheight="960"/></visual>
   <worldbody>
@@ -92,9 +172,9 @@ def build_mjcf(fp, obj):
       <freejoint/>
       <geom name="obj" type="{obj.shape}" size="{size}" mass="{obj.mass_kg}" friction="1.0"{soft} rgba="{color}"/>
     </body>
-    <body name="base" pos="0 0 {BASE_Z}" gravcomp="1">
+    <body name="base" pos="0 0 {fp.base_z():.5f}" gravcomp="1">
       <joint name="lift" type="slide" axis="0 0 1" damping="60" range="-0.05 0.15" limited="true"/>
-      <geom type="cylinder" size="{BASE_R + 0.01} 0.008" pos="0 0 0.008" mass="0.5" rgba="0.2 0.25 0.3 1"/>
+      <geom type="cylinder" size="{fp.base_R + fp.base_margin} 0.008" pos="0 0 0.008" mass="0.5" rgba="0.2 0.25 0.3 1"/>
       {fingers}
     </body>
   </worldbody>
@@ -110,11 +190,12 @@ class GripperSim:
         m = self.model
         self.dof = np.array([[m.jnt_dofadr[m.joint(f"q{i}_{j}").id] for j in range(fp.n_joints)] for i in range(3)])
         self.qadr = np.array([[m.jnt_qposadr[m.joint(f"q{i}_{j}").id] for j in range(fp.n_joints)] for i in range(3)])
-        self.pads = np.array([[m.geom(f"pad_{i}_{j}").id for j in SENSOR_SEGS] for i in range(3)])
+        self.pads = np.array([[m.geom(f"pad_{i}_{j}").id for j in fp.sensor_segs] for i in range(3)])
         self.obj_geom, self.obj_body = m.geom("obj").id, m.body("obj").id
         self.pad_finger = {int(g): i for i in range(3) for g in self.pads[i]}
         self.object_broken = False
         self._renderer = None
+        self.data.qpos[self.qadr] = m.qpos_spring[self.qadr]   # 손가락 초기 자세 = 스프링 기준각 (precurve)
         mujoco.mj_forward(m, self.data)
 
     def step(self, tau, lift_target_m):
@@ -128,8 +209,9 @@ class GripperSim:
         return self.data.qpos[self.qadr].copy()
 
     def kappa_bar_per_mm(self):
-        q = self.joint_angles()
-        return q[:, list(SENSOR_SEGS)].sum(axis=1) / 40.0
+        dq = self.joint_angles() - self.fp.springref()          # 장착(정지) 형상 대비 추가 굽힘
+        segs = list(self.fp.sensor_segs)
+        return dq[:, segs].sum(axis=1) / (len(segs) * self.fp.seg_m() * 1000)
 
     def pad_distance_mm(self):
         out = np.empty(3)

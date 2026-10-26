@@ -6,7 +6,7 @@ from build123d import Box, Cylinder, Pos, Rot
 from sim_gripper.cad.finger import FingerCAD
 
 
-def make_base(R=66.0, thickness=12.0, clearance=0.2, fp=FingerCAD()):
+def make_base(R=76.0, thickness=12.0, clearance=0.2, fp=FingerCAD()):
     """R: 손가락 안쪽면(센서면) 반경 [mm]. 루트 블록은 R..R+band 바깥쪽으로 놓인다."""
     band = fp.backbone_t + fp.channel_h + fp.wall
     base = Pos(0, 0, thickness / 2) * Cylinder(R + band + 12, thickness)

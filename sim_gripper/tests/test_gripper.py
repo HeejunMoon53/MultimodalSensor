@@ -41,3 +41,8 @@ def test_egg_breaks():
     sim = GripperSim(FingerParams(), EGG)
     _run(sim, 0.6, 1.0)
     assert sim.object_broken
+
+
+def test_joint_range_in_radians():
+    m = mujoco.MjModel.from_xml_string(build_mjcf(FingerParams(), METAL))
+    assert np.allclose(m.jnt_range[m.joint("q0_0").id], [-0.5, 1.6])
