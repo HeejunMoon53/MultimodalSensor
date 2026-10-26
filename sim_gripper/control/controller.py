@@ -28,6 +28,7 @@ class CtrlParams:
     tau_F: float = 0.05
     eps_range: tuple = (0.0, 30.0)
     grasp_timeout_s: float = 3.0
+    safety: bool = True          # False면 안전 계층 비활성 (ablation 전용)
 
 
 class FingerController:
@@ -59,7 +60,7 @@ class FingerController:
         self._F_prev = F_lp if contact else None
 
         eps_ok = p.eps_range[0] <= m.strain_pct <= p.eps_range[1]
-        if not eps_ok or (contact and (F_lp > F_max or F_dot > p.Fdot_max)):
+        if p.safety and (not eps_ok or (contact and (F_lp > F_max or F_dot > p.Fdot_max))):
             self.safety_trip = True
         elif self.safety_trip and F_lp < 0.5 * F_max:
             self.safety_trip = False

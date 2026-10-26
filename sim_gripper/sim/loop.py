@@ -2,6 +2,9 @@
 
 물리 → (ε, d, F) → 순방향 모델 → TDM 노이즈 → Gate-MoE → 재질 판별 → 제어기 → 액추에이터 → 물리
 """
+from collections import deque
+from dataclasses import replace
+
 import numpy as np
 import pandas as pd
 
@@ -24,12 +27,18 @@ DEFAULT_ACT = {"flat": "tendon", "bellows60a": "pneumatic60a"}
 
 
 def run(scenario, actuator=None, sensor_mode="pipeline", shift=None, moe_models=None,
-        record_video=False, seed=0, ctrl=None, fp=None, on_step=None, finger="flat"):
-    """on_step(sim, row): 매 1 ms 호출 (실시간 뷰어용)."""
+        record_video=False, seed=0, ctrl=None, fp=None, on_step=None, finger="flat", latency_ms=0,
+        ablate=()):
+    """on_step(sim, row): 매 1 ms 호출 (실시간 뷰어용).
+    latency_ms: 센서 처리 결과 → 제어기 전달 지연 (PC 경유 시스템 모사, 물리·액추에이터는 그대로).
+    ablate: 모달리티 제거 — "proximity"(d̂=30 mm 고정), "material"(항상 도체), "teng"(접촉 힌트 없음), "safety"."""
     fp = fp or FINGERS[finger]()
     # 벨로즈는 과굽힘으로 물체를 밀어내지 않고 힘 여유가 작아(200 kPa 끝단 ~6 N) u 상한 없음
     ctrl = ctrl or (CtrlParams(u_max=1.0) if finger == "bellows60a" else CtrlParams())
     actuator = actuator or DEFAULT_ACT[finger]
+    if "safety" in ablate:
+        ctrl = replace(ctrl, safety=False)
+    delay = deque(maxlen=int(round(latency_ms)) + 1)
     sim = GripperSim(fp, scenario.obj)
     n_sub = round(DT / sim.model.opt.timestep)
     fwd = SensorForward(h_mm=fp.h_sensor_mm)
@@ -65,18 +74,25 @@ def run(scenario, actuator=None, sensor_mode="pipeline", shift=None, moe_models=
                 m = MoeOut(eps + SIGMA_R * rng.normal(), val + SIGMA_L * rng.normal(), int(touching), float(touching))
                 mat = mat_true
             else:
-                m = moes[i].step(dL, dR, DT, contact_hint=tcs[i].update(V))
+                hint = tcs[i].update(V)
+                m = moes[i].step(dL, dR, DT, contact_hint=0 if "teng" in ablate else hint)
                 mat = clfs[i].update(dL, fwd.eps_from_dR(dR), m.contact)   # 비접촉 ε: ΔR 역산
                 if m.contact and mat != "conductor":       # 유전체/미정: Expert B 분포 밖 → 해석적 역산
                     m = MoeOut(*diel.estimate(dL, dR), 1, m.gate_proba)
+            if "material" in ablate:
+                mat = "conductor"
+            if "proximity" in ablate and not m.contact:
+                m = MoeOut(m.strain_pct, 30.0, 0, m.gate_proba)
             outs.append((m, mat))
             row.update({f"eps_true_{i}": eps, f"d_true_{i}": d_true[i], f"F_true_{i}": F_true[i],
                         f"dL_{i}": dL, f"dR_{i}": dR, f"V_{i}": V, f"eps_hat_{i}": m.strain_pct,
                         f"value_{i}": m.value, f"contact_{i}": m.contact, f"gate_proba_{i}": m.gate_proba,
                         f"material_{i}": mat})
 
-        phase = sup.update(t, [o[0].contact for o in outs], cmd)
-        u = [ctrls[i].step(outs[i][0], outs[i][1], phase, DT) for i in range(3)]
+        delay.append(outs)
+        seen = delay[0]                                  # latency_ms 전의 센서 결과
+        phase = sup.update(t, [o[0].contact for o in seen], cmd)
+        u = [ctrls[i].step(seen[i][0], seen[i][1], phase, DT) for i in range(3)]
         for i in range(3):
             row[f"u_{i}"], row[f"safety_{i}"] = u[i], int(ctrls[i].safety_trip)
 
