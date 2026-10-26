@@ -39,7 +39,7 @@ def compute_metrics(df):
     grip = df[df.phase.isin(["GRASP", "HOLD"])]
     F_t = [MATERIAL_TABLE.get(df[f"material_{i}"].iloc[-1], MATERIAL_TABLE["dielectric"])[0] for i in range(3)]
     err = np.concatenate([hold[f"F_true_{i}"].values - F_t[i] for i in range(3)]) if len(hold) else np.array([])
-    max_force = float(max(df[f"F_true_{i}"].max() for i in range(3)))
+    max_force = float(max(grip[f"F_true_{i}"].max() for i in range(3))) if len(grip) else 0.0   # 파지 구간만 (해제 후 낙하 충격 제외)
     over = [(grip[f"F_true_{i}"].max() - F_t[i]) / F_t[i] * 100 for i in range(3)] if len(grip) else [np.nan]
     settle = []
     for i in range(3):

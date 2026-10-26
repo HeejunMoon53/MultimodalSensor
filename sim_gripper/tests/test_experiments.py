@@ -50,3 +50,10 @@ def test_metrics_has_strain_rmse():
 
 def test_metrics_has_force_estimation_rmse():
     assert abs(compute_metrics(_synthetic())["force_est_rmse"]) < 1e-12
+
+
+def test_max_force_ignores_release_impacts():
+    df = _synthetic()
+    df.loc[df.index[-1], "phase"] = "RELEASE"
+    df.loc[df.index[-1], "F_true_0"] = 50.0
+    assert compute_metrics(df)["max_force"] == 5.0
