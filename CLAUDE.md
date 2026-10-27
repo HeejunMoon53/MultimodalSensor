@@ -27,6 +27,27 @@ COLOR_TENG = "#1F77B4"  # TENG 전압  — 파랑
 
 ---
 
+## 연구 계획·소통 규칙 (2026-10-27~)
+
+- **계획과 논문 스케치는 한 파일로 관리한다.**
+  - 원본: `Docs/plan/연구계획.md`. Claude가 이 파일을 편집한다.
+  - 사용자가 보는 문서: `Paper/연구계획_논문스케치.docx`. `python Paper/build_research_doc.py`로 생성하며, 1부는 위 md, 2부는 논문 스케치(그림 포함, 스크립트 안에 정의)다.
+  - 계획을 고친 뒤에는 docx도 다시 생성한다.
+- **세션 시작 시 `연구계획.md`의 "5. 이번 주 할 일"부터 읽고** 진행한다. 끝난 일은 체크하고, 7절 보충 목록(ID `G-xx`)의 상태를 갱신한다.
+- 연구는 **모듈별 superpowers 사이클**로 진행한다 (4절: M0 실시간 수정 · M1 물체 구별 · M2 TENG · M3 디커플링 근거 · M4 노벨티·작성 · M5 실물 그리퍼).
+  - 각 모듈은 스펙 → 계획 → 실행 순서다. 스펙과 계획 문서는 `Docs/superpowers/specs|plans/`에 둔다.
+  - 실시간 성능 문제(M0)는 연구 모듈이 아니라 즉시 처리할 문제다.
+- **목표: 2026년 12월 말 논문 초록.**
+  - 범위: 센서·TDM·디커플링·재질·TENG는 실측, 그리퍼 제어는 시뮬레이션. 실물 그리퍼는 2027년 1월 이후.
+  - 주 자료: 세미나 `26.09.18_세미나_문희준.pptx`(루트, 35장).
+  - 슬라이드 이미지는 `Paper/sketch/seminar_slides/Sxx.png`, pptx 원본 그림은 `Paper/sketch/seminar_images/Sxx_kk.*`.
+- 논문 스케치의 빈 내용은 채우지 말고 노란 칸 `[G-xx]`로 남긴다. 틀이 우선이고, 문장 다듬기는 나중에 한다.
+- 사용자 주간 체크인 형식: "한 일 / 막힌 것 / 이번 주 가능 시간·실험". 이 형식으로 받으면 5절 할 일을 3–5개로 쪼개 완료 기준과 담당을 붙이고, 일정이 밀리면 3절 일정을 다시 짠다.
+- 요청 형식: "목표 · 마감 · 완료 기준 · 데이터 위치". 실험 데이터는 날짜 폴더에 넣고 `README.txt` 메모를 둔다.
+- 범위·방향 결정은 `연구계획.md` 6절 결정 기록에 날짜·이유와 함께 남긴다.
+
+---
+
 ## 프로젝트 개요
 
 **연구 제목**: Embedded AI-Driven Soft Multimodal Single-Electrode Sensor for Proximity, Tactile, and 2D-Strain Sensing
@@ -91,7 +112,22 @@ COLOR_TENG = "#1F77B4"  # TENG 전압  — 파랑
 
 ---
 
-### PINN 디커플링 모델
+### 디커플링 모델 (현재 배포: SLS-EMA + Gate-MoE v4)
+
+- 입력: (ΔL, ΔR, EMA_L, EMA_R). EMA는 τ = 1.0125 s이고, 게이트 판정이 바뀌는 사이클에 리셋한다.
+- 게이트 MLP (2 → 8 → 4, ΔL·ΔR만 입력)가 접촉 여부를 판정하고, 결과에 따라 전문가 하나를 고른다.
+  - 비접촉 전문가 A (4 → 24 → 16 → 8 → 2): 변형률 ε, 근접 거리 d
+  - 접촉 전문가 B (같은 구조): 변형률 ε, 힘 F
+- 규모: 약 1,416 파라미터 (X-CUBE-AI 기준, sklearn 기준 1,413), 5.53 KB. STM32G473에서 추론 약 260 µs (1 ms 주기의 26 %).
+- 오프라인 held-out 성능: 게이트 0.987, ε R² 0.988, d R² 0.990, F R² 0.982.
+- 실시간 성능 (별도 세션): 게이트 0.989, ε 0.947, d 0.794, F 0.591. 동기화와 개루프 스테이지 개선이 필요하다.
+- 코드·모델:
+  - 학습: `nn_decoupling/test0909_realtime/new/retrain_moe_v4.py`
+  - 배포 산출물: `.../stm32_deploy_moe_v4/`
+  - 펌웨어: `TDMFirmware/Core/Src/moe_inference.c`
+- 한계: 도체 압자 데이터로만 학습했고, 접촉 시 변형률 14 % 이상 구간은 학습에서 제외했다. 유전체 접촉은 TENG 융합으로 보완해야 한다.
+
+### PINN 디커플링 모델 (초기 구상, 현재는 미사용)
 
 **2단계 Physics-Guided 구조**:
 - Stage 1: ΔR → ε̂ (저항은 변형률에만 지배적)
@@ -109,13 +145,21 @@ Loss_Physics = (1/N)·Σ[(ΔR − R_theory(ε̂))² + (ΔL − L_theory(ε̂,d̂
 
 ### 데이터셋
 
+**현재 (0909 재취득, v4 학습용)**: `nn_decoupling/test0909_realtime/new/moe_monitor_20260909_*.csv`
+- 세션 214746: 인장 연속, 근접 이산
+- 세션 222022: 인장 이산, 근접 연속
+- 세션 220210: 압력 (인장 이산, 힘 연속, F/T 센서 정답)
+- 세미나 프로토콜 A/B/C와 같다. 근접 정답은 `prox_mm = Z_mm + 24`.
+- 실시간 검증 로그: `moe_monitor_20260910_010437_test.csv` (`latency_us` 열 포함)
+
+**초기 (0332)**:
 - 센서 초기 길이: 120mm
 - 변형률: 0→36mm (약 30% strain), 1mm 간격, 37회 시험
 - 각 시험: **고정 변형률 + 근접도 50mm→0mm 연속 스윔** (변형+근접 동시 자극 데이터)
 - 스테퍼 모터 가감속 보상, 시공간 동기화 완료
 - 데이터 위치: `0332_DecouplingTest_TXTFiles/strain0.txt ~ strain36.txt` (분석 스크립트: `graphcode.py`, `graphcode2.py`, `graphcode3.py`)
 - 코일 해석 스크립트: `Analysis/fringing_3d.py`
-- 세미나 자료: `Docs/26.03.27_세미나_문희준.pdf`
+- 세미나 자료: `Docs/26.03.27_세미나_문희준.pdf` (이전), **`26.09.18_세미나_문희준.pptx` (최신·논문 주 자료)**
 - 출력 포맷 (CSV): `LDC_freq, R_DC_filtered, TENG_filtered, R_DC_raw, TENG_raw`
 
 ---
@@ -125,22 +169,27 @@ Loss_Physics = (1/N)·Σ[(ΔR − R_theory(ε̂))² + (ΔL − L_theory(ε̂,d̂
 | 단계 | 내용 | 상태 |
 |---|---|---|
 | Part 1 | 센서 제작, PCB 설계, 소프트웨어 개발, 테스트 플랫폼 구축 | ✅ 완료 |
-| Part 2 | 복합 신호 취득, 신호 디커플링 분석, 데이터셋 설계, 모델 학습 | 🔄 진행 중 |
-| Part 3 | Edge-AI 임베딩, 실시간 추론, 응용 시나리오, 최종 통합 | ⏳ 예정 |
+| Part 2 | 복합 신호 취득, 디커플링, 데이터셋, 모델 학습, STM32 배포·실시간 추론 | ✅ 세미나(26.09.18) 발표 |
+| Part 3 | 재질(유전체)·TENG 모달리티, 실시간 성능 개선, 소프트 그리퍼 제작·제어·통합 | 🔄 진행 중 (2026.9 – 2027.2) |
+
+세부 일정과 상태는 `Docs/plan/연구계획.md`를 기준으로 한다.
 
 ---
 
-### 현재 논의 중인 결정 사항 (2026-04-30 기준)
+### 소프트 그리퍼 제어 시뮬레이션 (`sim_gripper/`)
 
-아래 5가지 항목을 순서대로 결정해야 한다. 각 항목은 이전 결정에 종속된다.
+MuJoCo 3지 그리퍼 폐루프 시뮬레이션이다. 손가락은 판형 95A 텐던과 논문 기반 60A 벨로즈 공압 두 종류.
 
-| # | 항목 | 상태 |
-|---|---|---|
-| 1 | **물리량·모달리티·어플리케이션 결정** — 어떤 신호를 측정하고 무엇을 감지할 것인가 | 🔄 논의 중 |
-| 2 | **회로 재설계** — 결정된 물리량을 수집하기 위한 PCB 재설계 | ⏳ 대기 |
-| 3 | **데이터 수집 계획** — 실험 프로토콜, 변수 범위, 동시 자극 시나리오 | ⏳ 대기 |
-| 4 | **모델 설계 및 학습 방법** — Embedded 가능한 경량 모델 구조, PINN 등 | ⏳ 대기 |
-| 5 | **테스트 및 실시간 임베디드 구현** — STM32 Edge-AI 배포, 실시간 검증 | ⏳ 대기 |
+- 흐름: 센서 순방향 모델(0909 실측 곡면) → TDM 노이즈 → v4 Gate-MoE(또는 그리퍼 보정 MoE) → 재질 판별·TENG 융합 → 상태 머신 제어(근접 스케줄 pre-shape, 재질 적응 admittance, 안전 계층) → 액추에이터.
+- 실행:
+  - 테스트: `C:/ml_env/Scripts/python.exe -m pytest sim_gripper/tests -q`
+  - 설정 패널: `python -m sim_gripper.panel`
+  - 실험: `python -m sim_gripper.experiments.run_all`
+- 논문 그림: `python -m sim_gripper.paper.figures` → `sim_gripper/out/paper_figs/` (F1–F9 + 구성 가이드 docx).
+- A–Z 보고서: `python -m sim_gripper.report.build_report`
+- 60A 벨로즈 CAD: `python -m sim_gripper.cad.export` → `sim_gripper/cad/out/`
+- MJCF는 `<compiler angle="radian"/>` 필수. 생략하면 MuJoCo 기본 단위가 degree라서 관절 range·springref·euler가 도(°)로 해석된다.
+- 시뮬 결과는 "시뮬레이션"으로 명시해서 쓴다. 실측 결과처럼 쓰지 않는다.
 
 ---
 
