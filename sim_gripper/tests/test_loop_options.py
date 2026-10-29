@@ -33,6 +33,16 @@ def test_ablate_proximity_hides_distance(models):
     assert np.all(nc.value_0 == 30.0)
 
 
+def test_cascade_mode_grasps_and_logs(models):
+    """제어 배선 검증 (이상 센서). v4 파이프라인 성능은 experiments.cascade_compare에서 비교."""
+    sc = Scenario("short", SCENARIOS["E1_metal"].obj, t_end=4.0, events=[(0.5, "approach")])
+    df, _ = run(sc, moe_models=models, ctrl_mode="cascade", sensor_mode="ideal")
+    assert (df.phase == "GRASP").any()
+    assert {"obj_x", "obj_y", "b_ref_0", "F_t_0"} <= set(df.columns)
+    grip = df[df.phase == "GRASP"].iloc[-500:]
+    assert abs(grip.F_true_0.mean() - 4.0) < 1.0
+
+
 def test_safety_flag_disables_trip():
     c = FingerController(CtrlParams(safety=False))
     c.u = 0.5

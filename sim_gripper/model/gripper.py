@@ -129,6 +129,7 @@ class ObjectSpec:
     material: str       # "conductor" | "dielectric"
     fragile_F_N: float | None = None
     soft: bool = False
+    xy: tuple = (0.0, 0.0)  # 그리퍼 중심 대비 물체 위치 [m] (정렬 실험용)
 
     def half_height(self):
         r = self.size[0]
@@ -169,7 +170,7 @@ def build_mjcf(fp, obj):
   <worldbody>
     <light pos="0 0 0.6" dir="0 0 -1"/>
     <geom name="table" type="plane" size="0.3 0.3 0.01" rgba="0.35 0.38 0.42 1"/>
-    <body name="obj" pos="0 0 {oz}">
+    <body name="obj" pos="{obj.xy[0]} {obj.xy[1]} {oz}">
       <freejoint/>
       <geom name="obj" type="{obj.shape}" size="{size}" mass="{obj.mass_kg}" friction="1.0"{soft} rgba="{color}"/>
     </body>
@@ -254,6 +255,9 @@ class GripperSim:
 
     def object_height_m(self):
         return float(self.data.xpos[self.obj_body][2])
+
+    def object_xy_m(self):
+        return self.data.xpos[self.obj_body][:2].copy()
 
     def apply_object_force(self, f_xyz):
         self.data.xfrc_applied[self.obj_body, :3] = f_xyz

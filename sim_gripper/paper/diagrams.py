@@ -210,3 +210,87 @@ def fig3_state_machine(out_dir):
     ax.text(0.5, 0.035, "F_lp = low-pass F̂ (τ = 50 ms).  Per-finger loop at 1 kHz; |Δu| ≤ u̇_max·T_s on every path, so "
             "gate flicker cannot kick the actuator.", ha="center", fontsize=5.2, color="#7A0016")
     return _save(fig, out_dir, "fig3_state_machine")
+
+
+def fig10_control_cascade(out_dir):
+    """F10 (제안): 인장 내부 루프 + 근접·힘 외부 루프 캐스케이드. 외부 루프는 모두 ε_ref를 출력 → 접촉 전이 무충격."""
+    fig, ax = plt.subplots(figsize=(7.2, 4.6))
+    ax.set_xlim(0, 1), ax.set_ylim(0, 1), ax.axis("off")
+    S, P, F = MOD["Strain"], MOD["Proximity"], MOD["Force"]
+
+    # 상단: 감독 상태 머신
+    phases = [("OPEN", "ε_ref → 0", "#F4F4F4"), ("APPROACH", "proximity loop", "#F1ECF8"),
+              ("GRASP", "force loop", "#FBECEC"), ("HOLD / LIFT", "force loop + slip", "#FBECEC"),
+              ("RELEASE", "ε_ref → 0", "#F4F4F4")]
+    ax.text(0.0, 0.985, "Supervisor (FSM): selects which outer loop drives ε_ref", fontsize=6.4, weight="bold",
+            va="top")
+    pw, pg = 0.17, 0.0325
+    for k, (n, sub, c) in enumerate(phases):
+        x = k * (pw + pg)
+        ax.add_patch(FancyBboxPatch((x, 0.875), pw, 0.065, boxstyle="round,pad=0.002,rounding_size=0.01",
+                                    fc=c, ec=LINE, lw=0.7))
+        ax.text(x + pw / 2, 0.918, n, ha="center", fontsize=6.0, weight="bold")
+        ax.text(x + pw / 2, 0.888, sub, ha="center", fontsize=5.2, color=MUTED)
+        if k < 4:
+            _arrow(ax, (x + pw, 0.9075), (x + pw + pg, 0.9075), lw=0.8)
+    for k, t in enumerate(["cmd", "contact (gate ∨ TENG)", "lift cmd", "release / timeout"]):
+        ax.text((k + 1) * (pw + pg) - pg / 2, 0.948, t, ha="center", fontsize=4.6, color=MUTED)
+
+    kw = dict(fs=5.3, gap=0.037, first=0.062)
+    # 외부 루프
+    _box(ax, 0.0, 0.615, 0.27, 0.205, "Proximity loop  (pre-contact)",
+         ["ε̇_ref = v(d̂ᵢ) · d̂ᵢ / maxⱼ d̂ⱼ", "v: fast far → slow near (d₀ → d₁)",
+          "fingers arrive together", "→ object centred, no push-off"], "#F1ECF8", title_color=P, **kw)
+    _box(ax, 0.0, 0.37, 0.27, 0.205, "Force loop  (post-contact)",
+         ["admittance in strain space:", "B_a · ε̇_ref = F_t − F̂", "F_t from material + stiffness",
+          "slip (F̂↓ at ε̂ const) → F_t ↑"], "#FBECEC", title_color=F, **kw)
+    # 선택기
+    ym = 0.595
+    ax.add_patch(FancyBboxPatch((0.30, ym - 0.075), 0.06, 0.15, boxstyle="round,pad=0.002,rounding_size=0.01",
+                                fc="white", ec=INK, lw=0.9))
+    ax.text(0.33, ym, "phase\nswitch", ha="center", va="center", fontsize=5.4)
+    _arrow(ax, (0.27, 0.715), (0.30, ym + 0.05), color=P)
+    _arrow(ax, (0.27, 0.47), (0.30, ym - 0.05), color=F)
+    _arrow(ax, (0.36, ym), (0.415, ym), color=S, text="ε_ref", fs=6.2)
+    # 합산점 + 내부 루프
+    ax.add_patch(plt.Circle((0.428, ym), 0.013, fc="white", ec=INK, lw=0.9))
+    ax.text(0.428, ym, "Σ", ha="center", va="center", fontsize=6)
+    ax.text(0.436, ym - 0.045, "−", fontsize=7)
+    _arrow(ax, (0.441, ym), (0.47, ym), color=S)
+    _box(ax, 0.47, 0.49, 0.17, 0.21, "Strain loop  (inner)",
+         ["u = u_ff(ε_ref)", "+ K_p e_ε + K_i ∫e_ε", "linearises dead-zone,", "hysteresis, payload"],
+         "#F3ECE9", title_color=S, **kw)
+    _arrow(ax, (0.64, ym), (0.67, ym))
+    ax.text(0.655, ym + 0.01, "u", fontsize=6, ha="center")
+    _box(ax, 0.67, 0.49, 0.13, 0.21, "Soft finger",
+         ["pneumatic / tendon", "bending stretches", "the coil", "touches object"], FILL["act"], **kw)
+    _arrow(ax, (0.80, ym), (0.83, ym))
+    _box(ax, 0.83, 0.37, 0.17, 0.45, "Sensor · Gate-MoE", ["one 2-wire coil, TDM", "on-board · 1 kHz"],
+         FILL["ai"], title_fs=6.0, **kw)
+    for k, lab in enumerate(["Strain", "Proximity", "Force", "Contact", "Material"]):
+        _chip(ax, 0.858, 0.665 - k * 0.055, lab, w=0.115, fs=5.4)
+    # 피드백 경로: ε̂ → 내부 루프, d̂ → 근접 루프, F̂ → 힘 루프
+    ax.plot([0.89, 0.89, 0.428], [0.37, 0.325, 0.325], color=S, lw=1.1)
+    _arrow(ax, (0.428, 0.325), (0.428, ym - 0.013), color=S, lw=1.1)
+    ax.text(0.66, 0.33, "ε̂  (finger shape = proprioception)", fontsize=5.6, color=S, ha="center", va="bottom")
+    ax.plot([0.915, 0.915, 0.135], [0.82, 0.848, 0.848], color=P, lw=1.0)
+    _arrow(ax, (0.135, 0.848), (0.135, 0.82), color=P)
+    ax.text(0.55, 0.853, "d̂  (all fingers)", fontsize=5.6, color=P, ha="center", va="bottom")
+    ax.plot([0.97, 0.97, 0.135], [0.37, 0.29, 0.29], color=F, lw=1.0)
+    _arrow(ax, (0.135, 0.29), (0.135, 0.37), color=F)
+    ax.text(0.30, 0.295, "F̂", fontsize=6, color=F, ha="center", va="bottom")
+
+    # 하단: 추정기 + 안전
+    _box(ax, 0.0, 0.10, 0.49, 0.15, "Object estimators (ε̂ and F̂ together)",
+         ["stiffness k̂ = ΔF̂ / Δε̂ during squeeze → soft object ⇒ lower F_t",
+          "size ∝ ε̂ at contact (gate ∨ TENG) → grasp-width check"], FILL["info"], fs=5.3, gap=0.042,
+         first=0.068)
+    _arrow(ax, (0.06, 0.25), (0.06, 0.37), color=MUTED)
+    ax.text(0.068, 0.305, "F_t", fontsize=5.6, color=MUTED, va="center")
+    _box(ax, 0.51, 0.10, 0.49, 0.15, "Safety layer (all phases, highest priority)",
+         ["ε̂ > ε_max (over-bend, sensor limit)  ∨  F̂ > F_max(material)",
+          "∨ dF̂/dt > Ḟ_max   →   ε_ref ← ε̂ − Δε (back off)"], "#FDECEC", title_color="#7A0016", fs=5.3,
+         gap=0.042, first=0.068)
+    ax.text(0.0, 0.035, "All outer loops command the same variable (ε_ref), so the approach→contact switch is bumpless: "
+            "the force loop starts from the strain the proximity loop reached.", fontsize=5.4, color=MUTED)
+    return _save(fig, out_dir, "fig10_control_cascade")

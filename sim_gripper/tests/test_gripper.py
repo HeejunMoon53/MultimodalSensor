@@ -43,6 +43,14 @@ def test_egg_breaks():
     assert sim.object_broken
 
 
+def test_object_offset_and_xy():
+    from dataclasses import replace
+    sim = GripperSim(FingerParams(), replace(METAL, xy=(0.006, -0.004)))
+    assert np.allclose(sim.object_xy_m(), (0.006, -0.004))
+    d = sim.pad_distance_mm()
+    assert d.max() - d.min() > 3.0            # 중심에서 벗어나 손가락별 거리가 다름
+
+
 def test_joint_range_in_radians():
     m = mujoco.MjModel.from_xml_string(build_mjcf(FingerParams(), METAL))
     assert np.allclose(m.jnt_range[m.joint("q0_0").id], [-0.5, 1.6])

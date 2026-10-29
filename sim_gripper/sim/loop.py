@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from sim_gripper.actuators import make_actuator
+from sim_gripper.control.cascade import CascadeController, CascadeParams
 from sim_gripper.control.controller import CtrlParams, FingerController, GraspSupervisor
 from sim_gripper.model.gripper import BellowsParams, FingerParams, GripperSim
 from sim_gripper.perception.contact import DielectricEstimator, TengContact
@@ -28,10 +29,11 @@ DEFAULT_ACT = {"flat": "tendon", "bellows60a": "pneumatic60a"}
 
 def run(scenario, actuator=None, sensor_mode="pipeline", shift=None, moe_models=None,
         record_video=False, seed=0, ctrl=None, fp=None, on_step=None, finger="flat", latency_ms=0,
-        ablate=()):
+        ablate=(), ctrl_mode="baseline", cascade=None):
     """on_step(sim, row): 매 1 ms 호출 (실시간 뷰어용).
     latency_ms: 센서 처리 결과 → 제어기 전달 지연 (PC 경유 시스템 모사, 물리·액추에이터는 그대로).
-    ablate: 모달리티 제거 — "proximity"(d̂=30 mm 고정), "material"(항상 도체), "teng"(접촉 힌트 없음), "safety"."""
+    ablate: 모달리티 제거 — "proximity"(d̂=30 mm 고정), "material"(항상 도체), "teng"(접촉 힌트 없음), "safety".
+    ctrl_mode: "baseline"(u 직접: 근접 스케줄 + admittance) | "cascade"(인장 내부 루프 + 근접·힘 외부 루프)."""
     fp = fp or FINGERS[finger]()
     # 벨로즈는 과굽힘으로 물체를 밀어내지 않고 힘 여유가 작아(200 kPa 끝단 ~6 N) u 상한 없음
     ctrl = ctrl or (CtrlParams(u_max=1.0) if finger == "bellows60a" else CtrlParams())
@@ -49,6 +51,7 @@ def run(scenario, actuator=None, sensor_mode="pipeline", shift=None, moe_models=
     tcs = [TengContact() for _ in range(3)]
     diel = DielectricEstimator(fwd)
     ctrls = [FingerController(ctrl) for _ in range(3)]
+    casc = CascadeController(cascade or CascadeParams.for_actuator(actuator, base=ctrl)) if ctrl_mode == "cascade" else None
     acts = [make_actuator(actuator) for _ in range(3)]
     sup = GraspSupervisor(ctrl)
     rng = np.random.default_rng(seed + 100)
@@ -92,9 +95,15 @@ def run(scenario, actuator=None, sensor_mode="pipeline", shift=None, moe_models=
         delay.append(outs)
         seen = delay[0]                                  # latency_ms 전의 센서 결과
         phase = sup.update(t, [o[0].contact for o in seen], cmd)
-        u = [ctrls[i].step(seen[i][0], seen[i][1], phase, DT) for i in range(3)]
+        if casc is None:
+            u = [ctrls[i].step(seen[i][0], seen[i][1], phase, DT) for i in range(3)]
+            trips = [ctrls[i].safety_trip for i in range(3)]
+        else:
+            u, trips = casc.step(seen, phase, DT), casc.safety_trip
+            for i in range(3):
+                row[f"b_ref_{i}"], row[f"F_t_{i}"] = casc.b_ref[i], casc.F_t[i]
         for i in range(3):
-            row[f"u_{i}"], row[f"safety_{i}"] = u[i], int(ctrls[i].safety_trip)
+            row[f"u_{i}"], row[f"safety_{i}"] = u[i], int(trips[i])
 
         if phase == "HOLD":
             lift = min(sim.lift0 + LIFT_H, lift + LIFT_V * DT)
@@ -106,8 +115,9 @@ def run(scenario, actuator=None, sensor_mode="pipeline", shift=None, moe_models=
             tau = np.stack([acts[i].step(u[i], q[i], sim.model.opt.timestep) for i in range(3)])
             sim.step(tau, lift)
 
-        row.update(phase=phase, obj_z=sim.object_height_m(), broken=sim.object_broken, failed=sup.failed,
-                   mat_true=mat_true)
+        ox, oy = sim.object_xy_m()
+        row.update(phase=phase, obj_z=sim.object_height_m(), obj_x=ox, obj_y=oy, broken=sim.object_broken,
+                   failed=sup.failed, mat_true=mat_true)
         rows.append(row)
         if on_step is not None:
             on_step(sim, row)
