@@ -1,6 +1,6 @@
 import numpy as np
 
-from sim_gripper.control.controller import MATERIAL_TABLE, CtrlParams, FingerController, GraspSupervisor
+from sim_gripper.control.controller import MATERIAL_TABLE, CtrlParams, FingerController, GraspSupervisor, sync_factors
 from sim_gripper.perception.moe import MoeOut
 
 DT = 0.001
@@ -29,6 +29,21 @@ def test_approach_speed_scheduled_by_proximity():
     assert abs(du[30.0] - P.v_far) < 1e-9 and abs(du[20.0] - P.v_far) < 1e-9
     assert abs(du[11.5] - (P.v_far + P.v_near) / 2) < 1e-9
     assert abs(du[3.0] - P.v_near) < 1e-9 and abs(du[1.0] - P.v_near) < 1e-9
+
+
+def test_sync_factors_slow_nearest_and_ignore_contact():
+    p = CtrlParams(sync=True)
+    s = sync_factors([_m(30.0, 0), _m(15.0, 0), _m(2.0, 1)], p)
+    assert s[0] == 1.0 and abs(s[1] - (15.0 + p.sync_soft_mm) / (30.0 + p.sync_soft_mm)) < 1e-12
+    assert s[2] == 1.0                                    # 접촉 손가락은 힘 루프 → 계수 무관
+    assert sync_factors([_m(30.0, 0), _m(0.0, 0)], p)[1] == p.sync_floor
+    assert sync_factors([_m(30.0, 0), _m(15.0, 0)], CtrlParams()) == [1.0, 1.0]   # 기본 비활성
+
+
+def test_approach_speed_scaled_by_sync():
+    c = FingerController(P)
+    c.step(_m(30.0, 0), "conductor", "APPROACH", DT, sync=0.5)
+    assert abs(c.u - 0.5 * P.v_far * DT) < 1e-12
 
 
 def test_admittance_increment():

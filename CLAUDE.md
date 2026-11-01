@@ -185,9 +185,13 @@ MuJoCo 3지 그리퍼 폐루프 시뮬레이션이다. 손가락은 판형 95A �
   - 테스트: `C:/ml_env/Scripts/python.exe -m pytest sim_gripper/tests -q`
   - 설정 패널: `python -m sim_gripper.panel`
   - 실험: `python -m sim_gripper.experiments.run_all`
-- 논문 그림: `python -m sim_gripper.paper.figures` → `sim_gripper/out/paper_figs/` (F1–F9 + 구성 가이드 docx).
+- 논문 그림: `python -m sim_gripper.paper.figures` → `sim_gripper/out/paper_figs/` (F1–F12 + 구성 가이드 docx). F11은 `cascade_compare` 결과가 있을 때만.
+- 제어기 비교 (기존 / 동기 접근 / 캐스케이드, seed 5회): `python -m sim_gripper.experiments.cascade_compare` → `sim_gripper/out/cascade/`
+- 보충 영상 S1–S3 + 스냅샷 줄: `python -m sim_gripper.paper.movies` → `sim_gripper/out/movies/` (mp4·gif·png)
+- 3D 뷰어: `python -m sim_gripper.viewer E2_egg --ctrl sync --offset 8` (`--ctrl baseline|sync|cascade`)
 - A–Z 보고서: `python -m sim_gripper.report.build_report`
 - 60A 벨로즈 CAD: `python -m sim_gripper.cad.export` → `sim_gripper/cad/out/`
+- 렌더 형상: `build_mjcf(..., visual=True)`(기본)에서 충돌 형상은 group 3으로 숨기고, 보이는 형상은 group 1(충돌·질량 0)에 따로 둔다. 벨로즈는 CAD를 벨로즈 단위로 자른 메시(`python -m sim_gripper.cad.visual` → `sim_gripper/model/assets/`)를 쓴다. 물리 결과는 visual=False와 비트 단위로 같아야 한다(`test_visual.py`).
 - MJCF는 `<compiler angle="radian"/>` 필수. 생략하면 MuJoCo 기본 단위가 degree라서 관절 range·springref·euler가 도(°)로 해석된다.
 - 시뮬 결과는 "시뮬레이션"으로 명시해서 쓴다. 실측 결과처럼 쓰지 않는다.
 

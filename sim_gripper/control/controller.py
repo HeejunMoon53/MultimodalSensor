@@ -29,6 +29,18 @@ class CtrlParams:
     eps_range: tuple = (0.0, 30.0)
     grasp_timeout_s: float = 3.0
     safety: bool = True          # False면 안전 계층 비활성 (ablation 전용)
+    sync: bool = False           # 동기 접근: 가까운 손가락을 늦춰 세 손가락 동시 도착 (치우친 물체 밀림 감소)
+    sync_floor: float = 0.2
+    sync_soft_mm: float = 2.0    # 접촉 직전 노이즈 크기 d̂에서 비율이 흔들리지 않게
+
+
+def sync_factors(ms, p):
+    """접근 속도 계수 (d̂ᵢ + s)/(maxⱼ d̂ⱼ + s), 비접촉 손가락끼리만 비교. p.sync가 False면 모두 1."""
+    free = [m.value for m in ms if not m.contact]
+    if not p.sync or not free:
+        return [1.0] * len(ms)
+    d_max = max(max(free), 0.0) + p.sync_soft_mm
+    return [1.0 if m.contact else max((max(m.value, 0.0) + p.sync_soft_mm) / d_max, p.sync_floor) for m in ms]
 
 
 class FingerController:
@@ -44,7 +56,7 @@ class FingerController:
         du = self.p.u_rate_max * dt
         return float(np.clip(u_ref, self.u - du, self.u + du))
 
-    def step(self, m, material, phase, dt):
+    def step(self, m, material, phase, dt, sync=1.0):
         p = self.p
         F_t, F_max = MATERIAL_TABLE.get(material, MATERIAL_TABLE["dielectric"])
         contact = int(m.contact)
@@ -71,7 +83,7 @@ class FingerController:
             u = self._toward(p.u_open, dt)
         elif phase == "APPROACH" and not contact:
             s = np.clip((m.value - p.d1_mm) / (p.d0_mm - p.d1_mm), 0.0, 1.0)
-            u = self._toward(self.u + (p.v_near + (p.v_far - p.v_near) * s) * dt, dt)
+            u = self._toward(self.u + sync * (p.v_near + (p.v_far - p.v_near) * s) * dt, dt)
         else:                                      # APPROACH+접촉, GRASP, HOLD
             e = F_t - F_hat
             u = self._toward(self.u + (dt / p.B_a) * e if abs(e) > p.F_dead else self.u, dt)

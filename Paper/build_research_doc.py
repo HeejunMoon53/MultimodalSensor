@@ -295,7 +295,7 @@ def add_sketch(d):
     S.claim("접촉 전에 재질을 알고, TENG로 접촉·분리를 게이트보다 빠르고 넓게 잡는다",
             [("예비(S12_02, 시뮬) 보유", "have"), " / ", B("정량 전부 [M1·M2]")])
     S.bullet("재질: 비접촉 ΔR로 역산한 ε로 ΔL의 변형률 성분을 빼고, 남은 잔차의 부호로 도체/유전체를 판별한다 (PINN Stage 1과 같은 원리)")
-    S.bullet("접촉: 게이트 ∨ TENG 래치")
+    S.bullet("접촉: 게이트 ∨ TENG 래치 (해제 = 누적 전하 q = ∫V dt가 최대의 30 % 아래 — 가벼운 충돌·튕김에도 해제)")
     S.bullet(("TENG가 필요한 이유 (피드백 1-1) ", None), B("검출 지연·유전체/저하중 검출률·분리 검출: 게이트만 vs 게이트 ∨ TENG [G-E3 · M2]"))
     S.bullet(("통합 모델 ", None), B("재질·TENG 포함 온보드 모델, 예산 갱신 [G-E9]"))
     S.sim("fig5_material_adaptive", "(예비) 재질 잔차와 재질별 목표 힘 — 시뮬")
@@ -311,6 +311,18 @@ def add_sketch(d):
     S.sim("fig3_state_machine", "Fig. 8b  State machine & modality roles")
     S.sim("fig4_grasp_timeline", "Fig. 9  Five modalities in one grasp (simulated)")
     S.sim("fig8_ablation", "Fig. 10  Modality ablation (simulated)")
+    S.bullet("모달리티의 가치 (F12, 시뮬): 재질·TENG를 빼면 계란 파손·손 파지 실패. \"힘만 있는 일반 촉각 센서\" 조건도 계란 파손·손 실패. "
+             "근접은 금속에서만 뚜렷 (같은 충격 ~8 N/s에서 접근 0.57 s vs 근접 없이 느린 접근 1.23 s). "
+             "유전체는 근접 신호가 약해 이득이 작음 → M1 재질 실측과 연결")
+    S.sim("fig12_modality_value", "Fig. 11  Value of each modality vs force-only tactile (simulated)")
+    S.bullet("보충 영상 (sim_gripper/out/movies): S1 계란 파지 (3D + ΔL·ΔR·V_TENG·d̂·F̂·ε̂ 동기 패널), "
+             "S2 ablation 1×4 동시 재생, S3 금속 + 외란. 같은 레이아웃에 실물 로그·카메라 영상을 넣어 교체 예정 [G-E10]")
+    S.sim("../movies/S1_egg_strip", "Fig. 9b  Egg grasp snapshots (simulated)")
+    S.bullet("보충 — 인장 피드백 캐스케이드: 인장 내부 루프 + 근접·힘 외부 루프 (둘 다 b_ref 출력 → 무충격 전환). "
+             "이상 센서에선 기존과 동등하고 치우친 물체 밀림이 줄지만, 보정 MoE(ε̂ 오차 ~1.6 %)에선 성공률이 떨어진다 (시뮬). "
+             "→ 본문 제어기는 기존 구조, 캐스케이드는 \"ε̂ ≈ 0.4 % 수준이면 가능한 구조\"로 제시")
+    S.sim("fig10_control_cascade", "Fig. S1  Strain-feedback cascade (proposed, simulated)")
+    S.sim("fig11_cascade_compare_tendon", "Fig. S2  Baseline vs sync approach vs cascade (simulated)")
     S.slot("실물 그리퍼 파지 사진·로그", "G-E10 · G-F6 · M5 (2027)")
 
     # 8 Conclusion

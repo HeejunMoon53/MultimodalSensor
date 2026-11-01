@@ -248,7 +248,7 @@ def build_report(out_dir=OUT):
         "도체도 ε = 15 %에서는 4 N 미만 접촉을 놓친다(압력 학습 데이터는 ε ≥ 14 % 접촉을 인덕턴스 포화로 제외). "
         "따라서 다음 세 가지를 추가했다. 이는 실물 펌웨어에도 그대로 옮길 수 있는 제안이다.")
     R.bullets([
-        f"접촉 융합: contact = 게이트 ∨ TENG 래치. V > {tc['v_on']} 이면 래치 ON, V < {tc['v_off']} 이면 OFF. TENG는 재질과 "
+        f"접촉 융합: contact = 게이트 ∨ TENG 래치. V > {tc['v_on']} 이면 래치 ON, 누적 전하 q = ∫V dt가 최대값의 {tc['off_frac']}배 아래로 내려가면 OFF. TENG는 재질과 "
         "무관하게 접촉 순간을 잡는다(Fig.1(b)의 Contact 모달리티). 융합 접촉은 전문가 선택과 EMA 리셋에도 반영(contact_hint).",
         "유전체 접촉 추정: 유전체에 닿으면 L은 거의 변형률만 반영한다(k_mat 작음). ΔL에서 ε̂, ΔR 잔차에서 F̂를 보정 곡면의 "
         "고정점 반복으로 역산한다:  ε ← ΔL_ε⁻¹(ΔL − k_mat·ΔL_prox(ε,0) − ΔL_F(ε,F)),  F ← ΔR_F(ε,·)⁻¹(ΔR − ΔR_ε(ε)).  "
@@ -441,7 +441,7 @@ def build_report(out_dir=OUT):
     rows += [["TendonActuator", k, v] for k, v in td.items()]
     rows += [["PneumaticActuator", k, v] for k, v in pd_.items()]
     rows += [["SensorForward", "eps0 / h_mm", f"{fwd.eps0} / {fwd.h_mm}"], ["TengModel", "tau_s / gain", f"{teng['tau_s']} / {teng['gain']}"],
-             ["TengContact", "v_on / v_off", f"{tc['v_on']} / {tc['v_off']}"],
+             ["TengContact", "v_on / off_frac", f"{tc['v_on']} / {tc['off_frac']}"],
              ["MaterialClassifier", "theta / persist_steps", f"{mc['theta']} / {mc['persist_steps']}"],
              ["TDM", "sigma_L / sigma_R", f"{L.SIGMA_L} / {L.SIGMA_R}"], ["MoE", "EMA_ALPHA", M.EMA_ALPHA],
              ["DomainShift", "d_eps / gamma / scale", f"{DEFAULT_SHIFT.d_eps} / {DEFAULT_SHIFT.gamma} / {DEFAULT_SHIFT.scale}"],

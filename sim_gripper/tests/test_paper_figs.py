@@ -10,6 +10,13 @@ def test_diagram_writes_png_and_svg(fn, tmp_path):
     assert all(p.exists() and p.stat().st_size > 5000 for p in paths)
 
 
+def test_run_cache_key_distinguishes_approach_speed():
+    from sim_gripper.control.controller import CtrlParams
+    from sim_gripper.paper.figures import _key
+    assert _key("E1_metal", ctrl=CtrlParams()) != _key("E1_metal", ctrl=CtrlParams(v_far=0.1))
+    assert _key("E1_metal") == _key("E1_metal")
+
+
 def test_guide_has_all_figures(tmp_path):
     from docx import Document
 

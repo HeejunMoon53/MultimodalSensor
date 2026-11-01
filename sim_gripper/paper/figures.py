@@ -38,11 +38,15 @@ def _cached(key, fn):
     return df
 
 
+def _key(scen, finger="flat", latency=0, ablate=(), ctrl=None, t_end=None):
+    c = "" if ctrl is None else f"B{ctrl.B_a}v{ctrl.v_far}u{ctrl.u_max}"
+    return f"{scen}_{finger}_L{latency}_{'-'.join(ablate) or 'full'}_{c}_{t_end}"
+
+
 def _run(scen, finger="flat", latency=0, ablate=(), ctrl=None, models=None, t_end=None):
     sc = SCENARIOS[scen] if t_end is None else replace(SCENARIOS[scen], t_end=t_end)
-    key = f"{scen}_{finger}_L{latency}_{'-'.join(ablate) or 'full'}_{'' if ctrl is None else f'B{ctrl.B_a}'}_{t_end}"
-    return _cached(key, lambda: run(sc, finger=finger, latency_ms=latency, ablate=ablate, ctrl=ctrl,
-                                    moe_models=models)[0])
+    return _cached(_key(scen, finger, latency, ablate, ctrl, t_end),
+                   lambda: run(sc, finger=finger, latency_ms=latency, ablate=ablate, ctrl=ctrl, moe_models=models)[0])
 
 
 def _phases(ax, df, labels=False):
@@ -261,21 +265,79 @@ ABL = [("full", ()), ("− proximity", ("proximity",)), ("− material", ("mater
 ABL_TICK = ["full", "−prox.", "−material", "−TENG", "−safety"]
 
 
+def _grasp_row(df, s):
+    from sim_gripper.paper.movies import approach_time
+    g = df[df.phase != "RELEASE"]
+    appr = df[df.phase.isin(["APPROACH", "GRASP"])]
+    peak = g[[f"F_true_{i}" for i in range(3)]].max().max()
+    fdot = max(appr[f"F_true_{i}"].diff().max() * 1000 for i in range(3))
+    hold = df[df.phase == "HOLD"]
+    lifted = len(hold) and hold.obj_z.iloc[-1] - df.obj_z.iloc[0] >= 0.02
+    ok = bool(lifted and not df.broken.iloc[-1] and not df.failed.iloc[-1] and peak <= OBJ_LIMIT[s])
+    return dict(scenario=s, peak=peak, impact=fdot, success=ok, broken=bool(df.broken.iloc[-1]),
+                grasped=bool(len(hold) > 0), approach_s=approach_time(df))
+
+
 def ablation(models):
-    rows = []
-    for name, ab in ABL:
-        for s in ("E2_egg", "E2_hand", "E1_metal"):
-            df = _run(s, ablate=ab, models=models)
-            g = df[df.phase != "RELEASE"]
-            appr = df[df.phase.isin(["APPROACH", "GRASP"])]
-            peak = g[[f"F_true_{i}" for i in range(3)]].max().max()
-            fdot = max(appr[f"F_true_{i}"].diff().max() * 1000 for i in range(3))
-            hold = df[df.phase == "HOLD"]
-            lifted = len(hold) and hold.obj_z.iloc[-1] - df.obj_z.iloc[0] >= 0.02
-            ok = bool(lifted and not df.broken.iloc[-1] and not df.failed.iloc[-1] and peak <= OBJ_LIMIT[s])
-            rows.append(dict(condition=name, scenario=s, peak=peak, impact=fdot, success=ok,
-                             broken=bool(df.broken.iloc[-1]), grasped=bool(len(hold) > 0)))
-    return pd.DataFrame(rows)
+    return pd.DataFrame([dict(condition=name, **_grasp_row(_run(s, ablate=ab, models=models), s))
+                         for name, ab in ABL for s in ("E2_egg", "E2_hand", "E1_metal")])
+
+
+SLOW = CtrlParams(v_far=CtrlParams().v_near)    # 근접 없이 안전하려면 처음부터 끝까지 느리게
+VALUE = [("full (this sensor)", (), None),
+         ("no proximity · fast", ("proximity",), None),
+         ("no proximity · slow", ("proximity",), SLOW),
+         ("− material", ("material",), None),
+         ("− TENG", ("teng",), None),
+         ("force-only tactile", ("proximity", "material"), SLOW)]   # 접촉은 힘 임계로 잡는다고 가정 (TENG 래치 유지)
+
+
+def fig12_modality_value(models, out_dir=FIG_DIR):
+    """(a) 근접의 가치: 접근 시간 vs 접촉 충격 — full만 빠르면서 부드러움.
+    (b) 조건 × 물체 결과 행렬: 일반 촉각 센서(힘만)와 비교."""
+    scen = ["E2_egg", "E2_hand", "E1_metal"]
+    res = pd.DataFrame([dict(condition=name, **_grasp_row(_run(s, ablate=ab, ctrl=c, models=models), s))
+                        for name, ab, c in VALUE for s in scen])
+    cols = {"E1_metal": "#4A6FA5", "E2_hand": "#C2703D", "E2_egg": "#7A9A3A"}
+    marks = {"full (this sensor)": "o", "no proximity · fast": "^", "no proximity · slow": "s"}
+    fig, axs = plt.subplots(1, 2, figsize=(7.2, 2.9), gridspec_kw={"wspace": 0.38, "width_ratios": [1, 1.15]})
+    ax = axs[0]
+    for cond, mk in marks.items():
+        r = res[res.condition == cond]
+        for _, row in r.iterrows():
+            ax.scatter(row.approach_s, row.impact, marker=mk, s=34, color=cols[row.scenario],
+                       edgecolor="white", lw=0.6, zorder=3)
+    for cond, mk in marks.items():
+        ax.scatter([], [], marker=mk, color="#666666", s=24, label=cond)
+    for s in scen:
+        ax.scatter([], [], marker="o", color=cols[s], s=24, label=NAMES[s])
+    ax.set_yscale("log")
+    ax.set_xlabel("approach time to 3-finger contact [s]", fontsize=7)
+    ax.set_ylabel("max dF/dt at contact [N/s]", fontsize=7)
+    ax.set_title("a  approach time vs contact impact", fontsize=7.2, loc="left")
+    ax.legend(fontsize=5.4, frameon=False, loc="upper right", ncol=1)
+    _style(ax)
+    ax = axs[1]
+    conds = [c for c, _, _ in VALUE]
+    ok_c, bad_c = "#E3F1E8", "#F7DEE0"
+    for yi, cond in enumerate(conds):
+        for xi, s in enumerate(scen):
+            row = res[(res.condition == cond) & (res.scenario == s)].iloc[0]
+            mark = "✓" if row.success else ("B" if row.broken else "✕")
+            ax.add_patch(plt.Rectangle((xi - 0.47, yi - 0.42), 0.94, 0.84, color=ok_c if row.success else bad_c, lw=0))
+            ax.text(xi, yi, f"{mark}  {row.peak:.1f} N", ha="center", va="center", fontsize=6.4,
+                    color="#2E7D5B" if row.success else "#B00020", weight="bold")
+    ax.set_xlim(-0.5, len(scen) - 0.5), ax.set_ylim(len(conds) - 0.5, -0.5)
+    ax.set_xticks(range(len(scen)), [NAMES[s] for s in scen], fontsize=6.2)
+    ax.set_yticks(range(len(conds)), conds, fontsize=6.2)
+    ax.tick_params(length=0)
+    ax.grid(False)
+    for sp in ax.spines.values():
+        sp.set_visible(False)
+    ax.set_title("b  outcome & peak force  (✓ lifted, B broken, ✕ failed)", fontsize=7.2, loc="left")
+    paths = _save(fig, out_dir, "fig12_modality_value")
+    res.to_csv(out_dir / "fig12_modality_value_data.csv", index=False)
+    return paths
 
 
 def fig8_ablation(models, out_dir=FIG_DIR):
@@ -337,14 +399,20 @@ def fig9_adaptation(out_dir=FIG_DIR):
 
 
 def make_all(out_dir=FIG_DIR):
-    from sim_gripper.paper.diagrams import fig1_architecture, fig2_timing_budget, fig3_state_machine
+    from sim_gripper.experiments import cascade_compare as cc
+    from sim_gripper.paper.diagrams import fig1_architecture, fig2_timing_budget, fig3_state_machine, fig10_control_cascade
     models = make_gripper_moe()
     out = []
-    for fn in (fig1_architecture, fig2_timing_budget, fig3_state_machine, fig7_analytic_vs_moe, fig9_adaptation):
+    for fn in (fig1_architecture, fig2_timing_budget, fig3_state_machine, fig7_analytic_vs_moe, fig9_adaptation,
+               fig10_control_cascade):
         out += fn(out_dir)
         print(out[-1], flush=True)
-    for fn in (fig4_grasp_timeline, fig5_material_adaptive, fig6_latency, fig8_ablation):
+    for fn in (fig4_grasp_timeline, fig5_material_adaptive, fig6_latency, fig8_ablation, fig12_modality_value):
         out += fn(models, out_dir)
+        print(out[-1], flush=True)
+    if (cc.OUT / "metrics.json").exists():          # F11: 비교 실험 결과가 있을 때만 (python -m ...cascade_compare)
+        res, seeds = cc.load()
+        out.append(cc.plot_compare(res, act="tendon", seeds=seeds, fig_dir=out_dir))
         print(out[-1], flush=True)
     return out
 

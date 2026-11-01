@@ -10,7 +10,7 @@ import pandas as pd
 
 from sim_gripper.actuators import make_actuator
 from sim_gripper.control.cascade import CascadeController, CascadeParams
-from sim_gripper.control.controller import CtrlParams, FingerController, GraspSupervisor
+from sim_gripper.control.controller import CtrlParams, FingerController, GraspSupervisor, sync_factors
 from sim_gripper.model.gripper import BellowsParams, FingerParams, GripperSim
 from sim_gripper.perception.contact import DielectricEstimator, TengContact
 from sim_gripper.perception.material import MaterialClassifier
@@ -33,13 +33,16 @@ def run(scenario, actuator=None, sensor_mode="pipeline", shift=None, moe_models=
     """on_step(sim, row): 매 1 ms 호출 (실시간 뷰어용).
     latency_ms: 센서 처리 결과 → 제어기 전달 지연 (PC 경유 시스템 모사, 물리·액추에이터는 그대로).
     ablate: 모달리티 제거 — "proximity"(d̂=30 mm 고정), "material"(항상 도체), "teng"(접촉 힌트 없음), "safety".
-    ctrl_mode: "baseline"(u 직접: 근접 스케줄 + admittance) | "cascade"(인장 내부 루프 + 근접·힘 외부 루프)."""
+    ctrl_mode: "baseline"(u 직접: 근접 스케줄 + admittance) | "sync"(baseline + 동기 접근)
+               | "cascade"(인장 내부 루프 + 근접·힘 외부 루프)."""
     fp = fp or FINGERS[finger]()
     # 벨로즈는 과굽힘으로 물체를 밀어내지 않고 힘 여유가 작아(200 kPa 끝단 ~6 N) u 상한 없음
     ctrl = ctrl or (CtrlParams(u_max=1.0) if finger == "bellows60a" else CtrlParams())
     actuator = actuator or DEFAULT_ACT[finger]
     if "safety" in ablate:
         ctrl = replace(ctrl, safety=False)
+    if ctrl_mode == "sync":
+        ctrl = replace(ctrl, sync=True)
     delay = deque(maxlen=int(round(latency_ms)) + 1)
     sim = GripperSim(fp, scenario.obj)
     n_sub = round(DT / sim.model.opt.timestep)
@@ -96,7 +99,8 @@ def run(scenario, actuator=None, sensor_mode="pipeline", shift=None, moe_models=
         seen = delay[0]                                  # latency_ms 전의 센서 결과
         phase = sup.update(t, [o[0].contact for o in seen], cmd)
         if casc is None:
-            u = [ctrls[i].step(seen[i][0], seen[i][1], phase, DT) for i in range(3)]
+            sync = sync_factors([o[0] for o in seen], ctrl)
+            u = [ctrls[i].step(seen[i][0], seen[i][1], phase, DT, sync[i]) for i in range(3)]
             trips = [ctrls[i].safety_trip for i in range(3)]
         else:
             u, trips = casc.step(seen, phase, DT), casc.safety_trip

@@ -3,6 +3,7 @@
 python -m sim_gripper.viewer E1_metal                  # 텐던, 실제 파이프라인
 python -m sim_gripper.viewer E2_egg --actuator pneumatic --speed 0.5
 python -m sim_gripper.viewer E1_metal --finger bellows60a   # 60A 벨로즈 손가락(공압 0~200 kPa)
+python -m sim_gripper.viewer E2_egg --offset 8 --ctrl sync   # 치우친 물체 + 동기 접근 (cascade도 가능)
 python -m sim_gripper.viewer --list
 python -m sim_gripper.panel                            # 설정 패널(시나리오·옵션 선택, 재시작, 일시정지)
 마우스: 왼쪽 드래그 회전, 오른쪽 드래그 이동, 휠 확대. 창 닫으면 종료.
@@ -11,6 +12,7 @@ import argparse
 import sys
 import threading
 import time
+from dataclasses import replace
 from pathlib import Path
 
 if __package__ in (None, ""):          # VS Code ▶ 등으로 파일을 직접 실행한 경우
@@ -51,8 +53,10 @@ def _overlay(row):
     return left, "\n".join(right)
 
 
-def play(scenario, actuator=None, sensor="pipeline", ctrl=None, keep_open=True, finger="flat"):
-    """시나리오 하나를 MuJoCo 창에서 재생. ctrl.stop으로 중단, ctrl.paused로 일시정지, ctrl.speed 실시간 변경."""
+def play(scenario, actuator=None, sensor="pipeline", ctrl=None, keep_open=True, finger="flat",
+         ctrl_mode="baseline", offset_mm=0.0):
+    """시나리오 하나를 MuJoCo 창에서 재생. ctrl.stop으로 중단, ctrl.paused로 일시정지, ctrl.speed 실시간 변경.
+    ctrl_mode: baseline | sync | cascade,  offset_mm: 물체를 x 방향으로 치우치게 (정렬 비교)."""
     ctrl = ctrl or PlayControl()
     st = {"v": None, "next": None}
 
@@ -88,7 +92,10 @@ def play(scenario, actuator=None, sensor="pipeline", ctrl=None, keep_open=True, 
         wait_until()
 
     try:
-        run(SCENARIOS[scenario], actuator=actuator, sensor_mode=sensor, on_step=on_step, finger=finger)
+        sc = SCENARIOS[scenario]
+        if offset_mm:
+            sc = replace(sc, obj=replace(sc.obj, xy=(offset_mm / 1000, 0.0)))
+        run(sc, actuator=actuator, sensor_mode=sensor, on_step=on_step, finger=finger, ctrl_mode=ctrl_mode)
         ctrl.done = True
         while keep_open and st["v"] is not None and st["v"].is_running() and not ctrl.stop.is_set():
             time.sleep(0.1)
@@ -109,12 +116,15 @@ def main():
                     help="생략하면 손가락 기본값 (판형=tendon, 벨로즈=pneumatic60a)")
     ap.add_argument("--sensor", default="pipeline", choices=["pipeline", "ideal"])
     ap.add_argument("--speed", type=float, default=1.0, help="재생 배속 (1 = 실시간)")
+    ap.add_argument("--ctrl", default="baseline", choices=["baseline", "sync", "cascade"], help="제어기")
+    ap.add_argument("--offset", type=float, default=0.0, help="물체 x 오프셋 [mm] (예: 8)")
     ap.add_argument("--list", action="store_true")
     a = ap.parse_args()
     if a.list:
         print("\n".join(SCENARIOS))
         return
-    play(a.scenario, a.actuator, a.sensor, PlayControl(a.speed), finger=a.finger)
+    play(a.scenario, a.actuator, a.sensor, PlayControl(a.speed), finger=a.finger, ctrl_mode=a.ctrl,
+         offset_mm=a.offset)
     print("종료")
 
 
