@@ -206,16 +206,24 @@ def add_sketch(d):
     # 1 Introduction
     d.add_heading("1. Introduction", 1)
     S.claim("단일 전극·온보드 AI로 구조·전기적 복잡성을 동시에 줄인다", [("배경·문제 보유", "have"), " / ", B("차별점 표 [G-W1]")])
+    S.bullet("서사 시작: 사람 손 촉각 7가지(압력·접촉 위치·질감·온도·고유수용감각·진동·통증) 중 무엇을 하는지 + "
+             "사람에게 없는 감각(접촉 전 근접, 전기적 재질)을 더한다 — FlexiRay(Nat. Commun. 2026) Fig. 1a 구성 참고 ",
+             B("Fig. 1a 대응 그림 [G-W10]"))
+    S.bullet("\"한계 → 기능\": 한 코일에서 L이 ε와 d에 함께 의존하는 신호 결합을, TDM + 디커플링으로 다섯 모달리티의 원천으로 바꾼다 "
+             "(FlexiRay가 변형에 의한 시야 가림을 거울 배열로 기능화한 것과 같은 논리)")
     S.bullet("배경: HRI에서 물리적 지각(자기 변형 + 주변 물체), 소프트 센서의 장점 — S4–S5")
     S.bullet("문제: 구조적 복잡성(적층·배선·박리) + 전기적 복잡성(crosstalk·외부 계측·PC 의존) — S6")
     S.bullet("접근: 단일 평면 전극 + 시분할 다중 신호 + 온보드 경량 디커플링 + 온보드 제어 — S7–S8")
-    S.bullet(("Related work ", None), B("다중 모달 소프트 센서 / 인덕티브·LC 센서 / TENG / 엣지 AI [G-W2]"))
+    S.bullet(("Related work ", None), B("다중 모달 소프트 센서 / 인덕티브·LC 센서 / TENG / 엣지 AI [G-W2]"),
+             " — 시각-촉각 소프트 그리퍼 FlexiRay(5 모달리티, 카메라 + GPU, 25.8 ms, 접촉 후에만 감지)를 대비 대상으로 포함")
     S.bullet(("노벨티 문장 ", None), B("기존 연구 대비 차별점 3개 — 세미나 P.6 비교 보강 [G-W9]"))
     S.bullet(("EGaIn을 쓰는 이유 ", None), B("신축성·전도도·코일 형상 유지·R/L 동시 응답, 대안 재료 비교 [G-W8]"))
     S.bullet("기여: C1–C4 (C4는 시뮬레이션 검증)")
-    S.slide(7, "Fig. 1  Whole process of multimodal soft single-sensor system")
+    S.slot("Fig. 1a  사람 촉각 7가지 + 추가 감각(근접·재질) ↔ 본 연구 모달리티 대응", "G-W10 · M4")
+    S.slide(7, "Fig. 1b  Whole process of multimodal soft single-sensor system")
     S.slide(6, "(참고) 기존 다중 모달 센서의 문제 — Introduction 그림 후보", width=10)
-    S.slot("Table 1  선행연구 비교 (모달리티 수·전극 수·계측 장비·디커플링·온보드 여부)", "G-W1 · M4")
+    S.slot("Table 1  선행연구 비교 (모달리티 수·전극 수·계측 장비·디커플링·온보드 여부·접촉 전 감지·지연) — "
+           "초안 1부 9절, FlexiRay 포함", "G-W1 · M4")
 
     # 2 Sensor
     d.add_heading("2. Sensor Design, Fabrication and Working Principle", 1)
@@ -240,7 +248,7 @@ def add_sketch(d):
     S.imgs(["S14_19", "S12_19"], "Fig. 3d  Mechanisms: eddy current / parasitic capacitance & cross-section", width=7.0,
            note="S14_04·05 등 모식도 출처 확인 → 재작도 [G-F9]")
     S.slot("FEA: L(ε, d) 도체·유전체 의존성 — 측정 경향과 비교", "G-E12 · G-F10 · M3")
-    S.slot("반복성·히스테리시스·센서 간 편차", "G-E4 · G-F7")
+    S.slot("반복성·히스테리시스·내구성(≥ 10,000회, 비교: FlexiRay 40,000회)·센서 간 편차", "G-E4 · G-F7")
 
     # 3 Measurement
     d.add_heading("3. Measurement System", 1)
@@ -253,6 +261,7 @@ def add_sketch(d):
     S.imgs(["S18_01", "S18_03"], "Fig. 4c  TDM: non-blocking DMA flow / acquisition timing", width=8.0)
     S.imgs(["S13_10"], "Fig. 4d  Channel switching waveform", width=8.0, note="전환 과도·crosstalk 정량 [G-E6]")
     S.sim("fig2_timing_budget", "Fig. 4e  1-ms cycle timing & model budget (제어기 시간은 추정 → G-E8)")
+    S.slot("Fig. 4f  지연 비교: 본 연구 1 ms TDM + 260 µs 추론 vs 카메라 시각-촉각 33 ms 프레임 + 25.8 ms 처리", "G-F11 · M4")
 
     # 4 Characterization
     d.add_heading("4. Signal Characterization and Dataset", 1)
@@ -279,6 +288,8 @@ def add_sketch(d):
     S.bullet(("실시간: 게이트 0.989, ε 0.947, d 0.794, F 0.591", "have"), " — S30  ", B("수정 후 재측정 [G-E1 · M0]"))
     S.bullet(("모델 선정 근거 ", None), B("단일 MLP vs MoE, EMA 유무·τ, 크기 스윕 → 정확도–파라미터–지연 파레토 [G-E11 · M3]"))
     S.bullet(("기준선 ", None), B("해석적 역산 vs Gate-MoE (실측 test) [G-E7 · M3]"))
+    S.bullet(("평가 방식 ", None), "고정 프로토콜(A/B/C)과 다른 ", ("무작위 ε·d·F 경로", "b"),
+             "의 test 세트로 평가: parity(RMSE·r), 오차 분포, 무작위 10회 연속 추적 ", B("[G-E13 · G-F12 · M0]"))
     S.slide(26, "Fig. 6a  SLS-EMA + Gate-MoE architecture")
     S.imgs(["S27_02"], "Fig. 6b  Offline held-out parity", width=12)
     S.imgs(["S27_04"], "Fig. 6c  Expert-wise parity", width=14)
@@ -288,7 +299,7 @@ def add_sketch(d):
     S.slide(29, "Fig. 7b  Real-time validation setup")
     S.imgs(["S30_02"], "Fig. 7c  On-hardware real-time validation (separate session)", width=14,
            note="'smoothed, 3rd force peak removed' 처리 명시 또는 원데이터 재작도, 축 라벨 %→mm [G-F2]")
-    S.slot("수정된 실시간 검증 (동기화·폐루프 후)", "G-E1 · M0")
+    S.slot("수정된 실시간 검증 — 무작위 test: parity + 오차 분포 + 연속 추적 10회", "G-E1 · G-E13 · G-F12 · M0")
 
     # 6 Material & contact
     d.add_heading("6. Electrical-Property (Material) and Contact Sensing", 1)
@@ -299,7 +310,8 @@ def add_sketch(d):
     S.bullet(("TENG가 필요한 이유 (피드백 1-1) ", None), B("검출 지연·유전체/저하중 검출률·분리 검출: 게이트만 vs 게이트 ∨ TENG [G-E3 · M2]"))
     S.bullet(("통합 모델 ", None), B("재질·TENG 포함 온보드 모델, 예산 갱신 [G-E9]"))
     S.sim("fig5_material_adaptive", "(예비) 재질 잔차와 재질별 목표 힘 — 시뮬")
-    S.slot("재질 분류 혼동행렬 · 잔차 vs 거리 (실측)", "G-E2 · G-F3 · M1")
+    S.bullet(("형상 일반화 ", None), B("압자 반구·평면·원통·사각 × 도체·유전체에서 재질 판별 [G-E14]"))
+    S.slot("재질 분류 혼동행렬 (L만 / R만 기준선 대비, 5-fold) · 잔차 vs 거리 (실측)", "G-E2 · G-E14 · G-F3 · M1")
     S.slot("TENG 조건별 전압 · 검출 지연 · 게이트 대비 비교 (실측)", "G-E3 · G-F4 · M2")
 
     # 7 Application
@@ -323,23 +335,36 @@ def add_sketch(d):
              "→ 본문 제어기는 기존 구조, 캐스케이드는 \"ε̂ ≈ 0.4 % 수준이면 가능한 구조\"로 제시")
     S.sim("fig10_control_cascade", "Fig. S1  Strain-feedback cascade (proposed, simulated)")
     S.sim("fig11_cascade_compare_tendon", "Fig. S2  Baseline vs sync approach vs cascade (simulated)")
+    S.bullet(("응용 데모 확장 (M6) ", None),
+             B("접촉 전 회피 — FlexiRay의 접촉 후 회피와 대비 [G-E16, 시뮬]"), " · ",
+             B("ε̂로 물체 크기 추정 [G-E17, 시뮬]"), " · ",
+             B("연약 물체(칩 0.93 N·빵 0.46 N, FlexiRay 실측 임계값 근거) + 섞인 물체 연속 처리 영상 S4 [G-E18, 시뮬]"), " · ",
+             B("비접촉 조종: d̂ → 스테이지 Z (센서 1개, 실측) [G-E15]"))
+    S.slot("접촉 전 회피: 손 접근 → d̂ 기반 후퇴, 최대 접촉력 ≈ 0 (시뮬)", "G-E16 · M6")
+    S.slot("비접촉 조종 데모 영상 + 추종 오차 (실측)", "G-E15 · M6")
     S.slot("실물 그리퍼 파지 사진·로그", "G-E10 · G-F6 · M5 (2027)")
 
-    # 8 Conclusion
-    d.add_heading("8. Conclusion", 1)
+    # 8 Discussion & Conclusion
+    d.add_heading("8. Discussion and Conclusion", 1)
     S.bullet("요약: S32 + 재질·TENG·제어 결과 ", B("[M1, M2]"))
-    S.bullet("향후: 실물 그리퍼, 다중 주파수 임피던스(재질 인식 강화), 2D 변형, 무선 전력·통신 TDM, 어레이")
+    S.bullet("시각-촉각 방식(FlexiRay)과의 위치: 그쪽은 접촉 위치·질감·온도와 공간 해상도가 강점, "
+             "본 연구는 접촉 전 감지·1 kHz·MCU 단독·2선 패치가 강점 → 상호 보완. 한계를 명시 ", B("[G-W10]"))
+    S.bullet("향후: 실물 그리퍼, 다중 주파수 임피던스(재질 인식 강화), 2D 변형, 무선 전력·통신 TDM, 어레이(접촉 위치)")
 
     d.add_heading("부록. 그림·표 계획", 1)
-    rows = [("Fig. 1", "시스템 개요", "S7", "보유", "—"),
+    rows = [("Fig. 1a", "사람 촉각 대응", "—", "없음", "G-W10"),
+            ("Fig. 1b", "시스템 개요", "S7", "보유", "—"),
             ("Fig. 2", "센서 설계·실물·현미경·제작", "S10, S11 + 원본", "보유", "G-E5, G-W3"),
             ("Fig. 3", "자극–응답·재질 비교·TENG·메커니즘", "S12_14, S12_02, S12_05, S14_19", "부분", "G-F1, G-F9, G-E2, G-E3, G-E12"),
             ("Fig. 4", "PCB·TDM·전환 파형·타이밍", "S16–S18, S13_10 + 시뮬 F2", "보유", "G-E6, G-E8, G-W4"),
             ("Fig. 5", "플랫폼·동기화·프로토콜·시계열·곡면", "S20–S24", "보유 (D·E 없음)", "G-E2, G-E3, G-W5"),
             ("Fig. 6", "Gate-MoE·parity·선정 근거·기준선", "S26, S27 + 시뮬 F7", "부분", "G-E7, G-E11"),
+            ("Fig. 4f", "지연 비교 (vs 카메라 VTS)", "—", "없음", "G-F11"),
             ("Fig. 7", "배포·실시간 검증", "S28–S30", "보유 (수정 필요)", "G-E1, G-F2"),
+            ("Fig. 7d", "무작위 평가 (parity·오차 분포·연속 추적)", "—", "없음", "G-E13, G-F12"),
             ("신규", "재질 분류·TENG 정량", "—", "없음", "G-E2, G-E3, G-E9"),
-            ("Fig. 8–10", "제어 구조·시뮬 결과", "시뮬 F1, F3, F4, F8", "보유 (시뮬)", "G-E10"),
+            ("Fig. 8–11", "제어 구조·시뮬 결과", "시뮬 F1, F3, F4, F8, F12", "보유 (시뮬)", "G-E10"),
+            ("Fig. 12", "응용 데모 (접촉 전 회피·비접촉 조종·크기 추정)", "—", "없음", "G-E15–E18"),
             ("Table 1", "선행연구 비교", "—", "없음", "G-W1"),
             ("Table 2", "모델 예산·지연", "S28", "보유", "G-E8")]
     t = d.add_table(rows=1, cols=5)
@@ -362,10 +387,16 @@ def main():
     try:
         d.save(str(OUT))
         print(OUT)
-    except PermissionError:
-        alt = OUT.with_name(OUT.stem + "_갱신.docx")
-        d.save(str(alt))
-        print(alt)
+    except PermissionError:                     # Word에서 열려 있으면 다음 빈 이름으로
+        for k in range(1, 20):
+            alt = OUT.with_name(OUT.stem + ("_갱신" if k == 1 else f"_갱신{k}") + ".docx")
+            try:
+                d.save(str(alt))
+                print(alt)
+                return
+            except PermissionError:
+                continue
+        raise
 
 
 if __name__ == "__main__":
