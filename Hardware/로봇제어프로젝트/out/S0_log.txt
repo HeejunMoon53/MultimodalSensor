@@ -1,0 +1,9 @@
+S0: young 보정 (30 kPa → 300°)
+  young     36000 Pa → -109.4°
+  young     40000 Pa →  240.5°
+  young     45000 Pa →  234.2°
+  young     50000 Pa →  582.9°
+  sensor_z 0.5 mm: ε(30 kPa) = 3.10 %, 벽시계/시뮬 = 4.0
+  sensor_z 2.0 mm: ε(30 kPa) = 11.75 %, 벽시계/시뮬 = 3.9
+  sensor_z 3.5 mm: ε(30 kPa) = 28.10 %, 벽시계/시뮬 = 4.0
+S0 판정: model=flex, young=40000 Pa, 벽시계/시뮬=3.9940071560087658, prestrain=0.00 %

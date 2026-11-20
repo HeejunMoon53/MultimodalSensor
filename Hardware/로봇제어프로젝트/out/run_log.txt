@@ -1,0 +1,45 @@
+PP K=[[ 0.007  2.472 -0.162]]  LQR K=[[ 0.729  6.396 -0.271]]  LQR GM=20.8 dB PM=91.8��
+Kalman Kf = [[0.5969, 0.0001], [0.0039, 0.2457]]
+DOB ��_q �ĺ� [0.2006, 0.1003, 0.0502, 0.0251] ���� 0.1003 {'0.2006': {'ok': True, 'worst': 0.4285697062779786}, '0.1003': {'ok': True, 'worst': 0.4285709997397166}, '0.0502': {'ok': True, 'worst': 0.428571323106371}, '0.0251': {'ok': True, 'worst': 0.42857140394811094}}
+S8 conductor {'F_block': 6.213363566469083, 'k_env': 1.6800271186507751, 'eps_contact': 1.0226275130026115}
+S8 dielectric {'F_block': 6.21277968948842, 'k_env': 1.67798057990654, 'eps_contact': 1.0224246105680954}
+S8 human {'F_block': 6.139937239896421, 'k_env': 1.632611806331156, 'eps_contact': 1.0213244280647742}
+S8 힘 보정 c = 1.004
+S5 개루프(FF, 이상적 맵) {'rise_s': 0.58, 'overshoot_pct': 0.0, 'settle_s': 0.67, 'ess': 0.17, 'rmse': 0.973, 'rmse_meas': 1.27, 'sum_u2': 595413.373, 'sum_du': 102.986, 'est_rmse_epsdot': nan}
+S5 PP(전상태) {'rise_s': 0.17, 'overshoot_pct': 5.124, 'settle_s': 1.59, 'ess': -0.199, 'rmse': 0.949, 'rmse_meas': 1.033, 'sum_u2': 595918.489, 'sum_du': 263.756, 'est_rmse_epsdot': 7.873}
+S5 PP+관측기 {'rise_s': 1.45, 'overshoot_pct': 4.955, 'settle_s': 1.52, 'ess': -0.193, 'rmse': 0.975, 'rmse_meas': 0.908, 'sum_u2': 593484.232, 'sum_du': 641.746, 'est_rmse_epsdot': 8.124}
+S5 LQR+관측기 {'rise_s': 1.44, 'overshoot_pct': 4.925, 'settle_s': 1.82, 'ess': -0.159, 'rmse': 1.001, 'rmse_meas': 0.857, 'sum_u2': 594642.886, 'sum_du': 1499.412, 'est_rmse_epsdot': 8.455}
+S5 LQG {'rise_s': 1.42, 'overshoot_pct': 4.841, 'settle_s': 1.8, 'ess': -0.153, 'rmse': 1.009, 'rmse_meas': 0.851, 'sum_u2': 593180.28, 'sum_du': 1287.618, 'est_rmse_epsdot': 7.815}
+S5 LQG(W×0.1) {'rise_s': 1.76, 'overshoot_pct': 4.803, 'settle_s': 1.83, 'ess': -0.183, 'rmse': 0.999, 'rmse_meas': 0.849, 'sum_u2': 589234.921, 'sum_du': 449.208, 'est_rmse_epsdot': 7.238}
+S5 LQG(W×10) {'rise_s': 1.36, 'overshoot_pct': 5.22, 'settle_s': 2.15, 'ess': -0.149, 'rmse': 1.012, 'rmse_meas': 0.859, 'sum_u2': 601697.712, 'sum_du': 3234.479, 'est_rmse_epsdot': 8.387}
+S5 LQG+DOB(τq=201ms) {'rise_s': 1.41, 'overshoot_pct': 5.447, 'settle_s': 1.79, 'ess': -0.175, 'rmse': 1.018, 'rmse_meas': 0.86, 'sum_u2': 593160.8, 'sum_du': 1280.241, 'est_rmse_epsdot': 7.652}
+S5 LQG+DOB*(τq=100ms) {'rise_s': 1.42, 'overshoot_pct': 6.937, 'settle_s': 2.21, 'ess': -0.174, 'rmse': 1.028, 'rmse_meas': 0.91, 'sum_u2': 597238.379, 'sum_du': 1316.989, 'est_rmse_epsdot': 7.813}
+S5 LQG+DOB(τq=50ms) {'rise_s': 1.06, 'overshoot_pct': 9.642, 'settle_s': 2.09, 'ess': -0.207, 'rmse': 1.159, 'rmse_meas': 1.233, 'sum_u2': 636762.04, 'sum_du': 1837.449, 'est_rmse_epsdot': 9.04}
+S5 LQG+DOB(τq=25ms) {'rise_s': 1.16, 'overshoot_pct': 21.244, 'settle_s': 3.53, 'ess': -0.076, 'rmse': 1.5, 'rmse_meas': 1.715, 'sum_u2': 729827.537, 'sum_du': 2970.555, 'est_rmse_epsdot': 10.651}
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\Hardware\�κ�����������Ʈ\code\run_compare.py:187: UserWarning: Glyph 775 (\N{COMBINING DOT ABOVE}) missing from font(s) Malgun Gothic.
+  fig.tight_layout(); fig.savefig(OUT / "S5_timeseries.png", dpi=150)
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\Hardware\�κ�����������Ʈ\code\run_compare.py:196: UserWarning: Glyph 770 (\N{COMBINING CIRCUMFLEX ACCENT}) missing from font(s) Malgun Gothic.
+  fig.tight_layout(); fig.savefig(OUT / "S5_metrics.png", dpi=150)
+S6 공칭 | FF {'rmse': 0.4264, 'ess': -0.1699, 'max_err_after_1s': 0.1924, 'sum_u2': 504035.0623, 'sum_du': 0.0}
+S6 공칭 | 없음 {'rmse': 0.7456, 'ess': 0.0659, 'max_err_after_1s': 1.3685, 'sum_u2': 492391.9354, 'sum_du': 545.6075}
+S6 공칭 | DOB {'rmse': 0.7323, 'ess': 0.0821, 'max_err_after_1s': 1.6085, 'sum_u2': 494586.9607, 'sum_du': 550.1682}
+S6 강성 +30 % | FF {'rmse': 2.1792, 'ess': -2.1053, 'max_err_after_1s': 2.1227, 'sum_u2': 504035.0623, 'sum_du': 0.0}
+S6 강성 +30 % | 없음 {'rmse': 0.8114, 'ess': 0.0454, 'max_err_after_1s': 1.477, 'sum_u2': 808863.8526, 'sum_du': 525.9703}
+S6 강성 +30 % | DOB {'rmse': 0.7743, 'ess': 0.0677, 'max_err_after_1s': 1.4307, 'sum_u2': 819064.7677, 'sum_du': 465.9613}
+S6 강성 −30 % | FF {'rmse': 3.2399, 'ess': 3.3045, 'max_err_after_1s': 3.3045, 'sum_u2': 504035.0623, 'sum_du': 0.0}
+S6 강성 −30 % | 없음 {'rmse': 0.6511, 'ess': 0.0759, 'max_err_after_1s': 1.5262, 'sum_u2': 251010.5793, 'sum_du': 553.271}
+S6 강성 −30 % | DOB {'rmse': 0.7714, 'ess': 0.0953, 'max_err_after_1s': 2.6976, 'sum_u2': 254439.521, 'sum_du': 615.1364}
+S6 ITV τ ×2 | FF {'rmse': 0.4638, 'ess': -0.1699, 'max_err_after_1s': 0.2042, 'sum_u2': 504035.0623, 'sum_du': 0.0}
+S6 ITV τ ×2 | 없음 {'rmse': 0.7583, 'ess': 0.067, 'max_err_after_1s': 1.4517, 'sum_u2': 494194.0466, 'sum_du': 534.4945}
+S6 ITV τ ×2 | DOB {'rmse': 0.8124, 'ess': 0.081, 'max_err_after_1s': 2.0804, 'sum_u2': 498900.1605, 'sum_du': 540.1855}
+S6 튜브 R ×2 | FF {'rmse': 0.5315, 'ess': -0.1699, 'max_err_after_1s': 0.4117, 'sum_u2': 504035.0623, 'sum_du': 0.0}
+S6 튜브 R ×2 | 없음 {'rmse': 0.7728, 'ess': 0.0602, 'max_err_after_1s': 1.3695, 'sum_u2': 499938.2179, 'sum_du': 535.8678}
+S6 튜브 R ×2 | DOB {'rmse': 0.7644, 'ess': 0.0677, 'max_err_after_1s': 1.3353, 'sum_u2': 501526.4629, 'sum_du': 527.9264}
+S6 손끝 하중 계단 | FF {'rmse': 0.4343, 'ess': -0.2007, 'max_err_after_1s': 0.2201, 'sum_u2': 504035.0623, 'sum_du': 0.0}
+S6 손끝 하중 계단 | 없음 {'rmse': 0.7456, 'ess': 0.0671, 'max_err_after_1s': 1.3685, 'sum_u2': 493432.6968, 'sum_du': 544.0619}
+S6 손끝 하중 계단 | DOB {'rmse': 0.7325, 'ess': 0.0798, 'max_err_after_1s': 1.6085, 'sum_u2': 496362.5356, 'sum_du': 550.2726}
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\Hardware\�κ�����������Ʈ\code\run_compare.py:244: UserWarning: Glyph 8722 (\N{MINUS SIGN}) missing from font(s) Malgun Gothic.
+  fig.tight_layout(); fig.savefig(OUT / "S6_dob.png", dpi=150)
+S7 conductor {'F_block': 6.213363566469083, 'F_peak': 2.223366823157228, 'F_max': 4.970690853175267, 'F_target': 3.1066817832345417, 'exceeded': False, 'F_hold': 1.70604475721871}
+S7 dielectric {'F_block': 6.21277968948842, 'F_peak': 1.1957829070485695, 'F_max': 3.727667813693052, 'F_target': 2.174472891320947, 'exceeded': False, 'F_hold': 0.0}
+S7 human {'F_block': 6.139937239896421, 'F_peak': 2.425289777051865, 'F_max': 1.841981171968926, 'F_target': 0.920990585984463, 'exceeded': True, 'F_hold': 0.3092027075004483}

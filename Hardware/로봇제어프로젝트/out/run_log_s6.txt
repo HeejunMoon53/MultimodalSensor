@@ -1,0 +1,20 @@
+S6 공칭 | FF {'rmse': 0.4264, 'ess': -0.1699, 'max_err_after_1s': 0.1924, 'sum_u2': 504035.0623, 'sum_du': 0.0}
+S6 공칭 | 없음 {'rmse': 0.7456, 'ess': 0.0659, 'max_err_after_1s': 1.3685, 'sum_u2': 492391.9354, 'sum_du': 545.6075}
+S6 공칭 | DOB {'rmse': 0.7323, 'ess': 0.0821, 'max_err_after_1s': 1.6085, 'sum_u2': 494586.9607, 'sum_du': 550.1682}
+S6 강성 +30 % | FF {'rmse': 2.1792, 'ess': -2.1053, 'max_err_after_1s': 2.1227, 'sum_u2': 504035.0623, 'sum_du': 0.0}
+S6 강성 +30 % | 없음 {'rmse': 0.8114, 'ess': 0.0454, 'max_err_after_1s': 1.477, 'sum_u2': 808863.8526, 'sum_du': 525.9703}
+S6 강성 +30 % | DOB {'rmse': 0.7743, 'ess': 0.0677, 'max_err_after_1s': 1.4307, 'sum_u2': 819064.7677, 'sum_du': 465.9613}
+S6 강성 −30 % | FF {'rmse': 3.2399, 'ess': 3.3045, 'max_err_after_1s': 3.3045, 'sum_u2': 504035.0623, 'sum_du': 0.0}
+S6 강성 −30 % | 없음 {'rmse': 0.6511, 'ess': 0.0759, 'max_err_after_1s': 1.5262, 'sum_u2': 251010.5793, 'sum_du': 553.271}
+S6 강성 −30 % | DOB {'rmse': 0.7714, 'ess': 0.0953, 'max_err_after_1s': 2.6976, 'sum_u2': 254439.521, 'sum_du': 615.1364}
+S6 ITV τ ×2 | FF {'rmse': 0.4638, 'ess': -0.1699, 'max_err_after_1s': 0.2042, 'sum_u2': 504035.0623, 'sum_du': 0.0}
+S6 ITV τ ×2 | 없음 {'rmse': 0.7583, 'ess': 0.067, 'max_err_after_1s': 1.4517, 'sum_u2': 494194.0466, 'sum_du': 534.4945}
+S6 ITV τ ×2 | DOB {'rmse': 0.8124, 'ess': 0.081, 'max_err_after_1s': 2.0804, 'sum_u2': 498900.1605, 'sum_du': 540.1855}
+S6 튜브 R ×2 | FF {'rmse': 0.5315, 'ess': -0.1699, 'max_err_after_1s': 0.4117, 'sum_u2': 504035.0623, 'sum_du': 0.0}
+S6 튜브 R ×2 | 없음 {'rmse': 0.7728, 'ess': 0.0602, 'max_err_after_1s': 1.3695, 'sum_u2': 499938.2179, 'sum_du': 535.8678}
+S6 튜브 R ×2 | DOB {'rmse': 0.7644, 'ess': 0.0677, 'max_err_after_1s': 1.3353, 'sum_u2': 501526.4629, 'sum_du': 527.9264}
+S6 손끝 하중 계단 | FF {'rmse': 0.7438, 'ess': -0.8058, 'max_err_after_1s': 1.0745, 'sum_u2': 504035.0623, 'sum_du': 0.0}
+S6 손끝 하중 계단 | 없음 {'rmse': 0.7496, 'ess': 0.0795, 'max_err_after_1s': 1.3685, 'sum_u2': 517813.4842, 'sum_du': 548.7214}
+S6 손끝 하중 계단 | DOB {'rmse': 0.7399, 'ess': 0.0931, 'max_err_after_1s': 1.6085, 'sum_u2': 519991.8471, 'sum_du': 554.743}
+C:\Users\Korea University\ClaudeProject\MultimodalSensor\Hardware\�κ�����������Ʈ\code\run_compare.py:244: UserWarning: Glyph 8722 (\N{MINUS SIGN}) missing from font(s) Malgun Gothic.
+  fig.tight_layout(); fig.savefig(OUT / "S6_dob.png", dpi=150)
