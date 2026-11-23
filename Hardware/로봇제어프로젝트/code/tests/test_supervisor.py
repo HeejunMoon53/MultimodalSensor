@@ -62,3 +62,12 @@ def test_no_grasp_on_force_noise():
     for k in range(300):
         s.step(dict(d_hat=3.0, F_hat=0.5 * (k % 2), contact=k % 2), "conductor", "grasp")
         assert s.state != "GRASP"
+
+
+def test_lower_reflex_flag_sends_grasp_to_safety():
+    s = Supervisor(F_block=FB, Ba0=0.5, v0=20.0, eps_open=0.0, eps_pre=5.0, eps_max=20.0, grasp_mode="force")
+    for _ in range(5):
+        s.step(dict(d_hat=0.0, F_hat=0.1, contact=1), "human", "grasp")
+    assert s.state == "GRASP"
+    s.step(dict(d_hat=0.0, F_hat=0.1, contact=1, reflex=1), "human", "grasp")  # 힘은 낮아도 하위가 배기했으면
+    assert s.state == "SAFETY"

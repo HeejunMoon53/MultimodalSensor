@@ -379,12 +379,12 @@ def make_grasp_ctrl(P, spec):
     return AdmittanceCtrl(P) if spec.pop("kind") == "adm" else Hybrid(P, **spec)
 
 
-def make_sup(P, mat, kind):
+def make_sup(P, mat, kind, Ts=TS):
     det, ct = P["det"], P["contact"]
     tau_in = max(-TS / np.log(abs(complex(*p))) for p in det["lqr"]["poles"])
     FB = ct["conductor"]["F_block"]
     return Supervisor(F_block=FB, Ba0=4.0 * tau_in * ct["conductor"]["k_env"], v0=det["v0"], eps_open=0.0, eps_pre=0.3,
-                      eps_max=12.0, grasp_mode="admittance" if kind == "adm" else "force")
+                      eps_max=12.0, grasp_mode="admittance" if kind == "adm" else "force", Ts=Ts)
 
 
 # ---------------- S9 ----------------

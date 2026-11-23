@@ -60,7 +60,7 @@ class Supervisor:
 
         if cmd == "release" and self.state not in ("OPEN", "RELEASE"):
             self.state = "RELEASE"
-        if self.state in ("GRASP", "CONTACT") and (F > Fmax or self.eps_ref > self.eps_max):
+        if self.state in ("GRASP", "CONTACT") and (F > Fmax or self.eps_ref > self.eps_max or obs.get("reflex", 0)):  # reflex = 하위 배기 알림
             self.state = "SAFETY"
         if self.mode == "force" and self.state != "GRASP":  # 힘 모드를 떠나면 ε 기준을 현재 측정에서 이어 받는다
             self.mode, self.eps_ref = "eps", min(eps_meas, self.eps_max)
@@ -97,7 +97,7 @@ class Supervisor:
                 self.state = "APPROACH"
         elif self.state == "SAFETY":
             self._move(-np.inf, v)
-            if F <= Ft and self.eps_ref <= self.eps_max:
+            if F <= Ft and self.eps_ref <= self.eps_max and not obs.get("reflex", 0):
                 self.state = "GRASP"
                 if self.grasp_mode == "force":  # 힘 모드로 복귀 (현재 힘에서 다시 경사)
                     self.mode, self.F_ref = "force", max(min(F, Ft), 0.0)

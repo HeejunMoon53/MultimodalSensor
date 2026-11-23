@@ -19,7 +19,8 @@
 | 7 | `code/run_compare.py S8` | 접촉 강성 k_eq·k_env (재질 3 + 위치·크기 6), 힘 보정, V_F | `params["contact"]`, `out/S8_keq.png` |
 | 8 | `code/design_contact.py` | 접촉 모드 가관측성, 접촉용 LQR 격자 (스펙 12절) | `params["contact_design"]`, `out/contact_obsv.png` |
 | 9 | `code/run_compare.py S5 S6 S9 S7 R` | 제어기 비교, DOB 강건성, 힘 유지 비교(S9), 파지 영상(하이브리드 C), 실시간 보기 `code/live_view.py`, 모델 렌더 | `out/S5_*`, `out/S6_*`, `out/S9_*`, `out/S7_*.mp4`, `params["results_*"]` |
-| 10 | `code/build_pptx.py` | PPT 생성 (26장) | `MEC799_Project_PneuNet.pptx` |
+| 10 | `code/run_hri.py S10 S11` | 상·하위 계층: 하위 반사 안전 vs 상위 지연·두절(S10), 시나리오 2 인체 상호작용(S11) | `out/S10*`, `out/S11*`, `params["results_s10", "results_s11"]` |
+| 11 | `code/build_pptx.py` | PPT 생성 (30장) | `MEC799_Project_PneuNet.pptx` |
 
 테스트: `C:/ml_env/Scripts/python.exe -m pytest Hardware/로봇제어프로젝트/code/tests -q`
 
@@ -38,6 +39,12 @@
 - 상태 x = [p, ε_f]는 두 모드 공통이고, 출력만 모드에 따라 바뀐다. 입력은 손가락마다 ITV 하나다.
 - 자유 모드는 LQG로 ε를 추종한다. 접촉 모드는 F를 추종한다: 적분 대상은 F_ref − F̂이고, k_eq 격자의 LQR을 보간하며, RLS로 k̂_eq를 추정하고, DOB를 더한다.
 - 두 모드 사이 전환은 무충격이다. 코드: `design_contact.py`, `run_compare.Hybrid`.
+
+## 상·하위 계층 (스펙 13절)
+
+- 상위(PC, 20 Hz + 통신 지연, 가정값): 시나리오·재질·상태 머신·기준. 하위(STM32 + TDM): 내부 루프 100 Hz, 반사 안전 1 kHz (`layers.Reflex`, `Plant.reflex`).
+- 반사는 TDM 샘플마다 F̂ > F_max 3 샘플 연속이면 ITV 배기를 래치한다. 상위에는 반사 플래그로 알린다 (감독기 SAFETY).
+- 시나리오 1 = 도체 파지(S7), 시나리오 2 = 인체 상호작용(S11: 힘 유지 vs 어드미턴스 따라가기).
 
 ## B단계 (실물)에서 바꿀 곳
 

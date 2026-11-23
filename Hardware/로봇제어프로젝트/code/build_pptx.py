@@ -242,8 +242,8 @@ def s_control_fig(s, P):
     """계층형 제어 블록도. 배치 관례: 감독기(상위) | 내부 루프 | 플랜트 3패널 점선 구획,
     DOB는 Q-필터 표준형 d̂ = Q[P_n⁻¹y − u] (Chen et al., IEEE TIE 2016 개관 그림 관례)."""
     Y = 3.85  # 주 신호선 높이
-    panel(s, 0.35, 1.2, 3.1, 5.05, "(a) 상위 감독기  [4.2 · 11.8절]", "FFF5EA", "B5762A")
-    panel(s, 3.6, 1.2, 6.4, 5.05, "(b) 내부 루프: 자유 ε / 접촉 F 추종 (LQG + RLS 스케줄 + DOB)  [4–6절]", "EEF3FA", "3C6AA8")
+    panel(s, 0.35, 1.2, 3.1, 5.05, "(a) 상위 · PC 20 Hz  [4.2 · 11.8절]", "FFF5EA", "B5762A")
+    panel(s, 3.6, 1.2, 6.4, 5.05, "(b) 하위 · STM32 + TDM: 내부 루프 100 Hz (자유 ε / 접촉 F) + 반사 1 kHz  [4–6절]", "EEF3FA", "3C6AA8")
     panel(s, 10.15, 1.2, 2.85, 5.05, "(c) 플랜트  (시뮬레이션)", "F3F3F3", "6B6B6B")
 
     # (a) 상태 머신
@@ -268,6 +268,11 @@ def s_control_fig(s, P):
     # (b) 내부 루프
     lq, st, dob = get(P, "det.lqr") or {}, get(P, "stoch") or {}, get(P, "dob") or {}
     wire(s, [(3.22, Y), (4.06, Y)]); sig(s, 3.27, Y - 0.3, "ε_{ref} | F_{ref}", 9, 0.6)
+    sig(s, 3.24, Y + 0.12, "UART τ_c", 7, 0.7, color=MUTED, italic=False)
+    # 하위 반사 안전: 측정 버스 F̂ (1 kHz) → u 차단 (점선)
+    blk(s, 9.05, 5.2, 0.9, 0.5, ["반사 1 kHz", "$F̂ > F_{max} → u = 0"], 7, "FBE3E3")
+    dot(s, 9.5, 5.95); wire(s, [(9.5, 5.95), (9.5, 5.7)])
+    wire(s, [(9.85, 5.2), (9.85, Y + 0.03)], dash=True)
     dot(s, 3.85, Y)
     sumj(s, 4.2, Y, {"l": "+", "b": "−"})
     wire(s, [(3.85, Y), (3.85, 2.97), (5.0, 2.97)])
@@ -330,7 +335,66 @@ def s_control_fig(s, P):
     _rich(cap.paragraphs[0], "그림 6. 계층형 제어 구조. (a) 상태 머신이 근접 스케줄·속도 제한(ε_{ref}) 또는 힘 기준(F_{ref}, GRASP)을 고른다 "
           "(GRASP→SAFETY: F̂ > F_{max}). (b) 자유: u = −K(x̂ − N_x r) + N_u r − K_I x_I − d̂, r = ε_{ref}, x_I += ε_{ref} − ε̂. "
           "접촉: r = (F_{ref} − ĉ)/k̂_{eq}, x_I += F_{ref} − F̂, 게인 K(k̂), K_I(k̂) (점선 = 스케줄). 전환 때 무충격. "
+          "하위 반사는 TDM 샘플마다 F̂ 를 보고 배기한다 (상위 지연·통신 두절과 무관, S10). "
           "(c) 손가락마다 ITV 하나, 같은 설계. 노란 칸 = 가정값, 수치는 params.json에서 자동 기입.", 10, MUTED, MATH, False)
+
+
+def s_layers_fig(s):
+    """상·하위 계층 개요: 상위 PC (시나리오·재질·상태 머신·기준) | UART | 하위 STM32 + TDM (1 kHz 측정·반사, 100 Hz 내부 루프) | 플랜트."""
+    panel(s, 0.35, 1.15, 9.6, 1.75, "(a) 상위 제어기 · PC (20 Hz, 가정)", "FFF5EA", "B5762A")
+    panel(s, 0.35, 3.45, 9.6, 2.6, "(b) 하위 제어기 · STM32G473 + TDM 보드 (PC 없이 단독 동작)", "EEF3FA", "3C6AA8")
+    panel(s, 10.15, 1.15, 2.85, 4.9, "(c) 플랜트", "F3F3F3", "6B6B6B")
+    for x, w, ln, fill in ((0.55, 2.1, ["시나리오 관리", "S1 도체 파지", "S2 인체 상호작용"], "FFFFFF"),
+                           (2.95, 2.0, ["재질 식별 m", "도체 / 인체 / 유전체", "$→ F_t, F_{max}, v_{max}"], YELLOW),
+                           (5.25, 2.2, ["상태 머신", "OPEN → APPROACH → GRASP", "SAFETY · RELEASE"], "FFFFFF"),
+                           (7.75, 2.0, ["기준 생성", "$ε_{ref} | F_{ref}", "안전 동작 = 배기"], "FFFFFF")):
+        blk(s, x, 1.6, w, 0.95, ln, 9, fill)
+    for x1, x2 in ((2.65, 2.95), (4.95, 5.25), (7.45, 7.75)):
+        wire(s, [(x1, 2.075), (x2, 2.075)])
+    sig(s, 0.55, 3.0, "UART 링크 · 지연 τ_c (가정 20 ms, S10에서 20–200 ms · 두절 시험)", 9, 6.0, color=MUTED, italic=False, font=FONT)
+    # 하위 1 kHz 줄
+    blk(s, 0.55, 3.9, 1.9, 0.7, ["TDM 측정 1 kHz", "$L · R_{DC} · V_{TENG}", "(실측 주기 1 ms)"], 8, "EAF3E4")
+    blk(s, 2.75, 3.9, 1.9, 0.7, ["MoE v4 디커플링", "$ε̂, d̂, F̂, c", "(실측 추론 260 µs)"], 8)
+    blk(s, 4.95, 3.9, 2.2, 0.7, ["반사 안전 1 kHz", "$F̂ > F_{max}  3 ms 연속", "→ 배기 (u = 0) 래치"], 8, "FBE3E3")
+    wire(s, [(2.45, 4.25), (2.75, 4.25)]); wire(s, [(4.65, 4.25), (4.95, 4.25)])
+    # 하위 100 Hz 줄
+    blk(s, 2.75, 4.95, 1.9, 0.7, ["칼만 필터", "$x̂ = [p, ε_f]"], 8)
+    blk(s, 4.95, 4.95, 2.2, 0.7, ["내부 루프 100 Hz", "LQG(ε) | F-LQG + RLS"], 8)
+    wire(s, [(3.7, 4.6), (3.7, 4.95)]); wire(s, [(4.65, 5.3), (4.95, 5.3)])
+    blk(s, 7.55, 4.4, 0.9, 0.7, ["배기", "우선"], 8, "FFFFFF", shape=MSO_SHAPE.ROUNDED_RECTANGLE)
+    wire(s, [(7.15, 4.25), (8.0, 4.25), (8.0, 4.4)], dash=True); wire(s, [(7.15, 5.3), (8.0, 5.3), (8.0, 5.1)])
+    sig(s, 7.2, 3.95, "1 kHz", 8, 0.5, color=MUTED, italic=False, font=FONT)
+    sig(s, 7.2, 5.36, "100 Hz", 8, 0.6, color=MUTED, italic=False, font=FONT)
+    # 상·하위 링크
+    wire(s, [(6.6, 3.9), (6.6, 2.55)], dash=True)
+    sig(s, 6.68, 3.0, "↑ d̂, F̂, c, 반사 플래그", 9, 2.0, italic=False)
+    wire(s, [(8.75, 2.55), (8.75, 5.85), (6.05, 5.85), (6.05, 5.65)], dash=True)
+    sig(s, 8.82, 3.0, "↓ ε_{ref} | F_{ref}, F_t, F_{max}", 9, 1.3)
+    # 플랜트
+    blk(s, 10.4, 4.45, 2.3, 0.6, ["ITV × 2", "지연 10 ms · τ 50 ms"], 8)
+    blk(s, 10.4, 3.15, 2.3, 0.9, ["PneuNet 2지 (DS30)", "30 kPa ≈ 300°"], 8)
+    blk(s, 10.4, 1.65, 2.3, 0.9, ["센서 (DS30 + EGaIn)", "단일 전극 2선"], 8, "EAF3E4")
+    wire(s, [(8.45, 4.75), (10.4, 4.75)]); sig(s, 9.2, 4.48, "u_1, u_2", 10, 0.8)
+    wire(s, [(11.55, 4.45), (11.55, 4.05)]); wire(s, [(11.55, 3.15), (11.55, 2.55)])
+    sig(s, 11.6, 2.65, "ε, d, F", 9, 0.8)
+    wire(s, [(12.7, 2.1), (13.15, 2.1), (13.15, 6.25), (1.5, 6.25), (1.5, 4.6)])
+    sig(s, 1.58, 5.0, "센서 코일 L · R · V", 8, 1.2, italic=False, font=FONT)
+    cap = s.shapes.add_textbox(Inches(0.35), Inches(6.4), Inches(12.65), Inches(0.9)).text_frame
+    cap.word_wrap = True
+    _rich(cap.paragraphs[0], "그림 5. 상·하위 계층. 하위(STM32 + TDM)는 센서 주기 1 ms에서 반사 안전을 돌려, 상위 지연·통신 두절과 무관하게 배기한다 (S10). "
+          "상위는 시나리오 · 재질 · 상태 머신 · 기준을 맡는다. 실측 = TDM 주기 · MoE 추론 시간. 상위 주기 · 지연은 가정값, "
+          "하위 내부 루프는 펌웨어 이식 전 (시뮬레이션). 노란 칸 = 시뮬에선 정답 라벨 (B단계 R1).", 10, MUTED, MATH, False)
+
+
+def s_flow(s, y, stages):
+    """시나리오 단계 띠: stages = [(이름, 신호, 상위, 하위)], 쉐브론 + 아래 3줄."""
+    w = 12.3 / len(stages)
+    for k, (nm, sg, up, lo) in enumerate(stages):
+        x = 0.5 + k * w
+        b = box(s, x, y, w + 0.05, 0.5, nm, "DCE6F2" if k % 2 == 0 else "C9D8EC", 12, True,
+                MSO_SHAPE.CHEVRON if k else MSO_SHAPE.PENTAGON)
+        b.line.fill.background()
+        text(s, x + 0.1, y + 0.55, w - 0.15, 1.3, [f"신호: {sg}", f"상위: {up}", f"하위: {lo}"], 9, font=MATH)
 
 
 # ---------------- 슬라이드 ----------------
@@ -362,7 +426,7 @@ def build(out_path=PROJECT / "MEC799_Project_PneuNet.pptx", params=None):
     # 1 표지
     s = prs.slides.add_slide(blank)
     text(s, 0.8, 2.0, 11.7, 1.2, "PneuNet 2지 소프트 그리퍼의 센서 되먹임 제어", 36, True)
-    text(s, 0.8, 3.2, 11.7, 0.8, "단일 전극 멀티모달 센서(인장·근접·힘) 기반 식별 · LQR · LQG · DOB · 상위 어드미턴스", 18, color=MUTED)
+    text(s, 0.8, 3.2, 11.7, 0.8, "단일 전극 멀티모달 센서(인장·근접·힘) 기반 식별 · LQR · LQG · DOB · 상·하위 계층 (반사 안전)", 18, color=MUTED)
     text(s, 0.8, 5.6, 11.7, 0.8, ["[MEC799] Robot Control — Final Project", "문희준 · BioRobotics & Control Lab, 고려대학교 기계공학과"], 14)
     image(s, CAD / "preview_assembly.png", 9.3, 3.9, h=2.2)
 
@@ -431,7 +495,9 @@ def build(out_path=PROJECT / "MEC799_Project_PneuNet.pptx", params=None):
                                   "외란: 하중·모델 오차·두 손가락이 물체로 묶이는 결합 → 입력 외란으로 보고 DOB가 맡는다."], 12, bullet=True)
 
     # 6 제어 블록도 (논문 그림 형식, 편집 가능한 도형)
-    s = prs.slides.add_slide(blank); title(s, "제어 구조: 계층형 감독기 + 내부 루프 (과제 2–6절)")
+    s = prs.slides.add_slide(blank); title(s, "제어 구조: 상위 제어기(PC) / 하위 제어기(STM32 + TDM)")
+    s_layers_fig(s)
+    s = prs.slides.add_slide(blank); title(s, "제어 구조 상세: 상위 감독기 + 하위 내부 루프 (과제 2–6절)")
     s_control_fig(s, P)
 
     # 6 과제 ↔ 강의 대응표
@@ -572,6 +638,55 @@ def build(out_path=PROJECT / "MEC799_Project_PneuNet.pptx", params=None):
                                   "유전체 게이트만: 접촉을 놓쳐 힘 모드로 못 들어감 → 파지 실패. TENG 융합이 필요.",
                                   "인체: F_max 이하(최대 1.5 N)지만 유지 힘이 목표의 절반 이하. F̂ 오차(접촉 중 약 +1.5 N)가 목표 0.93 N보다 커서 SAFETY가 반복 (센서 한계). 도체 유지 힘이 목표보다 큰 것도 F̂ 편향 (−0.5 N 내외)"], 11, bullet=True)
 
+    # 시나리오 1: 도체
+    s = prs.slides.add_slide(blank); title(s, "시나리오 1 (도체): 탐지 → 접근 → 접촉 → 파지 · 유지", True)
+    s_flow(s, 1.15, [("탐지", "근접 d̂ < 24 mm", "OPEN → APPROACH", "TDM·MoE 1 kHz"),
+                     ("식별", "ΔL 잔차 부호 (−: 도체)", "재질 → F_t 0.5·, F_max 0.8·F_block", "—"),
+                     ("접근", "d̂, ḋ̂ (칼만)", "근접 스케줄 · 속도 제한 → ε_ref", "자유 LQG (ε)"),
+                     ("접촉", "게이트 ∨ TENG 3 샘플", "APPROACH → GRASP", "무충격 전환 → F-LQG"),
+                     ("파지 · 유지", "F̂", "F_ref 경사 → F_t", "F-LQG + RLS, 반사 F_max")])
+    movie(s, OUT / "S7_conductor.mp4", OUT / "S7_conductor_snap.png", 0.5, 3.05, 4.6, 3.45)
+    image(s, OUT / "S7_conductor.png", 5.3, 3.0, h=3.6)
+    v = r7.get("conductor", {})
+    table(s, 9.9, 3.05, 3.0, [["도체 (S7)", "값"], ["목표 F_t [N]", fmt(v.get("F_target"), 3)], ["유지 F [N]", fmt(v.get("F_hold"), 3)],
+                              ["파지 중 최대 [N]", fmt(v.get("F_peak"), 3)], ["F_max [N]", fmt(v.get("F_max"), 3)],
+                              ["F_max 초과", fmt(v.get("exceeded"))]], [1.8, 1.2], 10, 0.32)
+    text(s, 9.9, 5.15, 3.0, 1.9, ["유지 힘이 목표보다 큰 것은 F̂ 편향 (MoE).",
+                                  "식별: 이 시뮬은 정답 라벨. 판별기(ΔL 잔차)는 도체·유전체만 가름."], 10, bullet=True)
+
+    # 시나리오 2: 인체
+    s = prs.slides.add_slide(blank); title(s, "시나리오 2 (인체): 탐지 → 접근 → 접촉 → 상호작용 (S11)", True)
+    s_flow(s, 1.15, [("탐지", "근접 d̂, 움직임 ḋ̂", "OPEN → APPROACH", "TDM·MoE 1 kHz"),
+                     ("식별", "인체 (B단계 실측 필요)", "F_t 0.15·, F_max 0.3·F_block, v × 0.4", "반사 문턱 = 인체 F_max"),
+                     ("접근", "d̂, ḋ̂", "느린 pre-shape, t_c 맞춤", "자유 LQG (ε)"),
+                     ("접촉", "게이트 ∨ TENG", "GRASP (dF/dt 상한)", "무충격 전환"),
+                     ("상호작용", "F̂, 손 움직임", "(a) 안전 + 약한 힘 유지 (b) 어드미턴스 따라가기", "반사 1 kHz 항상")])
+    image(s, OUT / "S11.png", 0.4, 3.0, w=7.2)
+    r11 = list((get(P, "results_s11") or {}).values())
+    r11 = (r11 + [{}, {}])[:2]
+    rows = [["S11 (손 ±6 mm, 0.25 Hz)", "(a) 힘 유지 C", "(b) 어드미턴스"]]
+    for k, lab, nd in (("contact_both_pct", "두 손가락 접촉 유지 [%]", 3), ("rmse_F_N", "F_t 대비 RMSE [N]", 3),
+                       ("F_peak", "최대 F [N]", 3), ("t_over_s", "F_max 초과 시간 [s]", 2), ("n_trips", "반사 배기 횟수", 3)):
+        rows.append([lab, *[fmt(v_.get(k), nd) for v_ in r11]])
+    table(s, 7.8, 3.05, 5.1, rows, [2.5, 1.3, 1.3], 10, 0.32)
+    text(s, 7.8, 5.1, 5.1, 2.0, ["(b) 어드미턴스는 손이 밀면 물러나서 최대 힘이 F_max 근처에 머문다. (a)는 손이 밀 때 F_max를 넘는 순간이 있다.",
+                                 "두 방식 모두 목표 힘 유지에는 실패: F̂ 편향(+1.5 N) > 목표 0.93 N → 반사·SAFETY 반복 (센서 한계, B단계 R1·R6).",
+                                 "인체 접근 영상: 파지 시연(S7) 슬라이드."], 10, bullet=True)
+
+    # S10 하위 반사
+    s = prs.slides.add_slide(blank); title(s, "하위 제어기의 이점 (S10): 1 kHz 반사 vs 상위 지연 · 두절", True)
+    image(s, OUT / "S10.png", 0.3, 1.1, w=12.7)
+    r10 = get(P, "results_s10") or {}
+    rows = [["지령 폭주 (손가락 B → 30 kPa)", "인체 최대 F [N]", "인체 초과 충격량 [N·s]", "도체 최대 F [N]", "도체 초과 충격량 [N·s]"]]
+    for nm in ("상위 배기 · 지연 20 ms", "상위 배기 · 지연 200 ms", "상위 배기 · 통신 두절", "하위 반사 1 kHz", "하위 반사 1 kHz · 통신 두절"):
+        h_, c_ = r10.get(f"human | {nm}", {}), r10.get(f"conductor | {nm}", {})
+        rows.append([nm, fmt(h_.get("F_peak"), 3), fmt(h_.get("impulse_over_Ns"), 2), fmt(c_.get("F_peak"), 3), fmt(c_.get("impulse_over_Ns"), 2)])
+    table(s, 0.5, 4.6, 7.6, rows, [2.8, 1.1, 1.3, 1.1, 1.3], 9, 0.29)
+    text(s, 8.3, 4.6, 4.6, 2.6, ["구동기가 만드는 과부하(지령 폭주)에선 감지 지연만큼 힘이 계속 오른다 → 하위 반사가 최대 힘·충격량을 가장 줄이고, 통신이 끊겨도 동작.",
+                                 "상위 지연 20 ms는 ITV 지연(10 ms)·시정수(50 ms)와 비슷해 차이가 작다. 지연 100 ms 이상·두절에서 차이가 커진다.",
+                                 "손 급이동의 첫 피크는 수동 충돌(제어로 못 줄임). 그 뒤 힘은 안전 동작이 ε 열기면 남고(약 3.7 N) 배기면 빠진다(0.6 N).",
+                                 "결론: 안전 동작은 배기, 실행은 하위(TDM 주기)에서. 반사 문턱 F_max는 상위가 재질로 정해 내려보낸다."], 10, bullet=True)
+
     # 20 게인 표
     s = prs.slides.add_slide(blank); title(s, "게인 표 (params.json에서 자동 생성)", True)
     d = lambda k, nd=4: fmt(get(P, k), nd)
@@ -598,7 +713,7 @@ def build(out_path=PROJECT / "MEC799_Project_PneuNet.pptx", params=None):
 
     # 22 한계
     s = prs.slides.add_slide(blank); title(s, "한계와 다음 실험")
-    text(s, 0.5, 1.2, 12.3, 5.8, LIMITS, 15, bullet=True)
+    text(s, 0.5, 1.2, 12.3, 5.8, LIMITS, 13, bullet=True)
 
     out_path = Path(out_path)
     prs.save(out_path)

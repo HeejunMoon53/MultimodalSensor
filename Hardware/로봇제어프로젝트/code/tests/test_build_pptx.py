@@ -19,10 +19,23 @@ def _cells(prs, idx):
                     yield c
 
 
-def test_deck_has_26_slides_and_editable_diagram(tmp_path):
+def _title(slide):
+    return next(sh.text_frame.text for sh in slide.shapes if sh.has_text_frame and sh.text_frame.text.strip())
+
+
+def test_deck_has_30_slides_and_editable_diagrams(tmp_path):
     prs = Presentation(build(tmp_path / "d.pptx", params=FAKE))
-    assert len(prs.slides) == 26
-    assert sum(sh.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE for sh in prs.slides[5].shapes) >= 8
+    assert len(prs.slides) == 30
+    for i in (5, 6):  # 5 = 상·하위 계층 개요, 6 = 내부 루프 상세
+        assert sum(sh.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE for sh in prs.slides[i].shapes) >= 8
+    assert "상위" in _title(prs.slides[5]) and "하위" in _title(prs.slides[5])
+
+
+def test_scenario_slides_follow_s7(tmp_path):
+    prs = Presentation(build(tmp_path / "d.pptx", params=FAKE))
+    titles = [_title(s) for s in prs.slides]
+    i = next(k for k, t in enumerate(titles) if "S7" in t)
+    assert "시나리오 1" in titles[i + 1] and "시나리오 2" in titles[i + 2] and "S10" in titles[i + 3]
 
 
 def test_variable_definition_slide_lists_modes(tmp_path):
@@ -33,12 +46,12 @@ def test_variable_definition_slide_lists_modes(tmp_path):
 
 def test_gain_table_from_params(tmp_path):
     prs = Presentation(build(tmp_path / "d.pptx", params=FAKE))
-    assert any("1.234" in c.text for c in _cells(prs, 23))
+    assert any("1.234" in c.text for c in _cells(prs, 27))
 
 
 def test_missing_value_cell_is_yellow(tmp_path):
     p = copy.deepcopy(FAKE)
     del p["det"]["lqr"]["K"]
     prs = Presentation(build(tmp_path / "d.pptx", params=p))
-    cell = next(c for c in _cells(prs, 23) if c.text.strip() == "?")
+    cell = next(c for c in _cells(prs, 27) if c.text.strip() == "?")
     assert str(cell.fill.fore_color.rgb) == YELLOW

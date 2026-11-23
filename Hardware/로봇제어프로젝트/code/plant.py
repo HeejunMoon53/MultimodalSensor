@@ -106,6 +106,7 @@ class Plant:
         self._eps_prev = np.zeros(scn.fingers)
         self._tip_prev = None
         self._renderer = None
+        self.reflex = None  # 손가락별 layers.Reflex (하위 반사 안전, 1 kHz). None = 기존 경로 (10 ms 끝에 센서 일괄)
         self._sensors()
 
     # ---------------- 모델 ----------------
@@ -194,12 +195,15 @@ class Plant:
     # ---------------- 진행 ----------------
     def step(self, u):
         u = np.broadcast_to(np.asarray(u, float), (self.scn.fingers,))
-        p = np.zeros(self.scn.fingers)
+        n = self.scn.fingers
+        p = np.zeros(n)
+        rx = self.reflex if self.nonideal else None
+        sensed = [None] * n
         for _ in range(self.n_sub):
             if self.scn.obj_path is not None:
                 self.d.mocap_pos[0] = np.array(self.scn.obj_path(self.t)) * 1e-3
             for i, f in enumerate(self.fingers):
-                p[i] = self.itv[i].step(u[i], self.dt)
+                p[i] = self.itv[i].step(0.0 if rx is not None and rx[i].tripped else u[i], self.dt)  # 반사: ITV 배기
                 V = f.chamber_volume(self.d)
                 pc = self.line[i].step(p[i], V, self._dVdp(self.line[i].p_c), self.dt)
                 f.apply_pressure(self.d, pc)
@@ -209,8 +213,11 @@ class Plant:
                     self.d.xfrc_applied[f.tip_body, :3] = 0.0
             mujoco.mj_step(self.m, self.d)
             self.t += self.dt
+            if rx is not None:  # 하위 제어기: 물리 스텝마다 TDM 샘플을 받아 반사 판정
+                eps, F, dist = self._measure()
+                sensed = [self._sense(i, eps[i], dist[i], F[i], int(round(self.dt / 1e-3)), rx[i]) for i in range(n)]
         self._check()
-        return self._observe()
+        return self._observe(sensed if rx is not None else None)
 
     def _check(self):
         tips = np.array([f.tip_point(self.d) for f in self.fingers])
@@ -226,11 +233,29 @@ class Plant:
     def truth(self):
         return self._truth
 
-    def _observe(self):
+    def _measure(self):
         n = self.scn.fingers
-        eps = np.array([f.sensor_strain(self.d) for f in self.fingers])
-        F = np.array([self._contact_force(i) for i in range(n)])
-        dist = np.array([self._distance(i) for i in range(n)])
+        return (np.array([f.sensor_strain(self.d) for f in self.fingers]),
+                np.array([self._contact_force(i) for i in range(n)]), np.array([self._distance(i) for i in range(n)]))
+
+    def _sense(self, i, eps, dist, F, n_samp, rx=None):
+        """TDM 1 kHz 샘플 n_samp 개 → MoE·TENG. rx 가 있으면 샘플마다 반사 판정 (F̂ 1 kHz)."""
+        mat = "conductor" if self.scn.material == "human" else self.scn.material  # shortcut: 인체 K_MAT 미정, B단계 R1에서 교체
+        d_eff = 0.0 if F > 1e-3 else dist  # 접촉 중이면 접촉점 간격 0 (센서 중심 거리 아님)
+        dL, dR = self.fwd.signals(eps + self.prestrain, d_eff, F, mat)
+        for _ in range(n_samp):
+            sL, sR = self.tdm[i].sample(dL, dR)
+            V = self.teng_m[i].step(F, 1e-3)
+            lat = self.latch[i].update(V)
+            o = self.moe[i].step(sL, sR, dt_s=1e-3)
+            if rx is not None:
+                F1 = (o.value if o.contact else self.diel.estimate(sL, sR)[1]) if (o.contact or (self.use_teng and lat)) else 0.0
+                rx.step(F1 / self.fcal, self.t)
+        return o, V, lat, sL, sR
+
+    def _observe(self, sensed=None):
+        n = self.scn.fingers
+        eps, F, dist = self._measure()
         self._truth = Truth(p=np.array([it.output() for it in self.itv]), p_c=np.array([ln.p_c for ln in self.line]),
                             eps=eps, eps_dot=(eps - self._eps_prev) / TS, d_mm=dist, F_N=F,
                             tip_deg=np.array([f.tip_angle(self.d) for f in self.fingers]))
@@ -240,16 +265,8 @@ class Plant:
             contact = (F > 1e-3).astype(int)
             return Obs(p_mon, eps.copy(), np.where(contact, F, dist), contact, contact.astype(float))
         eh, vh, ch, gp, tv, gt = (np.zeros(n) for _ in range(6))
-        mat = "conductor" if self.scn.material == "human" else self.scn.material  # shortcut: 인체 K_MAT 미정, B단계 R1에서 교체
         for i in range(n):
-            d_eff = 0.0 if F[i] > 1e-3 else dist[i]  # 접촉 중이면 접촉점 간격 0 (센서 중심 거리 아님)
-            dL, dR = self.fwd.signals(eps[i] + self.prestrain, d_eff, F[i], mat)
-            lat = 0
-            for _ in range(int(round(TS / 1e-3))):
-                sL, sR = self.tdm[i].sample(dL, dR)
-                V = self.teng_m[i].step(F[i], 1e-3)
-                lat = self.latch[i].update(V)
-                o = self.moe[i].step(sL, sR, dt_s=1e-3)
+            o, V, lat, sL, sR = sensed[i] if sensed is not None else self._sense(i, eps[i], dist[i], F[i], int(round(TS / 1e-3)))
             eh[i], vh[i], gt[i], gp[i], tv[i] = o.strain_pct - self.prestrain, o.value, o.contact, o.gate_proba, V
             ch[i] = gt[i] or (self.use_teng and lat)
             if ch[i] and not gt[i]:               # TENG 만 접촉: 유전체 추정기 (ΔL → ε, ΔR 잔차 → F)
