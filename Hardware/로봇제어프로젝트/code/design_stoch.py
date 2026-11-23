@@ -50,13 +50,21 @@ class Lqg:
     def reset(self):
         self.kf.x_prior, self.kf.M = self._init[0].copy(), self._init[1].copy()
         self.xI = 0.0
+        self._bump = None
+
+    def bumpless(self, x_abs, u_prev):
+        """모드 전환 복귀: 상태를 이어받고, 다음 u() 가 u_prev 와 같도록 x_I 를 정한다."""
+        self.kf.x_prior, self._bump = np.asarray(x_abs, float) - self.x0, float(u_prev)
 
     def u(self, y, r, x_true=None):
         dy = np.asarray(y, float) - self.y0
         xh = self.kf.update(dy)
         dr = r - self.y0[self.eps_row]
         e = dr - dy[self.eps_row]
-        u = self.u0 + float(-(self.K @ (xh - self.Nx * dr)).item() + self.Nu * dr - self.KI * self.xI)
+        fb = float(-(self.K @ (xh - self.Nx * dr)).item() + self.Nu * dr)
+        if self._bump is not None:
+            self.xI, self._bump = (self.u0 + fb - self._bump) / self.KI, None
+        u = self.u0 + fb - self.KI * self.xI
         sat = min(max(u, self.u_lim[0]), self.u_lim[1])
         if sat == u or np.sign(e) != np.sign(u - sat):
             self.xI += e

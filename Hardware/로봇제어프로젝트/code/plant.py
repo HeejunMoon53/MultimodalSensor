@@ -20,6 +20,9 @@ R_IN = 25.0  # 그리퍼 중심 ~ 바닥층 안쪽면 [mm] (PP.r_in)
 _NOISE = None
 # 재질별 물체 접촉 강성 (MuJoCo solref 시정수 [s]): 도체 = 단단한 금속, 유전체 = 플라스틱, 인체 = 피부
 SOLREF = {"conductor": 0.002, "dielectric": 0.004, "human": 0.02}
+# 물체 컴플라이언스 k_obj [N/mm] (가정값, 노란 칸): None = 강체. 무른 물체는 스프링 패드 2개(손가락별)로 만든다
+OBJ_K = {"conductor": None, "dielectric": 2.0, "human": 0.7}
+PAD_TRAVEL_MM = 12.0
 
 
 class PlantDiverged(RuntimeError):
@@ -38,6 +41,7 @@ class Scenario:
     tau_v_scale: float = 1.0
     R_t_scale: float = 1.0
     fingers: int = 2
+    obj_k_N_mm: object = "material"       # 물체 강성 [N/mm]: "material" = OBJ_K[재질], None = 강체
 
 
 @dataclass
@@ -113,9 +117,22 @@ class Plant:
         for i, (f, (R, (x, y))) in enumerate(zip(self.fingers, frames)):
             parts.append(f.mjcf(f"finger{i}", pos=(x * 1e-3, y * 1e-3, 0.0), quat=tuple(_quat(R))))
         r = s.obj_radius_mm * 1e-3
-        geom = (f'<geom type="cylinder" size="{r} 0.04" euler="1.5708 0 0"' if s.obj_kind == "cylinder"
-                else f'<geom type="sphere" size="{r}"')
-        geom += f' rgba="0.6 0.65 0.75 1" solref="{SOLREF[s.material]} 1" condim="3" contype="2" conaffinity="1"/>'
+        shp = lambda rr, extra="": ((f'<geom type="cylinder" size="{rr} 0.04" euler="1.5708 0 0"' if s.obj_kind == "cylinder"
+                                     else f'<geom type="sphere" size="{rr}"') + extra)
+        col = f' solref="{SOLREF[s.material]} 1" condim="3" contype="2" conaffinity="1"/>'
+        k = OBJ_K[s.material] if s.obj_k_N_mm == "material" else s.obj_k_N_mm
+        self.obj_k = k
+        if k is None:
+            geom = shp(r, ' rgba="0.6 0.65 0.75 1"' + col)
+        else:  # 무른 물체: 손가락 쪽 반쪽 패드(슬라이드 + 스프링) 2개. 패드끼리는 충돌 안 함 (contype 2 & conaffinity 1)
+            tr = min(PAD_TRAVEL_MM * 1e-3, 0.8 * r); dl = tr / 2 + 0.001  # 2δ > 이동량: 손가락 A 가 패드 B 에 닿지 않게
+            kk, mp = k * 1e3, 0.05
+            cc = 2 * np.sqrt(kk * mp)
+            pad = lambda nm, sx, rng: (f'<body name="{nm}" pos="{sx * dl} 0 0"><joint name="{nm}_j" type="slide" axis="1 0 0" '
+                                       f'stiffness="{kk}" damping="{cc}" limited="true" range="{rng}"/>'
+                                       + shp(r - dl, f' mass="{mp}" rgba="0.85 0.62 0.55 1"' + col) + '</body>')
+            geom = (shp(r * 0.5, ' rgba="0.5 0.5 0.55 1" contype="0" conaffinity="0"/>')
+                    + pad("padA", -1, f"0 {tr}") + pad("padB", 1, f"{-tr} 0"))
         x0 = np.array(s.obj_start_mm) * 1e-3
         xml = (f'<mujoco><compiler angle="radian"/>'
                f'<option timestep="{self.dt}" gravity="0 0 -9.81" solver="Newton" integrator="discrete"/>'
@@ -129,7 +146,8 @@ class Plant:
         self.d = mujoco.MjData(self.m)
         for i, f in enumerate(self.fingers):
             f.attach(self.m, self.d, f"finger{i}")
-        self.obj_geom = self.m.body_geomadr[mujoco.mj_name2id(self.m, mujoco.mjtObj.mjOBJ_BODY, "obj")]
+        ob = {mujoco.mj_name2id(self.m, mujoco.mjtObj.mjOBJ_BODY, n) for n in ("obj", "padA", "padB")} - {-1}
+        self.obj_geoms = {g for g in range(self.m.ngeom) if self.m.geom_bodyid[g] in ob}
         mujoco.mj_forward(self.m, self.d)
 
     def _sensors(self):
@@ -159,7 +177,7 @@ class Plant:
         for k in range(self.d.ncon):
             c = self.d.contact[k]
             mine = (c.geom[0] in f.contact_geoms or c.geom[1] in f.contact_geoms) if hasattr(f, "contact_geoms")                 else f.fid in (c.flex[0], c.flex[1])
-            if self.obj_geom in (c.geom[0], c.geom[1]) and mine:
+            if (c.geom[0] in self.obj_geoms or c.geom[1] in self.obj_geoms) and mine:
                 mujoco.mj_contactForce(self.m, self.d, k, f6)
                 F += abs(f6[0])
         return F

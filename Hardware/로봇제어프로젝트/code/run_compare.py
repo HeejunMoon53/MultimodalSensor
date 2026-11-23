@@ -18,7 +18,7 @@ from paths import OUT, load_params, save_params
 from plant import Plant, Scenario
 from supervisor import MATERIAL, Supervisor
 
-plt.rcParams.update({"font.family": "Malgun Gothic", "axes.unicode_minus": False})
+plt.rcParams.update({"font.family": "Malgun Gothic", "axes.unicode_minus": False, "mathtext.fontset": "dejavusans"})
 TS = 0.01
 C_REF, C_Y, C_U, C_EST = "#222222", "#2CA02C", "#7a4ea3", "#d35400"
 
@@ -255,30 +255,205 @@ def s6_robust(P):
 
 
 # ---------------- S8 ----------------
+GEOMS = [("r8 z-60", 8, -60), ("r15 z-50", 15, -50), ("r15 z-70", 15, -70), ("r15 z-90", 15, -90),
+         ("r25 z-70", 25, -70), ("r25 z-95", 25, -95)]   # 물체 반지름 [mm] · 높이 [mm] (접촉 위치)
+
+
+def efm_series(P, p, u):
+    """측정 p·u 로 돌린 ε_f 개루프 모델 (식별 A_d, B_d 2행) — k_eq 와 독립인 회귀 변수."""
+    Ad, Bd, _, _, x0, u0, _ = load_model(P)
+    e, out = 0.0, []
+    for pk, uk in zip(p, u):
+        out.append(e + x0[1])
+        e = Ad[1, 0] * (pk - x0[0]) + Ad[1, 1] * e + Bd[1, 0] * (uk - u0)
+    return np.array(out)
+
+
+def _ramp_contact(P, scn, nonideal, seconds=6.0):
+    pl = Plant(scn, seed=3, nonideal=nonideal)
+    pl.fcal = 1.0
+    rows = []
+    for k in range(int(seconds / TS)):
+        u = min(30.0, 30.0 * k * TS / 4.0)
+        o = pl.step(np.array([u])); tr = pl.truth()
+        rows.append((u, tr.eps[0], tr.F_N[0], o.val_hat[0] if o.contact[0] else np.nan, o.p_mon[0], o.eps_hat[0]))
+    a = np.array(rows)
+    ef = efm_series(P, a[:, 4], a[:, 0])
+    c = a[:, 2] > 0.05
+    keq, c0 = np.polyfit(ef[c], a[c, 2], 1)
+    kenv = float(np.polyfit(a[c, 1], a[c, 2], 1)[0])
+    return a, ef, dict(F_block=float(a[-50:, 2].mean()), k_eq=float(keq), eps_c=float(-c0 / keq), k_env=kenv,
+                       g=float(keq / kenv), eps_contact=float(a[c, 1][0]))
+
+
 def s8_contact(P):
-    """차단력·접촉 강성 (정답 F) + 힘 장착 보정 F̂ = c·F (MoE, 도체)."""
+    """접촉 강성: k_eq = dF/dε_f (모델), k_env = dF/dε (센서), 재질 3종 (MoE) + 위치·크기 6종 (정답).
+    힘 장착 보정 F̂ = c·F 와 접촉 중 F̂ 잡음 V_F (도체)."""
     out, fh = {}, []
     for mat in MATERIAL:
-        pl = Plant(Scenario(fingers=1, material=mat, obj_start_mm=(0.0, 0.0, -70.0)), seed=3, nonideal=True)
-        pl.fcal = 1.0
-        rows = []
-        for k in range(int(6 / TS)):
-            u = min(30.0, 30.0 * k * TS / 4.0)
-            o = pl.step(np.array([u])); tr = pl.truth()
-            rows.append((u, tr.eps[0], tr.F_N[0], o.val_hat[0] if o.contact[0] else np.nan))
-        a = np.array(rows)
-        c = a[:, 2] > 0.01
-        k_env = float(np.polyfit(a[c, 1], a[c, 2], 1)[0]) if c.sum() > 10 else float("nan")
-        out[mat] = dict(F_block=float(a[-50:, 2].mean()), k_env=k_env, eps_contact=float(a[c, 1][0]) if c.any() else None)
+        a, ef, out[mat] = _ramp_contact(P, Scenario(fingers=1, material=mat, obj_start_mm=(0.0, 0.0, -70.0)), True)
         if mat == "conductor":
-            m = c & np.isfinite(a[:, 3])
+            m = (a[:, 2] > 0.05) & np.isfinite(a[:, 3])
             fh = (a[m, 2], a[m, 3])
-        print("S8", mat, out[mat], flush=True)
+        print("S8", mat, {k: round(v, 3) for k, v in out[mat].items()}, flush=True)
     cfit = float(np.sum(fh[0] * fh[1]) / np.sum(fh[0] ** 2)) if len(fh) and len(fh[0]) else 1.0
+    from scipy.signal import detrend
+    hold = np.array([fh[0], fh[1]]).T[-150:]                  # 램프 끝 1.5 s (선형 추세 제거 후 잔차)
+    out["V_F"] = float(np.var(detrend(hold[:, 1] / cfit - hold[:, 0])))
+    geo = []
+    for name, r, z in GEOMS:
+        _, _, g = _ramp_contact(P, Scenario(fingers=1, obj_k_N_mm=None, obj_radius_mm=r, obj_start_mm=(0.0, 0.0, z)), False)
+        geo.append(dict(name=name, r=r, z=z, **g))
+        print("S8 geom", name, {k: round(v, 3) for k, v in g.items()}, flush=True)
+    out["geometry"] = geo
     save_params("contact", out)
     save_params("force_cal", {"c": cfit, "note": "도체 S8 원점 통과 직선 F̂ = c·F"})
-    print("S8 힘 보정 c =", round(cfit, 3))
+    fig, ax = plt.subplots(figsize=(9.5, 3.4))
+    xs = np.arange(len(geo))
+    ax.bar(xs - 0.2, [g["k_eq"] for g in geo], 0.4, color="#7a4ea3", label="k_eq = dF/dε_f  [N/%]")
+    ax.bar(xs + 0.2, [g["k_env"] / 3 for g in geo], 0.4, color="#2CA02C", label="k_env/3 = (dF/dε)/3  [N/%]")
+    for m, c_ in zip(MATERIAL, ("#555", "#1F77B4", "#d35400")):
+        ax.axhline(out[m]["k_eq"], c=c_, lw=0.8, ls=":", label=f"k_eq {m} (r15 z-70, k_obj 변경)")
+    ax.set_xticks(xs, [g["name"] for g in geo], fontsize=8); ax.legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.01, 1.0))
+    ax.set_title("S8 접촉 강성 (시뮬레이션): 위치·크기에 따라 k_eq 약 2배, 재질(무르기)은 거의 무관", fontsize=9)
+    fig.tight_layout(); fig.savefig(OUT / "S8_keq.png", dpi=150)
+    print("S8 힘 보정 c =", round(cfit, 3), "V_F =", out["V_F"])
     return out
+
+
+# ---------------- 하이브리드 제어기 (스펙 12절) ----------------
+class Hybrid:
+    """자유 모드 = LQG(ε), 접촉 모드 = ContactLqg(F). 상위 sup.mode 로 전환, 양방향 무충격."""
+
+    def __init__(self, P, use_rls=True, use_dob=False, schedule=True):
+        from design_contact import ContactLqg, make_schedule
+        Ad, Bd, C, Ts, x0, u0, phys = load_model(P)
+        ct, cd = P["contact"], P["contact_design"]
+        self.x0 = x0
+        self.free = make_controllers(P, ["LQG"])["LQG"]()
+        sched = make_schedule(Ad, Bd, cd["grid"] if schedule else [cd["k_nom"]] * 2)
+        Ge = P["sysid"]["G_eps"]
+        dobf = (lambda y0, u0_: Dob(Ge["a"], Ge["b"], Ge["nk"], P["dob"]["tau_q"], Ts, r=P["dob"]["r"], y0=y0, u0=u0_)) if use_dob else None
+        self.con = ContactLqg(Ad, Bd, x0, u0, phys, sched, cd["k_nom"], P["noise"]["var"][0], ct["V_F"],
+                              np.array(P["stoch"]["W"]), use_rls=use_rls, dob_factory=dobf)
+        self.in_con, self.u_prev = False, 0.0
+
+    def reset(self):
+        self.free.reset(); self.in_con = False
+
+    def u(self, p, eps_hat, F_hat, sup):
+        if sup.mode == "force":
+            if not self.in_con:
+                self.con.enter(self.free.kf.x_post + self.x0, self.u_prev); self.in_con = True
+            u = self.con.u(p, F_hat, sup.F_ref)
+        else:
+            if self.in_con:
+                self.free.bumpless(np.array([p, eps_hat]), self.u_prev); self.in_con = False  # 자유 모드 상태 = 측정 (접촉 중 ε_f ≠ ε)
+            u = self.free.u(np.array([p, eps_hat]), sup.eps_ref)
+        self.u_prev = u
+        return u
+
+
+class AdmittanceCtrl:
+    """비교용 기존 방식: 상위 어드미턴스가 ε_ref 를 내고 LQG(ε) 가 추종."""
+
+    def __init__(self, P):
+        self.free = make_controllers(P, ["LQG"])["LQG"]()
+        self.con = None
+
+    def reset(self):
+        self.free.reset()
+
+    def u(self, p, eps_hat, F_hat, sup):
+        return self.free.u(np.array([p, eps_hat]), sup.eps_ref)
+
+
+CTRL9 = {"A 어드미턴스→ε (기존)": dict(kind="adm"),
+         "B F-LQG 공칭": dict(kind="hyb", use_rls=False, schedule=False),
+         "C F-LQG + RLS 스케줄": dict(kind="hyb", use_rls=True),
+         "D C + DOB": dict(kind="hyb", use_rls=True, use_dob=True)}
+
+
+def make_grasp_ctrl(P, spec):
+    spec = dict(spec)
+    return AdmittanceCtrl(P) if spec.pop("kind") == "adm" else Hybrid(P, **spec)
+
+
+def make_sup(P, mat, kind):
+    det, ct = P["det"], P["contact"]
+    tau_in = max(-TS / np.log(abs(complex(*p))) for p in det["lqr"]["poles"])
+    FB = ct["conductor"]["F_block"]
+    return Supervisor(F_block=FB, Ba0=4.0 * tau_in * ct["conductor"]["k_env"], v0=det["v0"], eps_open=0.0, eps_pre=0.3,
+                      eps_max=12.0, grasp_mode="admittance" if kind == "adm" else "force")
+
+
+# ---------------- S9 ----------------
+SCN9 = [("도체 r15 z-70 (공칭)", "conductor", 15, -70), ("도체 r25 z-95 (k_eq 낮음)", "conductor", 25, -95),
+        ("유전체 r8 z-60", "dielectric", 8, -60), ("인체 r15 z-70 (무름)", "human", 15, -70)]
+
+
+def s9_force(P, seconds=10.0, t_step=6.0):
+    """고정 물체 힘 유지: 닫기 → 접촉 → F_t 유지 → t_step 에 목표 ×1.3 계단. 정답 F 로 평가."""
+    res, recs = {}, {}
+    for sname, mat, r, z in SCN9:
+        for cname, spec in CTRL9.items():
+            pl = Plant(Scenario(fingers=1, material=mat, obj_radius_mm=r, obj_start_mm=(0.0, 0.0, z)), seed=9)
+            sup, ctl = make_sup(P, mat, spec["kind"]), make_grasp_ctrl(P, spec)
+            u, rows, t_g = 0.0, [], None
+            for k in range(int(seconds / TS)):
+                o = pl.step(np.array([u])); tr = pl.truth()
+                if pl.t > t_step and sup.FB == P["contact"]["conductor"]["F_block"]:
+                    sup.FB *= 1.3                                   # 목표 힘 계단 (+30 %)
+                c = o.contact[0]
+                sup.step(dict(d_hat=0.0 if c else o.val_hat[0], F_hat=o.val_hat[0] if c else 0.0, contact=c,
+                              eps_hat=o.eps_hat[0]), mat, "grasp")
+                if t_g is None and sup.state == "GRASP":
+                    t_g = pl.t
+                u = ctl.u(o.p_mon[0], o.eps_hat[0], o.val_hat[0] if c else 0.0, sup)
+                Ft = MATERIAL[mat]["Ft"] * sup.FB
+                kh = ctl.con.k_eq if getattr(ctl, "con", None) is not None and getattr(ctl, "in_con", False) else np.nan
+                rows.append([pl.t, Ft, tr.F_N[0], o.val_hat[0] if c else 0.0, u, tr.eps[0], kh, int(sup.state == "GRASP")])
+            a = np.array(rows)
+            t = a[:, 0]
+            w1 = (t > (t_g or 0) + 1.5) & (t < t_step); w2 = t > t_step + 1.5
+            e = a[:, 2] - a[:, 1]
+            m = dict(t_grasp=float(t_g or np.nan),
+                     rmse_hold=float(np.sqrt(np.mean(e[w1 | w2] ** 2))),
+                     rmse_hold_hat=float(np.sqrt(np.mean((a[:, 3] - a[:, 1])[w1 | w2] ** 2))),   # 제어기 기준 (F̂ 추종)
+                     ess1_pct=float(100 * np.mean(e[(t > t_step - 1.0) & (t < t_step)]) / a[t < t_step, 1][-1]),
+                     ess2_pct=float(100 * np.mean(e[t > seconds - 1.0]) / a[-1, 1]),
+                     overshoot_pct=float(100 * max(0.0, (a[t > t_step, 2].max() - a[-1, 1]) / a[-1, 1])),
+                     F_peak=float(a[t > (t_g or 0), 2].max()), **effort(a[t > (t_g or 0), 4]),
+                     k_hat_end=float(np.nanmean(a[-100:, 6])) if np.isfinite(a[-100:, 6]).any() else float("nan"))
+            key = f"{sname} | {cname}"
+            res[key], recs[key] = m, a
+            print("S9", key, {k: round(v, 3) for k, v in m.items()}, flush=True)
+    _write_csv(OUT / "S9_metrics.csv", res)
+    _plot_s9(res, recs, t_step)
+    return res
+
+
+def _plot_s9(res, recs, t_step):
+    cols = {"A": "#999", "B": "#7a4ea3", "C": "#2b6cb0", "D": "#c0392b"}
+    fig, ax = plt.subplots(len(SCN9), 1, figsize=(10, 2.1 * len(SCN9)), sharex=True)
+    for i, (sname, *_ ) in enumerate(SCN9):
+        for cname in CTRL9:
+            a = recs[f"{sname} | {cname}"]
+            ax[i].plot(a[:, 0], a[:, 2], c=cols[cname[0]], lw=0.9, label=cname)
+        ax[i].plot(a[:, 0], a[:, 1], c=C_REF, ls="--", lw=1.0, label="목표 F_t")
+        ax[i].set_ylabel("F [N]"); ax[i].set_title(sname, fontsize=8, loc="left")
+    ax[0].legend(fontsize=7, ncol=5); ax[-1].set_xlabel("t [s]")
+    fig.suptitle("S9 접촉 후 힘 유지 (정답 F, 시뮬레이션): 기존 어드미턴스 vs 힘 직접 추종", fontsize=10)
+    fig.tight_layout(); fig.savefig(OUT / "S9_force.png", dpi=150)
+    fig, ax = plt.subplots(1, 2, figsize=(11, 3.4))
+    xs = np.arange(len(SCN9))
+    for j, cname in enumerate(CTRL9):
+        ax[0].bar(xs + (j - 1.5) * 0.2, [res[f"{s[0]} | {cname}"]["rmse_hold"] for s in SCN9], 0.2, color=cols[cname[0]], label=cname)
+        ax[1].bar(xs + (j - 1.5) * 0.2, [abs(res[f"{s[0]} | {cname}"]["ess2_pct"]) for s in SCN9], 0.2, color=cols[cname[0]])
+    for a_, lab in zip(ax, ("유지 RMSE [N]", "|정상 오차| [%] (계단 후)")):
+        a_.set_xticks(xs, [s[0].split(" (")[0] for s in SCN9], fontsize=7); a_.set_title(lab, fontsize=9)
+    ax[0].legend(fontsize=7)
+    fig.suptitle("S9 지표 (시뮬레이션)", fontsize=10); fig.tight_layout(); fig.savefig(OUT / "S9_metrics.png", dpi=150)
 
 
 # ---------------- S7 ----------------
@@ -290,34 +465,31 @@ def approach_path(material, z_stop=-70.0, v=40.0, z0=-230.0):
     return f
 
 
-def s7_grasp(P, seconds=9.0, fps=25, cases=(("conductor", True), ("dielectric", False), ("dielectric", True), ("human", True))):
-    """cases: (재질, TENG 융합 사용). 유전체는 게이트만 vs 게이트 ∨ TENG 를 비교한다."""
+def s7_grasp(P, seconds=9.0, fps=25, cases=(("conductor", True), ("dielectric", False), ("dielectric", True), ("human", True)),
+             ctrl_name="C F-LQG + RLS 스케줄"):  # D(+DOB)는 2지 파지에서 입력 진동 → 해결 전까지 C
+    """cases: (재질, TENG 융합 사용). 유전체는 게이트만 vs 게이트 ∨ TENG 를 비교한다. 제어기 = 스펙 12절 하이브리드."""
     import imageio.v2 as imageio
-    x0, det, ct = np.array(P["model"]["x0"]), P["det"], P["contact"]
-    tau_in = max(-TS / np.log(abs(complex(*p))) for p in det["lqr"]["poles"])  # 내부 루프 지배 시정수
     summary = {}
     for mat, use_teng in cases:
         tag = mat + ("" if use_teng else "_gate_only")
-        FB = ct[mat]["F_block"] if np.isfinite(ct[mat]["F_block"]) and ct[mat]["F_block"] > 0 else 0.5
-        kenv = ct["conductor"]["k_env"] if np.isfinite(ct["conductor"]["k_env"]) else 0.05
-        Ba0 = 4.0 * tau_in * kenv
+        spec = CTRL9[ctrl_name]
         pl = Plant(Scenario(material=mat, obj_path=approach_path(mat)), seed=21, teng=use_teng)
-        ctr = [make_controllers(P, ["LQG"])["LQG"]() for _ in range(2)]
-        sup = [Supervisor(F_block=FB, Ba0=Ba0, v0=det["v0"], eps_open=0.0, eps_pre=0.3, eps_max=12.0)  # 30 kPa ≈ 12 %; pre-shape 은 물체가 손끝을 지나가야 해서 작게
-               for _ in range(2)]
+        ctr = [make_grasp_ctrl(P, spec) for _ in range(2)]
+        sup = [make_sup(P, mat, spec["kind"]) for _ in range(2)]  # ε_max 12 % ≈ 30 kPa, pre-shape 0.3 % (물체가 손끝을 지나가야 함)
+        FB = sup[0].FB
         writer = imageio.get_writer(OUT / f"S7_{tag}.mp4", fps=fps, macro_block_size=1)
         rows, snaps, u = [], [], np.zeros(2)
         for k in range(int(seconds / TS)):
             o = pl.step(u); tr = pl.truth()
             cmd = "release" if pl.t > seconds - 1.5 else ("grasp" if pl.t > 4.5 else "approach")  # 팔 도착 후 파지 명령
             for i in range(2):
-                obs = dict(d_hat=o.val_hat[i] if not o.contact[i] else 0.0, F_hat=o.val_hat[i] if o.contact[i] else 0.0,
-                           contact=o.contact[i])
-                r = sup[i].step(obs, mat, cmd)
+                Fh = o.val_hat[i] if o.contact[i] else 0.0
+                obs = dict(d_hat=o.val_hat[i] if not o.contact[i] else 0.0, F_hat=Fh, contact=o.contact[i], eps_hat=o.eps_hat[i])
+                sup[i].step(obs, mat, cmd)
                 if sup[i].state == "OPEN":
                     u[i] = 0.0; ctr[i].reset()  # 열림: 완전 배기 (잡음으로 손가락이 굽지 않게)
                 else:
-                    u[i] = ctr[i].u(np.array([o.p_mon[i], o.eps_hat[i]]), r)
+                    u[i] = ctr[i].u(o.p_mon[i], o.eps_hat[i], Fh, sup[i])
             rows.append([pl.t, tr.d_mm[0], o.val_hat[0], tr.F_N[0], sup[0].eps_ref, tr.eps[0], u[0],
                          ["OPEN", "APPROACH", "CONTACT", "GRASP", "SAFETY", "RELEASE"].index(sup[0].state), tr.F_N[1]])
             if k % int(1 / (fps * TS)) == 0:
@@ -332,7 +504,7 @@ def s7_grasp(P, seconds=9.0, fps=25, cases=(("conductor", True), ("dielectric", 
             imageio.imwrite(OUT / f"S7_{tag}_snap.png", np.concatenate(snaps, axis=1))
         Fmax = MATERIAL[mat]["Fmax"] * FB
         g = a[:, 0] > 4.5                       # 파지 명령 이후 (접근 중 충돌과 구분)
-        summary[tag] = dict(teng=use_teng, F_block=FB, F_peak=float(a[g][:, [3, 8]].max()), F_peak_approach=float(a[~g][:, [3, 8]].max()),
+        summary[tag] = dict(teng=use_teng, F_block=FB, ctrl=ctrl_name, F_peak=float(a[g][:, [3, 8]].max()), F_peak_approach=float(a[~g][:, [3, 8]].max()),
                             F_max=Fmax, F_target=MATERIAL[mat]["Ft"] * FB, exceeded=bool(a[g][:, [3, 8]].max() > Fmax),
                             F_hold=float(a[(a[:, 0] > 5.5) & (a[:, 0] < seconds - 1.6), 3].mean()))
         _plot_s7(a, tag, summary[tag])
@@ -352,7 +524,7 @@ def _plot_s7(a, mat, s):
     ax[2].set_ylabel("ε [%]")
     ax[3].step(t, a[:, 7], c="#555"); ax[3].set_yticks(range(6), ["OPEN", "APPR", "CONT", "GRASP", "SAFE", "REL"], fontsize=7)
     ax[3].set_xlabel("t [s]")
-    fig.suptitle(f"S7 파지 — {mat} (시뮬레이션): 근접 → 접촉 → 어드미턴스 → 해제", fontsize=10)
+    fig.suptitle(f"S7 파지 — {mat} (시뮬레이션): 근접 → 접촉 → 힘 추종 → 해제", fontsize=10)
     fig.tight_layout(); fig.savefig(OUT / f"S7_{mat}.png", dpi=150)  # mat = 태그 (재질[_gate_only])
 
 
@@ -368,7 +540,7 @@ def render_model():
     imageio.imwrite(OUT / "model_render.png", np.concatenate(imgs, axis=1))
 
 
-def main(which=("R", "S4", "S8", "S5", "S6", "S7")):
+def main(which=("R", "S4", "S8", "S5", "S6", "S9", "S7")):
     OUT.mkdir(exist_ok=True)
     if "R" in which:
         render_model()
@@ -380,10 +552,12 @@ def main(which=("R", "S4", "S8", "S5", "S6", "S7")):
         save_params("results_s5", s5_compare(load_params()))
     if "S6" in which:
         save_params("results_s6", s6_robust(load_params()))
+    if "S9" in which:
+        save_params("results_s9", s9_force(load_params()))
     if "S7" in which:
-        s7_grasp(load_params())
+        s7_grasp(load_params(), ctrl_name=load_params().get("s7_ctrl", "C F-LQG + RLS 스케줄"))
 
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    main(tuple(sys.argv[1:]) or ("R", "S4", "S8", "S5", "S6", "S7"))
+    main(tuple(sys.argv[1:]) or ("R", "S4", "S8", "S5", "S6", "S9", "S7"))

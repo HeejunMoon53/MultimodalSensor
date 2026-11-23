@@ -16,8 +16,10 @@
 | 4 | `code/design_det.py` | 극배치, 관측기, LQR | `params["det"]` |
 | 5 | `code/design_stoch.py` | 칼만 (W, V) | `params["stoch"]` |
 | 6 | `code/design_dob.py` | DOB τ_q 후보·강건 조건 | `params["dob"]` |
-| 7 | `code/run_compare.py S8 S5 S6 S7 R` | 차단력·힘 보정, 제어기 비교, DOB 강건성, 파지 영상, 모델 렌더 | `out/S5_*`, `out/S6_*`, `out/S7_*.mp4`, `params["results_*"]` |
-| 8 | `code/build_pptx.py` | PPT 생성 | `MEC799_Project_PneuNet.pptx` |
+| 7 | `code/run_compare.py S8` | 접촉 강성 k_eq·k_env (재질 3 + 위치·크기 6), 힘 보정, V_F | `params["contact"]`, `out/S8_keq.png` |
+| 8 | `code/design_contact.py` | 접촉 모드 가관측성, 접촉용 LQR 격자 (스펙 12절) | `params["contact_design"]`, `out/contact_obsv.png` |
+| 9 | `code/run_compare.py S5 S6 S9 S7 R` | 제어기 비교, DOB 강건성, 힘 유지 비교(S9), 파지 영상(하이브리드 C), 실시간 보기 `code/live_view.py`, 모델 렌더 | `out/S5_*`, `out/S6_*`, `out/S9_*`, `out/S7_*.mp4`, `params["results_*"]` |
+| 10 | `code/build_pptx.py` | PPT 생성 (26장) | `MEC799_Project_PneuNet.pptx` |
 
 테스트: `C:/ml_env/Scripts/python.exe -m pytest Hardware/로봇제어프로젝트/code/tests -q`
 
@@ -29,9 +31,16 @@
 - ITV: 지연, 데드밴드 0.3 kPa(처음 열릴 때 튐), 1 kPa 계단, 포화 30 kPa
 - 튜브·방: C(p)ṗ_c = (p − p_c)/R_t
 - 센서: 0909 순방향 모델 → TDM 잡음 → v4 MoE → 장착 보정(ε, F)
+- 물체: 도체 = 강체, 유전체·인체 = 스프링 패드 (k_obj 2.0 / 0.7 N/mm, 가정값)
+
+## 제어 (스펙 12절)
+
+- 상태 x = [p, ε_f]는 두 모드 공통이고, 출력만 모드에 따라 바뀐다. 입력은 손가락마다 ITV 하나다.
+- 자유 모드는 LQG로 ε를 추종한다. 접촉 모드는 F를 추종한다: 적분 대상은 F_ref − F̂이고, k_eq 격자의 LQR을 보간하며, RLS로 k̂_eq를 추정하고, DOB를 더한다.
+- 두 모드 사이 전환은 무충격이다. 코드: `design_contact.py`, `run_compare.Hybrid`.
 
 ## B단계 (실물)에서 바꿀 곳
 
 - `sysid.run_experiments(plant_factory)`의 `plant_factory`를 실물 래퍼로 바꾼다. 래퍼는 `step(u) → Obs`이고 ITV 보드와 TDM 보드를 쓴다.
 - 이후 2–8단계를 그대로 다시 돌리면 `params.json`과 PPT 게인 표가 실측값으로 바뀐다.
-- 실측 계획 R1–R8은 PPT 21번 슬라이드에 있다.
+- 실측 계획 R1–R8은 PPT 25번 슬라이드에 있다.

@@ -19,20 +19,26 @@ def _cells(prs, idx):
                     yield c
 
 
-def test_deck_has_22_slides_and_editable_diagram(tmp_path):
+def test_deck_has_26_slides_and_editable_diagram(tmp_path):
     prs = Presentation(build(tmp_path / "d.pptx", params=FAKE))
-    assert len(prs.slides) == 22
-    assert sum(sh.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE for sh in prs.slides[4].shapes) >= 8
+    assert len(prs.slides) == 26
+    assert sum(sh.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE for sh in prs.slides[5].shapes) >= 8
+
+
+def test_variable_definition_slide_lists_modes(tmp_path):
+    prs = Presentation(build(tmp_path / "d.pptx", params=FAKE))
+    txt = " ".join(c.text for c in _cells(prs, 4))
+    assert "ε_f" in txt and "접촉" in txt and "F_ref" in txt
 
 
 def test_gain_table_from_params(tmp_path):
     prs = Presentation(build(tmp_path / "d.pptx", params=FAKE))
-    assert any("1.234" in c.text for c in _cells(prs, 19))
+    assert any("1.234" in c.text for c in _cells(prs, 23))
 
 
 def test_missing_value_cell_is_yellow(tmp_path):
     p = copy.deepcopy(FAKE)
     del p["det"]["lqr"]["K"]
     prs = Presentation(build(tmp_path / "d.pptx", params=p))
-    cell = next(c for c in _cells(prs, 19) if c.text.strip() == "?")
+    cell = next(c for c in _cells(prs, 23) if c.text.strip() == "?")
     assert str(cell.fill.fore_color.rgb) == YELLOW

@@ -42,3 +42,16 @@ def test_range_kf_tracks_constant_velocity():
     for k in range(300):
         d, v = kf.step(80 - 20 * k * 0.01 + 0.5 * rng.normal())
     assert v == pytest.approx(-20, abs=2)
+
+
+def test_lqg_bumpless_return_matches_previous_input():
+    import numpy as np
+    from design_det import load_model
+    from design_stoch import Kalman, Lqg
+    from paths import load_params
+    P = load_params()
+    Ad, Bd, C, Ts, x0, u0, _ = load_model(P)
+    kf = Kalman(Ad, Bd, C, np.eye(2), np.diag(P["stoch"]["W"]), np.diag(P["stoch"]["V"]), np.zeros(2), np.eye(2))
+    c = Lqg(P["det"]["lqr"]["K"], P["det"]["lqr"]["KI"], kf, x0, u0)
+    c.bumpless(x0 + np.array([5.0, 2.0]), 21.3)
+    assert abs(c.u(x0 + np.array([5.0, 2.0]), x0[1] + 1.0) - 21.3) < 0.5

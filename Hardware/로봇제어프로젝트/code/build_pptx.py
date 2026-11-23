@@ -96,7 +96,7 @@ def arrow(slide, x1, y1, x2, y2, label=None):
     return c
 
 
-def table(slide, x, y, w, rows, widths=None, size=11, row_h=0.32):
+def table(slide, x, y, w, rows, widths=None, size=11, row_h=0.32, font=FONT):
     nr, nc = len(rows), len(rows[0])
     gt = slide.shapes.add_table(nr, nc, Inches(x), Inches(y), Inches(w), Inches(row_h * nr)).table
     if widths:
@@ -108,7 +108,7 @@ def table(slide, x, y, w, rows, widths=None, size=11, row_h=0.32):
             c.text = "?" if v is None else str(v)
             p = c.text_frame.paragraphs[0]
             for r in p.runs:
-                r.font.size, r.font.name, r.font.bold = Pt(size), FONT, (i == 0)
+                r.font.size, r.font.name, r.font.bold = Pt(size), font, (i == 0)
             if v is None or (isinstance(v, str) and v.startswith("(가정)")):
                 c.fill.solid(); c.fill.fore_color.rgb = RGBColor.from_string(YELLOW)
                 for r in p.runs:
@@ -243,7 +243,7 @@ def s_control_fig(s, P):
     DOB는 Q-필터 표준형 d̂ = Q[P_n⁻¹y − u] (Chen et al., IEEE TIE 2016 개관 그림 관례)."""
     Y = 3.85  # 주 신호선 높이
     panel(s, 0.35, 1.2, 3.1, 5.05, "(a) 상위 감독기  [4.2 · 11.8절]", "FFF5EA", "B5762A")
-    panel(s, 3.6, 1.2, 6.4, 5.05, "(b) 내부 루프: 적분 LQR + 칼만 + DOB  [과제 4–6절]", "EEF3FA", "3C6AA8")
+    panel(s, 3.6, 1.2, 6.4, 5.05, "(b) 내부 루프: 자유 ε / 접촉 F 추종 (LQG + RLS 스케줄 + DOB)  [4–6절]", "EEF3FA", "3C6AA8")
     panel(s, 10.15, 1.2, 2.85, 5.05, "(c) 플랜트  (시뮬레이션)", "F3F3F3", "6B6B6B")
 
     # (a) 상태 머신
@@ -257,7 +257,7 @@ def s_control_fig(s, P):
     # (a) 기준 생성 블록 + 상태 선택기
     for yy, ln in ((2.95, ["근접 스케줄 (APPROACH)", "$ε_{ref} = g(d̂)"]),
                    (3.6, ["속도 제한", "$|ε̇_{ref}| ≤ v_{max},  t_c = d̂/(−ḋ̂)"]),
-                   (4.25, ["어드미턴스 (GRASP)", "$B_a ε̇_{ref} = F_t − F̂"])):
+                   (4.25, ["힘 기준 (GRASP)", "$F_{ref}: F̂ → F_t  (기울기 제한)"])):
         blk(s, 0.55, yy, 2.3, 0.5, ln, 9)
         wire(s, [(2.85, yy + 0.25), (3.0, yy + 0.25)])
     blk(s, 3.0, 2.95, 0.22, 1.8, [""], 8, "3A3A3A")
@@ -267,7 +267,7 @@ def s_control_fig(s, P):
 
     # (b) 내부 루프
     lq, st, dob = get(P, "det.lqr") or {}, get(P, "stoch") or {}, get(P, "dob") or {}
-    wire(s, [(3.22, Y), (4.06, Y)]); sig(s, 3.38, Y - 0.3, "ε_{ref}", 11, 0.6)
+    wire(s, [(3.22, Y), (4.06, Y)]); sig(s, 3.27, Y - 0.3, "ε_{ref} | F_{ref}", 9, 0.6)
     dot(s, 3.85, Y)
     sumj(s, 4.2, Y, {"l": "+", "b": "−"})
     wire(s, [(3.85, Y), (3.85, 2.97), (5.0, 2.97)])
@@ -277,8 +277,8 @@ def s_control_fig(s, P):
     wire(s, [(4.34, Y), (4.5, Y)]); sig(s, 4.36, Y - 0.27, "e", 10, 0.2)
     blk(s, 4.5, Y - 0.25, 0.6, 0.5, ["$1/(z−1)"], 10)
     wire(s, [(5.1, Y), (5.4, Y)]); sig(s, 5.12, Y - 0.27, "x_I", 10, 0.3)
-    blk(s, 5.4, Y - 0.22, 0.55, 0.44, ["$K_I"], 12)
-    sig(s, 5.2, Y + 0.25, f"= {fmt(lq.get('KI'), 3)}", 8, 1.0, PP_ALIGN.CENTER, MUTED, False)
+    blk(s, 5.4, Y - 0.22, 0.55, 0.44, ["$K_I(k̂)"], 10)
+    sig(s, 5.0, Y + 0.25, f"자유: {fmt(lq.get('KI'), 3)}", 7, 1.0, PP_ALIGN.CENTER, MUTED, False)
     wire(s, [(5.95, Y), (6.31, Y)])
     sumj(s, 6.45, Y, {"t": "+", "l": "−", "b": "−"})
     wire(s, [(6.59, Y), (8.81, Y)]); sig(s, 7.5, Y - 0.27, "u_c", 11, 0.4)
@@ -287,10 +287,14 @@ def s_control_fig(s, P):
     dot(s, 9.7, Y); wire(s, [(9.7, Y), (9.7, 4.67), (9.45, 4.67)])
     blk(s, 8.3, 4.4, 1.15, 0.7, ["DOB", "$Q(z)[P_n⁻¹y − u]", f"$τ_q = {fmt(dob.get('tau_q'), 2)} s"], 8)
     wire(s, [(8.95, 4.4), (8.95, Y + 0.14)]); sig(s, 8.68, 4.08, "d̂", 11, 0.3)
-    blk(s, 5.4, 4.45, 0.55, 0.44, ["$K"], 12)
-    sig(s, 4.3, 4.56, f"= {fmt(lq.get('K'), 3)}", 8, 1.05, PP_ALIGN.RIGHT, MUTED, False)
+    blk(s, 5.4, 4.45, 0.55, 0.44, ["$K(k̂)"], 10)
+    for yy in (Y - 0.27, 4.4):  # 게인 스케줄 표기: 블록을 비스듬히 지나는 화살표 (적응 제어 관례)
+        wire(s, [(5.28, yy + 0.55), (6.07, yy - 0.02)], dash=True)
+    blk(s, 6.75, 1.85, 2.75, 0.62, ["RLS 최소제곱 (P2 Lec3)", "$F̂ = k̂_{eq} ε_{f,m} + ĉ  →  K(k̂), K_I(k̂)"], 8, "FFFFFF")
+    sig(s, 6.75, 2.5, "접촉 모드에서만, k̂ ∈ 격자 · ε̂_c ∈ 진입값 ± 4 % 투영", 7, 2.75, PP_ALIGN.CENTER, MUTED, False, FONT)
+    sig(s, 4.25, 4.56, f"자유: {fmt(lq.get('K'), 3)}", 7, 1.1, PP_ALIGN.RIGHT, MUTED, False)
     wire(s, [(5.95, 4.67), (6.45, 4.67), (6.45, Y + 0.14)])
-    blk(s, 6.6, 5.1, 1.4, 0.55, ["칼만 필터", "$x̂ = [p̂, ε̂]"], 9)
+    blk(s, 6.6, 5.1, 1.4, 0.55, ["칼만 필터  x̂ = [p, ε_f]", "$y: [p, ε̂] | [p, ε̃_f]"], 8)
     wire(s, [(6.6, 5.37), (5.675, 5.37), (5.675, 4.89)]); sig(s, 5.75, 5.12, "x̂", 11, 0.3)
     wire(s, [(7.3, 4.8), (7.3, 5.1)]); sig(s, 7.12, 4.72, "u", 10, 0.2)
     sig(s, 4.3, 1.55, f"LQR (Bryson) · GM {fmt(lq.get('gm_db'), 3)} dB · PM {fmt(lq.get('pm_deg'), 3)}° · T_s = 10 ms", 8, 5.5, color=MUTED, italic=False)
@@ -311,11 +315,11 @@ def s_control_fig(s, P):
     blk(s, 11.3, 4.85, 1.55, 0.7, ["센서 (DS30 + EGaIn)", "TDM L·R·V → v4 MoE"], 8, "EAF3E4")
     wire(s, [(12.175, 4.45), (12.175, 4.85)]); sig(s, 12.22, 4.5, "ε, d, F", 9, 0.7)
     # 측정 버스 y = [p, ε̂]
-    wire(s, [(11.7, 5.55), (11.7, 5.95), (4.2, 5.95), (4.2, Y + 0.14)]); sig(s, 4.25, 5.35, "ε̂", 11, 0.3)
+    wire(s, [(11.7, 5.55), (11.7, 5.95), (4.2, 5.95), (4.2, Y + 0.14)]); sig(s, 4.25, 5.35, "ε̂ | F̂", 10, 0.6)
     wire(s, [(10.8, Y + 0.3), (10.8, 5.95)], head=False); dot(s, 10.8, 5.95); sig(s, 10.85, 5.0, "p", 11, 0.2)
     for x, y2 in ((7.3, 5.65), (8.875, 5.1)):
         dot(s, x, 5.95); wire(s, [(x, 5.95), (x, y2)])
-    sig(s, 9.15, 5.98, "y = [p, ε̂]", 10, 1.0)
+    sig(s, 8.95, 5.98, "y = [p, ε̂ | F̂]", 10, 1.2)
     # 감독기 버스 d̂, F̂, 접촉
     wire(s, [(12.85, 5.2), (13.15, 5.2), (13.15, 6.6), (0.2, 6.6), (0.2, 1.86), (0.55, 1.86)])
     for yy in (3.2, 3.85, 4.5):
@@ -323,9 +327,10 @@ def s_control_fig(s, P):
     sig(s, 4.0, 6.33, "d̂, ḋ̂, F̂, 접촉 c = gate ∨ TENG", 10, 4.0)
     cap = s.shapes.add_textbox(Inches(0.35), Inches(6.72), Inches(12.65), Inches(0.7)).text_frame
     cap.word_wrap = True
-    _rich(cap.paragraphs[0], "그림 5. 계층형 제어 구조. (a) 상태 머신이 근접 스케줄·속도 제한·어드미턴스 중 하나를 골라 ε_{ref}를 만든다 "
-          "(GRASP→SAFETY: F̂ > F_{max} 또는 ε > ε_{max}). (b) u = −K(x̂ − N_x ε_{ref}) + N_u ε_{ref} − K_I x_I − d̂, 포화 시 조건부 적분. "
-          "(c) 손가락 두 개에 같은 게인. 노란 칸 = 가정값, 수치는 params.json에서 자동 기입.", 10, MUTED, MATH, False)
+    _rich(cap.paragraphs[0], "그림 6. 계층형 제어 구조. (a) 상태 머신이 근접 스케줄·속도 제한(ε_{ref}) 또는 힘 기준(F_{ref}, GRASP)을 고른다 "
+          "(GRASP→SAFETY: F̂ > F_{max}). (b) 자유: u = −K(x̂ − N_x r) + N_u r − K_I x_I − d̂, r = ε_{ref}, x_I += ε_{ref} − ε̂. "
+          "접촉: r = (F_{ref} − ĉ)/k̂_{eq}, x_I += F_{ref} − F̂, 게인 K(k̂), K_I(k̂) (점선 = 스케줄). 전환 때 무충격. "
+          "(c) 손가락마다 ITV 하나, 같은 설계. 노란 칸 = 가정값, 수치는 params.json에서 자동 기입.", 10, MUTED, MATH, False)
 
 
 # ---------------- 슬라이드 ----------------
@@ -409,7 +414,23 @@ def build(out_path=PROJECT / "MEC799_Project_PneuNet.pptx", params=None):
                                  "보정: 30 kPa → 끝단 300° (사용자 예비 시험), ε(30 kPa) ≈ 12 %",
                                  "방 부풂 V(p): self-collision flex(체적 ×2) → 공압 용량 C = dV/dp + V/(κ p_abs), 화면의 빨간 방 크기"], 10, bullet=True)
 
-    # 5 제어 블록도 (논문 그림 형식, 편집 가능한 도형)
+    # 5 변수 정의 (스펙 12절)
+    s = prs.slides.add_slide(blank); title(s, "상태 · 입력 · 출력 정의 (손가락 i = 1, 2, 모드별)")
+    table(s, 0.5, 1.15, 8.3, [["구분", "자유 모드 (접촉 전)", "접촉 모드 (접촉 후)"],
+                              ["입력 u_i", "ITV_i 압력 지령 0–30 kPa", "같음 (ITV 2개, 손가락별 루프)"],
+                              ["상태 x_i", "[p, ε_f]  (A, B = 식별값)", "같음: [p, ε_f]"],
+                              ["출력 y", "[p, ε],  ε = ε_f", "[p, F, ε]:  F = k_eq(ε_f − ε_c),  ε = ε_c + g(ε_f − ε_c)"],
+                              ["추종 · 적분", "ε_ref,  Σ(ε_ref − ε̂)", "F_ref,  Σ(F_ref − F̂)  (전환 때 무충격)"],
+                              ["칼만 측정", "[p, ε̂]", "[p, ε̃_f],  ε̃_f = (F̂ − ĉ)/k̂_eq"],
+                              ["게인", "K, K_I (자유 LQR)", "K(k̂_eq), K_I(k̂_eq): 격자 5점 DARE + 보간"],
+                              ["상위 변수", "[d, ḋ] (근접 칼만), 재질 m", "k̂_eq, ĉ (RLS),  k̂_env = ΔF̂/Δε̂ (식별 보조)"]],
+          [1.4, 2.9, 4.0], 11, 0.5, font="Cambria Math")  # 맑은 고딕은 결합 문자(ε̂) 깨짐
+    text(s, 9.0, 1.15, 3.9, 5.6, ["ε_f = '물체가 없으면 갔을 굽힘'. 접촉해도 A, B가 그대로라 모델 하나로 두 모드를 다룬다.",
+                                  "접촉하면 측정 ε는 일부만 움직인다 (S8: g = 0.28–0.48). 힘 F가 실제 출력이 된다.",
+                                  "k_eq는 물체 무르기보다 '어디를, 얼마나 큰 것을' 쥐었는지에 달렸다 (S8) → RLS로 추정.",
+                                  "외란: 하중·모델 오차·두 손가락이 물체로 묶이는 결합 → 입력 외란으로 보고 DOB가 맡는다."], 12, bullet=True)
+
+    # 6 제어 블록도 (논문 그림 형식, 편집 가능한 도형)
     s = prs.slides.add_slide(blank); title(s, "제어 구조: 계층형 감독기 + 내부 루프 (과제 2–6절)")
     s_control_fig(s, P)
 
@@ -480,15 +501,50 @@ def build(out_path=PROJECT / "MEC799_Project_PneuNet.pptx", params=None):
         rows.append(["(실험 전)", None, None, None, None, None])
     table(s, 0.5, 4.55, 12.3, rows, [2.6, 1.9, 1.9, 1.9, 2.0, 2.0], 10, 0.3)
 
-    # 18 상위 루프
-    s = prs.slides.add_slide(blank); title(s, "상위 루프: 근접 · 속도 · 어드미턴스 · 재질")
+    # 접촉 모드 (스펙 12절): 이론 · S8 접촉 강성·가관측성 · S9 힘 유지
+    s_theory(prs, "contact")
+    s = prs.slides.add_slide(blank); title(s, "접촉 강성(S8)과 접촉 모드 가관측성", True)
+    image(s, OUT / "S8_keq.png", 0.4, 1.1, w=7.0)
+    image(s, OUT / "contact_obsv.png", 7.5, 1.1, w=5.4)
+    ct = get(P, "contact") or {}
+    rows = [["조건", "k_eq [N/%]", "k_env [N/%]", "g", "ε_c [%]", "F_block [N]"]]
+    for g in ct.get("geometry", []):
+        rows.append([g["name"], fmt(g["k_eq"], 3), fmt(g["k_env"], 3), fmt(g["g"], 2), fmt(g["eps_c"], 2), fmt(g["F_block"], 3)])
+    for m, lab in (("conductor", "도체 (강체)"), ("dielectric", "유전체 (2 N/mm)"), ("human", "인체 (0.7 N/mm)")):
+        if m in ct:
+            rows.append([lab + " r15 z−70", fmt(ct[m]["k_eq"], 3), fmt(ct[m]["k_env"], 3), fmt(ct[m].get("g"), 2), fmt(ct[m].get("eps_c"), 2), fmt(ct[m]["F_block"], 3)])
+    table(s, 0.5, 4.45, 7.4, rows, [2.2, 1.0, 1.0, 0.8, 1.0, 1.4], 9, 0.24)
+    cd = get(P, "contact_design") or {}
+    text(s, 8.1, 4.5, 4.8, 2.6, ["소프트 손가락이 직렬 강성을 지배 → 물체 무르기는 k_eq에 거의 영향 없음, 접촉 위치·크기는 약 2배.",
+                                 f"게인 격자 k_eq = {fmt(cd.get('grid'), 3)}, 공칭 {fmt(cd.get('k_nom'), 3)}",
+                                 "g → 0 (막힌 손가락)이면 ε̂만으로는 상태가 안 보인다 → 접촉 모드는 F̂를 측정으로 쓴다.",
+                                 f"F̂ 잡음 V_F = {fmt(ct.get('V_F'), 3)} N² (S8)"], 11, bullet=True)
+    s = prs.slides.add_slide(blank); title(s, "접촉 후 힘 유지 비교 (S9): 기존 어드미턴스 vs 힘 직접 추종", True)
+    image(s, OUT / "S9_force.png", 0.4, 1.1, w=6.4)
+    image(s, OUT / "S9_metrics.png", 6.9, 1.1, w=6.0)
+    s9 = read_csv(OUT / "S9_metrics.csv")
+    rows = [["유지 RMSE (정답 F) [N]", "A 기존", "B F-LQG", "C +RLS", "D +DOB", "B vs A", "최선 vs A"]]
+    if s9:
+        h = s9[0]
+        d9 = {r_[0]: dict(zip(h[1:], map(float, r_[1:]))) for r_ in s9[1:]}
+        for sc in dict.fromkeys(k.split(" | ")[0] for k in d9):
+            v = [d9[k]["rmse_hold"] for k in d9 if k.startswith(sc + " | ")]
+            rows.append([sc, *[f"{x:.3g}" for x in v], f"{100 * (v[1] - v[0]) / v[0]:+.0f} %", f"{100 * (min(v[1:]) - v[0]) / v[0]:+.0f} %"])
+    else:
+        rows.append(["(실험 전)", *[None] * 6])
+    table(s, 6.9, 3.85, 6.0, rows, [2.1, 0.6, 0.65, 0.6, 0.6, 0.7, 0.75], 9, 0.3)
+    text(s, 6.9, 5.5, 6.0, 1.6, ["힘 직접 추종(B)이 어드미턴스(A)보다 유지 오차를 크게 줄인다 (도체·유전체).",
+                                 "RLS 스케줄(C)은 k_eq가 공칭과 다를 때만 이득 (r25). 공칭 물체에선 F̂ 편향이 k̂을 끌어 오버슈트 증가.",
+                                 "인체: 목표 힘보다 F̂ 오차가 커서 모든 제어기가 실패 (센서 한계). 전체 지표: out/S9_metrics.csv"], 10, bullet=True)
+
+    # 상위 루프
+    s = prs.slides.add_slide(blank); title(s, "상위 루프: 근접 · 속도 · 힘 기준 · 재질")
     text(s, 0.5, 1.15, 6.3, 4.0, ["근접 스케줄: ε_ref = ε_open + (ε_pre − ε_open)·sat((d_far − d̂)/(d_far − d_near))",
                                   "접촉 예상 시간 t_c = d̂/(−ḋ̂) → ε̇_ref = (g(d̂) − ε)/max(t_c, t_min), |ε̇_ref| ≤ v_max",
-                                  "어드미턴스: B_a·ε̇_ref = F_t − F̂ (데드존 δF)",
-                                  "B_a = 4·τ_in·k_env → 힘 루프가 내부 루프보다 4배 느림 (캐스케이드 분리)",
-                                  "게이트 접촉 3 샘플 연속일 때만 GRASP (잡음 방지)",
-                                  "SAFETY: F̂ > F_max 또는 ε > ε_max → 즉시 풀기, 인체는 dF/dt 상한"], 13, bullet=True)
-    ct = get(P, "contact") or {}
+                                  "GRASP (접촉 모드): F_ref 를 F̂(진입)에서 F_t 까지 기울기 제한 (F_t/0.5 s, 인체는 dF/dt 상한) → 내부 루프가 F 직접 추종",
+                                  "비교용 기존 방식: 어드미턴스 B_a·ε̇_ref = F_t − F̂, B_a = 4·τ_in·k_env (S9 A)",
+                                  "게이트(또는 TENG) 접촉 3 샘플 연속일 때만 GRASP (잡음 방지), 접촉이 사라지면 ε 모드로 무충격 복귀",
+                                  "SAFETY: F̂ > F_max 또는 ε > ε_max → ε 모드로 풀기, 힘이 F_t 아래면 힘 모드로 복귀"], 13, bullet=True)
     from supervisor import MATERIAL
     rows = [["재질", "F_t (×F_block)", "F_max", "B_a 배수", "v_max 배수", "F_block [N]", "k_env [N/%]"]]
     for m, lab in (("conductor", "도체"), ("dielectric", "유전체"), ("human", "인체")):
@@ -499,7 +555,7 @@ def build(out_path=PROJECT / "MEC799_Project_PneuNet.pptx", params=None):
                                  "pre-grasp는 t_c 안에 모양을 맞춰야 물체를 밀지 않는다."], 12)
 
     # 19 파지 시연
-    s = prs.slides.add_slide(blank); title(s, "파지 시연 (S7): 근접 → 접촉 → 어드미턴스 → 해제", True)
+    s = prs.slides.add_slide(blank); title(s, "파지 시연 (S7): 근접 → 접촉 → 힘 추종 → 해제", True)
     cases = (("conductor", "도체"), ("dielectric_gate_only", "유전체 · 게이트만"), ("dielectric", "유전체 · 게이트 ∨ TENG"),
              ("human", "인체 (움직이는 손)"))
     for i, (m, lab) in enumerate(cases):
@@ -512,8 +568,9 @@ def build(out_path=PROJECT / "MEC799_Project_PneuNet.pptx", params=None):
         rows.append([lab, fmt(v.get("F_target"), 3), fmt(v.get("F_hold"), 3), fmt(v.get("F_peak"), 3),
                      fmt(v.get("F_peak_approach"), 3), fmt(v.get("F_max"), 3), fmt(v.get("exceeded"))])
     table(s, 0.5, 3.85, 12.3, rows, [2.7, 1.5, 1.5, 1.75, 1.75, 1.5, 1.6], 11, 0.36)
-    text(s, 0.5, 5.8, 12.3, 1.4, ["유전체: v4 게이트는 도체 압자로만 학습 → 접촉을 놓쳐 계속 닫음(F_max 초과). TENG 래치를 더하면 접촉을 잡고 힘을 유지 → TENG 모달리티의 필요성",
-                                  "인체: 파지 중 힘은 F_max 이하. 접근 중 최대 힘은 움직이는 손이 손가락에 부딪힌 충돌 (굽힘만으로 회피 불가 — 한계)"], 12, bullet=True)
+    text(s, 0.5, 5.8, 12.3, 1.4, ["제어기 = 하이브리드 C (자유 LQG → 접촉 F-LQG + RLS 스케줄). D(+DOB)는 2지 힘 유지에서 입력이 0–30 kPa로 진동해 제외 (해결 예정). 도체·유전체(TENG)는 목표 힘 근처로 유지 (이전 어드미턴스: 도체 1.2 N, 유전체 1.36 N).",
+                                  "유전체 게이트만: 접촉을 놓쳐 힘 모드로 못 들어감 → 파지 실패. TENG 융합이 필요.",
+                                  "인체: F_max 이하(최대 1.5 N)지만 유지 힘이 목표의 절반 이하. F̂ 오차(접촉 중 약 +1.5 N)가 목표 0.93 N보다 커서 SAFETY가 반복 (센서 한계). 도체 유지 힘이 목표보다 큰 것도 F̂ 편향 (−0.5 N 내외)"], 11, bullet=True)
 
     # 20 게인 표
     s = prs.slides.add_slide(blank); title(s, "게인 표 (params.json에서 자동 생성)", True)
@@ -528,8 +585,12 @@ def build(out_path=PROJECT / "MEC799_Project_PneuNet.pptx", params=None):
                                ["LQR", "GM [dB] / PM [°]", fmt(get(P, "det.lqr.gm_db") and [get(P, "det.lqr.gm_db"), get(P, "det.lqr.pm_deg")], 3), "단위원 위 L(z)"],
                                ["칼만", "Kf", d("stoch.Kf", 3), "쌍대 DARE, V = S4"],
                                ["DOB", "τ_q [s] / r", fmt(get(P, "dob.tau_q") and [get(P, "dob.tau_q"), get(P, "dob.r")], 3), "강건 조건 |QΔ| < 1"],
+                               ["접촉 LQR", "k_eq 격자 / K_I(격자)", fmt(get(P, "contact_design.grid") and
+                                                                        [get(P, "contact_design.grid"), [v["KI"] for v in get(P, "contact_design.gains").values()]], 3),
+                                "C_F = [0, k_eq], Bryson δF 0.4 N (가정)"],
+                               ["RLS", "λ / k̂ 투영 / ε̂_c 범위", "(가정) 0.999 / 격자 / 진입값 ± 4 %", "F̂ 잡음 σ≈0.25 N 에 맞춘 느린 적응"],
                                ["상위", "v₀ [%/s]", "(가정) " + str(get(P, "det.v0")) if get(P, "det.v0") is not None else None, "가정값"]],
-          [1.6, 2.2, 5.6, 2.9], 11, 0.42)
+          [1.6, 2.2, 5.6, 2.9], 10, 0.37)
 
     # 21 실물 측정 계획
     s = prs.slides.add_slide(blank); title(s, "B단계: 실물 측정 계획 (물리량 → 바뀌는 값)")
