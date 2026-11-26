@@ -487,11 +487,10 @@ def s_ss_fig(s, P, mode):
     _rich(cap.paragraphs[0], "모든 신호는 동작점 편차 (δx, δu). " + eq, 10, MUTED, MATH, False)
 
 
-def s_tf_fig(s, P):
-    """전달함수 관점 (자유 모드): u = F r − C_p p − C_ε ε, 플랜트 G_p · G_εp (design_tf.py, params tf)."""
-    t = get(P, "tf") or {}
+def _tf_diagram(s, r_lbl, m, gm_blk, cm_blk, noise):
+    """고전 2자유도 블록도: r → F → Σ → G_p → p → G_m → m, p 는 C_p (위), m 은 C_m (아래) 로 되먹임."""
     Y = 2.05
-    sig(s, 0.3, Y + 0.04, "r = ε_{ref}", 10, 0.8)
+    sig(s, 0.3, Y + 0.04, r_lbl, 10, 0.8)
     wire(s, [(0.4, Y), (0.75, Y)])
     blk(s, 0.75, Y - 0.22, 0.75, 0.44, ["$F(z)"], 11, "EEF3FA")
     wire(s, [(1.5, Y), (1.96, Y)])
@@ -499,18 +498,37 @@ def s_tf_fig(s, P):
     wire(s, [(2.24, Y), (2.75, Y)]); sig(s, 2.45, Y - 0.32, "u", 11, 0.3)
     blk(s, 2.75, Y - 0.22, 0.95, 0.44, ["$G_p(z)"], 11, "F3F3F3")
     wire(s, [(3.7, Y), (4.6, Y)]); sig(s, 3.75, Y - 0.3, "p", 11, 0.3); dot(s, 4.1, Y)
-    blk(s, 4.6, Y - 0.22, 0.95, 0.44, ["$G_{εp}(z)"], 11, "F3F3F3")
-    wire(s, [(5.55, Y), (6.7, Y)]); sig(s, 6.45, Y - 0.3, "ε", 11, 0.3); dot(s, 6.1, Y)
-    # p 되먹임 (위), ε 되먹임 (아래): 둘 다 칼만 + LQR (+ 적분) 을 접은 것
+    blk(s, 4.6, Y - 0.22, 1.2 if len(gm_blk) > 12 else 0.95, 0.44, ["$" + gm_blk], 11, "F3F3F3")
+    x2 = 5.8 if len(gm_blk) > 12 else 5.55
+    wire(s, [(x2, Y), (6.7, Y)]); sig(s, 6.45, Y - 0.3, m, 11, 0.3); dot(s, 6.2, Y)
     wire(s, [(4.1, Y), (4.1, 1.4), (3.65, 1.4)])
     blk(s, 2.75, 1.2, 0.9, 0.4, ["$C_p(z)"], 11, "EEF3FA")
     wire(s, [(2.75, 1.4), (2.1, 1.4), (2.1, Y - 0.14)])
-    wire(s, [(6.1, Y), (6.1, 2.75), (3.7, 2.75)])
-    blk(s, 2.75, 2.55, 0.95, 0.4, ["$C_ε(z)"], 11, "EEF3FA")
+    wire(s, [(6.2, Y), (6.2, 2.75), (3.7, 2.75)])
+    blk(s, 2.75, 2.55, 0.95, 0.4, ["$" + cm_blk], 11, "EEF3FA")
     wire(s, [(2.75, 2.75), (2.1, 2.75), (2.1, Y + 0.14)])
-    sig(s, 4.2, 2.8, "+ 측정 잡음 v (MoE 추정 ε)", 8, 1.9, color=MUTED, italic=False, font=FONT)
-    sig(s, 0.3, 3.05, "선형 구간만 (포화 · anti-windup 제외). F, C_p, C_ε 는 한 보상기: 같은 상태 (칼만 추정 + 적분) 를 공유.",
-        8, 6.9, color=MUTED, italic=False, font=FONT)
+    sig(s, 4.2, 2.8, noise, 8, 2.0, color=MUTED, italic=False, font=FONT)
+    sig(s, 0.3, 3.05, "선형 구간만 (포화 · anti-windup 제외). F, C_p, " + cm_blk.replace("(z)", "") +
+        " 는 한 보상기: 같은 상태 (칼만 추정 + 적분) 를 공유.", 8, 6.9, color=MUTED, italic=False, font=FONT)
+
+
+def _bode(s, name):
+    if (OUT / name).exists():
+        image(s, OUT / name, 7.55, 1.15, w=5.5)
+    else:
+        blk(s, 7.55, 1.15, 5.5, 4.8, ["?  (design_tf.py 실행 필요)"], 12, "FFF2A8")
+
+
+def _caption(s, t):
+    cap = s.shapes.add_textbox(Inches(0.3), Inches(6.68), Inches(12.8), Inches(0.7)).text_frame
+    cap.word_wrap = True
+    _rich(cap.paragraphs[0], t, 10, MUTED, MATH, False)
+
+
+def s_tf_fig(s, P):
+    """전달함수 관점 (자유 모드): u = F r − C_p p − C_ε ε, 플랜트 G_p · G_εp (design_tf.py, params tf)."""
+    t = get(P, "tf") or {}
+    _tf_diagram(s, "r = ε_{ref}", "ε", "G_{εp}(z)", "C_ε(z)", "+ 측정 잡음 v (MoE 추정 ε)")
     q = lambda k: t.get(k, "?")
     rows = [["블록", "전달함수 (T_s = 10 ms)", "뜻"],
             ["G_p = p/u", q("Gp"), "ITV 1차, 연속 " + q("Gp_s")],
@@ -521,18 +539,41 @@ def s_tf_fig(s, P):
             ["T = ε/r", q("T"), "극 = LQR 극"]]
     table(s, 0.3, 3.45, 7.0, rows, [1.05, 4.05, 1.9], 8, 0.36, font=MATH)
     gm, pm, dl = t.get("gm_db"), t.get("pm_deg"), t.get("delay_pm_loss_deg")
-    if (OUT / "tf_bode.png").exists():
-        image(s, OUT / "tf_bode.png", 7.55, 1.15, w=5.5)
-    else:
-        blk(s, 7.55, 1.15, 5.5, 4.8, ["?  (design_tf.py 실행 필요)"], 12, "FFF2A8")
+    _bode(s, "tf_bode.png")
     lines = [f"루프 L = C_p G_p + C_ε G_ε (u 에서 끊음): GM {fmt(gm, 3)} dB, PM {fmt(pm, 3)}°, ω_c {fmt(t.get('wc_rad_s'), 3)} rad/s",
              f"모델에 없는 지연 θ_p + θ_ε 가 ω_c 에서 위상 약 {fmt(dl, 2)}° 를 더 깎는다 (추정, 시뮬레이션 모델)."]
     sig(s, 7.55, 6.05, lines[0], 9, 5.6, italic=False); sig(s, 7.55, 6.35, lines[1], 9, 5.6, italic=False, color=MUTED)
-    cap = s.shapes.add_textbox(Inches(0.3), Inches(6.68), Inches(12.8), Inches(0.7)).text_frame
-    cap.word_wrap = True
-    _rich(cap.paragraphs[0], "LQG 는 상태공간에서 설계하지만, 정상상태 칼만 이득을 쓰면 선형 시불변 보상기라 전달함수와 똑같다 "
-          "(시간 응답 일치를 시험 코드로 확인). 폐루프 T 의 극은 LQR 극 0.962 · 0.864 · 0.722 이고, 칼만 극 0.718 · 0.312 는 "
-          "r → ε 에서 상쇄된다 (분리 원리). 접촉 모드는 같은 구조에 C_c 와 강성 추정값 스케줄 → 강성마다 다른 C(z).", 10, MUTED, MATH, False)
+    _caption(s, "LQG 는 상태공간에서 설계하지만, 정상상태 칼만 이득을 쓰면 선형 시불변 보상기라 전달함수와 똑같다 "
+             "(시간 응답 일치를 시험 코드로 확인). 폐루프 T 의 극은 LQR 극 0.962 · 0.864 · 0.722 이고, 칼만 극 0.718 · 0.312 는 "
+             "r → ε 에서 상쇄된다 (분리 원리). 접촉 모드는 다음 장.")
+
+
+def s_tf_contact_fig(s, P):
+    """전달함수 관점 (접촉 모드, k̂ 고정 = RLS 수렴 뒤): u = F r − C_p p − C_F F̂, 플랜트 G_F = k_eq G_εp G_p."""
+    t = get(P, "tf_contact") or {}
+    kn = t.get("k_nom")
+    by = t.get("by_k") or {}
+    n = by.get(kn, {})
+    _tf_diagram(s, "r = F_{ref}", "F", "k_{eq} G_{εp}(z)", "C_F(z)", "+ 측정 잡음 (MoE 추정 F)")
+    blk(s, 4.75, 1.08, 1.75, 0.5, ["RLS → k_{eq} 추정", "→ C_p, C_F, F 를 고름"], 8, "FFF5EA")
+    wire(s, [(4.75, 1.33), (4.3, 1.33)], dash=True)
+    q = lambda k: n.get(k, "?")
+    rows = [["블록", f"전달함수 (공칭 k_eq = {kn or '?'})", "뜻"],
+            ["G_F = F/u", q("Gm"), "자유 모드 G_ε × k_eq"],
+            ["C_p", q("Cp"), "압력 되먹임"],
+            ["C_F", q("Cm"), "z = 1 극 = 힘 적분기"],
+            ["F", q("F"), "기준 경로 (F_ref/k_eq)"],
+            ["T = F/F_ref", q("T"), "극 = 접촉 LQR 극"]]
+    table(s, 0.3, 3.4, 7.0, rows, [1.05, 4.05, 1.9], 8, 0.3, font=MATH)
+    y = 3.4 + 0.3 * len(rows) + 0.1
+    sm = [["k_eq (격자)", "GM [dB]", "PM [°]", "ω_c [rad/s]", "폐루프 극 |z|"]] +          ([[k, fmt(r.get("gm_db"), 3), fmt(r.get("pm_deg"), 3), fmt(r.get("wc_rad_s"), 3),
+            ", ".join(f"{v:.3f}" for v in r.get("cl_poles", []))] for k, r in by.items()] or [["?"] * 5])
+    table(s, 0.3, y, 7.0, sm, [1.2, 1.0, 1.0, 1.3, 2.5], 8, 0.25, font=MATH)
+    _bode(s, "tf_bode_contact.png")
+    sig(s, 7.55, 6.05, "k_eq 마다 다른 보상기 (게인 스케줄 = k_eq 별 LTI 보상기 묶음).", 9, 5.6, italic=False)
+    sig(s, 7.55, 6.35, "k_eq 가 클수록 ω_c ↑, PM ↓ (공칭 모델 기준, 시뮬레이션).", 9, 5.6, italic=False, color=MUTED)
+    _caption(s, "접촉 중 RLS 가 수렴해 k_eq 추정값이 멈추면 접촉 제어기도 선형 시불변: 칼만 측정 = F/k_{eq}, 기준 F_{ref}/k_{eq}, "
+             "적분 x_I += F_{ref} − F. 시간 응답이 ContactLqg 와 일치함을 시험 코드로 확인. RLS 적응 중 · 반사 S 동작 중에는 시변 · 비선형이라 TF 로 표현되지 않는다.")
 
 
 def s_layers_fig(s):
@@ -846,6 +887,8 @@ def build(out_path=PROJECT / "MEC799_Project_PneuNet.pptx", params=None):
     s_ss_fig(s, P, "contact")
     s = prs.slides.add_slide(blank); title(s, "전달함수 블록도: G(z) 와 LQG 등가 보상기 (자유 모드)", True)
     s_tf_fig(s, P)
+    s = prs.slides.add_slide(blank); title(s, "전달함수 블록도: 접촉 모드 (k_eq 별 LQG 등가 보상기)", True)
+    s_tf_contact_fig(s, P)
 
     # 6 과제 ↔ 강의 대응표
     s = prs.slides.add_slide(blank); title(s, "과제 절 ↔ 강의 대응")

@@ -23,9 +23,9 @@ def _title(slide):
     return next(sh.text_frame.text for sh in slide.shapes if sh.has_text_frame and sh.text_frame.text.strip())
 
 
-def test_deck_has_35_slides_and_editable_diagrams(tmp_path):
+def test_deck_has_36_slides_and_editable_diagrams(tmp_path):
     prs = Presentation(build(tmp_path / "d.pptx", params=FAKE))
-    assert len(prs.slides) == 35
+    assert len(prs.slides) == 36
     for i in (5, 6):  # 5 = 상·하위 계층 개요, 6 = 내부 루프 상세
         assert sum(sh.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE for sh in prs.slides[i].shapes) >= 8
     assert "상위" in _title(prs.slides[5]) and "하위" in _title(prs.slides[5])
@@ -66,14 +66,14 @@ def test_variable_definition_slide_lists_modes(tmp_path):
 
 def test_gain_table_from_params(tmp_path):
     prs = Presentation(build(tmp_path / "d.pptx", params=FAKE))
-    assert any("1.234" in c.text for c in _cells(prs, 32))
+    assert any("1.234" in c.text for c in _cells(prs, 33))
 
 
 def test_missing_value_cell_is_yellow(tmp_path):
     p = copy.deepcopy(FAKE)
     del p["det"]["lqr"]["K"]
     prs = Presentation(build(tmp_path / "d.pptx", params=p))
-    cell = next(c for c in _cells(prs, 32) if c.text.strip() == "?")
+    cell = next(c for c in _cells(prs, 33) if c.text.strip() == "?")
     assert str(cell.fill.fore_color.rgb) == YELLOW
 
 
@@ -99,3 +99,13 @@ def test_transfer_function_slide_follows_state_space(tmp_path):
     tx = _texts(s) + " ".join(c.text for c in _cells(prs, 9))
     assert "G_p" in tx and "C_ε" in tx and "F(z)" in tx
     assert "0.775" in tx and "(z − 1)" in tx and "27.5" in tx   # 값은 params tf 에서
+
+
+def test_contact_transfer_function_slide(tmp_path):
+    P = dict(FAKE, tf_contact={"k_nom": "0.475", "by_k": {"0.475": {"Gm": "0.00133·(z + 0.903) / (z − 0.951)", "Cm": "3.55 / (z − 1)",
+                                                                  "gm_db": 26.0, "pm_deg": 75.0, "wc_rad_s": 16.8, "cl_poles": [0.896]}}})
+    prs = Presentation(build(tmp_path / "d.pptx", params=P))
+    s = prs.slides[10]
+    assert "접촉" in _title(s) and "전달함수" in _title(s)
+    tx = _texts(s) + " ".join(c.text for c in _cells(prs, 10))
+    assert "C_F" in tx and "RLS" in tx and "0.00133" in tx and "75" in tx

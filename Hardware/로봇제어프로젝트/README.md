@@ -15,14 +15,14 @@
 | 3 | `code/run_compare.py S4` | 정지 잡음 (칼만 V) | `params["noise"]` |
 | 4 | `code/design_det.py` | 극배치, 관측기, LQR | `params["det"]` |
 | 5 | `code/design_stoch.py` | 칼만 (W, V) | `params["stoch"]` |
-| 5b | `code/design_tf.py` | 전달함수 관점: G(z), LQG 등가 보상기 F · C_p · C_ε, 루프 Bode · GM · PM | `out/tf_bode.png`, `params["tf"]` |
+| 5b | `code/design_tf.py` | 전달함수 관점: G(z), LQG 등가 보상기 F · C_p · C_ε, 루프 Bode · GM · PM. 접촉 모드는 k_eq 격자 3점 | `out/tf_bode*.png`, `params["tf", "tf_contact"]` |
 | 6 | `code/design_dob.py` | DOB τ_q 후보·강건 조건 | `params["dob"]` |
 | 7 | `code/run_compare.py S8` | 접촉 강성 k_eq·k_env (재질 3 + 위치·크기 6), 힘 보정, V_F | `params["contact"]`, `out/S8_keq.png` |
 | 8 | `code/design_contact.py` | 접촉 모드 가관측성, 접촉용 LQR 격자 (스펙 12절) | `params["contact_design"]`, `out/contact_obsv.png` |
 | 9 | `code/run_compare.py S5 S6 S9 S7 R` | 제어기 비교, DOB 강건성, 힘 유지 비교(S9), 파지 영상(하이브리드 C), 실시간 보기 `code/live_view.py`, 모델 렌더 | `out/S5_*`, `out/S6_*`, `out/S9_*`, `out/S7_*.mp4`, `params["results_*"]` |
 | 10 | `code/run_hri.py S10 S11` | 상·하위 계층: 하위 반사 안전 vs 상위 지연·두절(S10), 시나리오 2 인체 상호작용(S11) | `out/S10*`, `out/S11*`, `params["results_s10", "results_s11"]` |
 | 10b | `code/run_photo.py` | 사진형 단계 비교: 망치를 든 손, 자루(도체) vs 손목(인체). 소품은 보이기만 함 (`photo_scene.py`) | `out/photo_*.png`, `params["results_photo"]` |
-| 11 | `code/build_pptx.py` | PPT 생성 (35장, 8–9 = 상태공간 블록도, 10 = 전달함수 블록도, 28 = 시나리오 그림, 29 = 사진 비교) | `MEC799_Project_PneuNet.pptx` |
+| 11 | `code/build_pptx.py` | PPT 생성 (36장, 8–9 = 상태공간 블록도, 10–11 = 전달함수 블록도 (자유 · 접촉), 29 = 시나리오 그림, 30 = 사진 비교) | `MEC799_Project_PneuNet.pptx` |
 
 테스트: `C:/ml_env/Scripts/python.exe -m pytest Hardware/로봇제어프로젝트/code/tests -q`
 
