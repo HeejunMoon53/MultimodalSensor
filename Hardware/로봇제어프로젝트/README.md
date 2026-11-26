@@ -22,7 +22,9 @@
 | 9 | `code/run_compare.py S5 S6 S9 S7 R` | 제어기 비교, DOB 강건성, 힘 유지 비교(S9), 파지 영상(하이브리드 C), 실시간 보기 `code/live_view.py`, 모델 렌더 | `out/S5_*`, `out/S6_*`, `out/S9_*`, `out/S7_*.mp4`, `params["results_*"]` |
 | 10 | `code/run_hri.py S10 S11` | 상·하위 계층: 하위 반사 안전 vs 상위 지연·두절(S10), 시나리오 2 인체 상호작용(S11) | `out/S10*`, `out/S11*`, `params["results_s10", "results_s11"]` |
 | 10b | `code/run_photo.py` | 사진형 단계 비교: 망치를 든 손, 자루(도체) vs 손목(인체). 소품은 보이기만 함 (`photo_scene.py`) | `out/photo_*.png`, `params["results_photo"]` |
-| 11 | `code/build_pptx.py` | PPT 생성 (36장, 8–9 = 상태공간 블록도, 10–11 = 전달함수 블록도 (자유 · 접촉), 29 = 시나리오 그림, 30 = 사진 비교) | `MEC799_Project_PneuNet.pptx` |
+| 10c | `code/run_video.py` | 대시보드 영상: 왼쪽 3D, 오른쪽 TDM 원신호 · MoE 추정 · 기준 · 입력 · 상위 상태. A 망치 받기(도체, 하중 이전 근사), B 팔 오잡기(인체, 반사 · SAFETY → 놓기) | `out/V_A.mp4`, `out/V_B.mp4`, `out/upper_timeline.png`, `params["results_video"]` |
+| 11b | `code/build_summary_pptx.py` | 두괄식 요약 PPT (장마다 결론 한 줄 → 근거) | `MEC799_Summary_두괄식.pptx` |
+| 11 | `code/build_pptx.py` | PPT 생성 (39장, 8–9 = 상태공간 블록도, 10–11 = 전달함수 블록도, 상위 제어기 상태 머신 · 동작 예시 · 파라미터, 대시보드 영상) | `MEC799_Project_PneuNet.pptx` |
 
 테스트: `C:/ml_env/Scripts/python.exe -m pytest Hardware/로봇제어프로젝트/code/tests -q`
 
@@ -53,3 +55,7 @@
 - `sysid.run_experiments(plant_factory)`의 `plant_factory`를 실물 래퍼로 바꾼다. 래퍼는 `step(u) → Obs`이고 ITV 보드와 TDM 보드를 쓴다.
 - 이후 2–8단계를 그대로 다시 돌리면 `params.json`과 PPT 게인 표가 실측값으로 바뀐다.
 - 실측 계획 R1–R8은 PPT 25번 슬라이드에 있다.
+
+## 다음 단계: 하중 이전을 실제 물리로 (b)
+
+지금 영상 A의 "사람이 망치를 놓음"은 근사다(물체 경로 3 mm 처짐). 다음에는 손을 떼는 순간 망치를 자유 물체(질량 · 중력 · 패드 마찰)로 바꿔 미끄럼 · 낙하를 결과로 낸다. 세부 계획: `Docs/superpowers/plans/2026-11-19-robot-control-project.md` 후속 작업.

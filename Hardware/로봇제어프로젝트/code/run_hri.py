@@ -38,13 +38,16 @@ def hand_path(t_grasp=4.5, jerk=None, push=None):
     return f
 
 
-def run_case(P, path, seconds, up=UP_PC, reflex=True, ctrl=C_CTRL, mat="human", t_grasp=4.5, seed=21, safety="eps", up_drop=None, fault=None):
+def run_case(P, path, seconds, up=UP_PC, reflex=True, ctrl=C_CTRL, mat="human", t_grasp=4.5, seed=21, safety="eps", up_drop=None, fault=None,
+             t_release=None, scn_kw=None, hook=None):
     """2지, 상위 UpperLink(주기·지연) + 하위(내부 루프 10 ms, 반사 1 kHz). 기록 열은 COLS.
     safety: 상위 SAFETY 동작. "eps" = ε_ref 를 열림 쪽으로 (기존), "vent" = 상위가 배기 명령 (u = 0).
     up_drop: 이 시각 [s] 이후 상위 통신 두절 (상태·기준 동결).
-    fault: (t, 손가락, u) 이 시각부터 내부 루프 지령이 u 로 폭주 (고장 주입). 배기(반사·상위 SAFETY)가 우선한다."""
+    fault: (t, 손가락, u) 이 시각부터 내부 루프 지령이 u 로 폭주 (고장 주입). 배기(반사·상위 SAFETY)가 우선한다.
+    t_release: 이 시각 [s] 이후 상위 명령 = release. scn_kw: Scenario 추가 인자 (photo 등).
+    hook(pl, o, u, sup, trip): 매 스텝 끝에 호출 (영상·기록용, run_video.py)."""
     spec = CTRL9[ctrl]
-    pl = Plant(Scenario(material=mat, obj_path=path), seed=seed)
+    pl = Plant(Scenario(material=mat, obj_path=path, **(scn_kw or {})), seed=seed)
     ctr = [make_grasp_ctrl(P, spec) for _ in range(2)]
     sup = [make_sup(P, mat, spec["kind"], Ts=up["n_up"] * TS) for _ in range(2)]
     link = [UpperLink(s, **up) for s in sup]
@@ -55,7 +58,7 @@ def run_case(P, path, seconds, up=UP_PC, reflex=True, ctrl=C_CTRL, mat="human", 
     u, rows = np.zeros(2), []
     for k in range(int(seconds / TS)):
         o = pl.step(u); tr = pl.truth()
-        cmd = "grasp" if pl.t > t_grasp else "approach"
+        cmd = "release" if t_release is not None and pl.t > t_release else ("grasp" if pl.t > t_grasp else "approach")
         trip = [bool(reflex and pl.reflex[i].tripped) for i in range(2)]
         for i in range(2):
             Fh = o.val_hat[i] if o.contact[i] else 0.0
@@ -72,6 +75,8 @@ def run_case(P, path, seconds, up=UP_PC, reflex=True, ctrl=C_CTRL, mat="human", 
                     u[i] = fault[2]
         rows.append([pl.t, *tr.F_N, *(o.val_hat * o.contact), *u, *tr.p, *[STATES.index(s.state) for s in sup], *trip,
                      *tr.d_mm])
+        if hook is not None:
+            hook(pl, o, u, sup, trip)
     return np.array(rows), dict(Fmax=Fmax, Ft=Ft, n_trips=[r.n_trips for r in pl.reflex] if reflex else [0, 0])
 
 

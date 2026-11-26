@@ -54,6 +54,7 @@ class Obs:
     gate_p: np.ndarray
     teng: np.ndarray = None      # TENG 전압 (마지막 1 kHz 샘플)
     gate: np.ndarray = None      # MoE 게이트만의 접촉 판정
+    LR: np.ndarray = None        # TDM 원신호 [ΔL, ΔR] (손가락별, 마지막 1 kHz 샘플)
 
 
 @dataclass
@@ -271,9 +272,11 @@ class Plant:
             contact = (F > 1e-3).astype(int)
             return Obs(p_mon, eps.copy(), np.where(contact, F, dist), contact, contact.astype(float))
         eh, vh, ch, gp, tv, gt = (np.zeros(n) for _ in range(6))
+        lr = np.zeros((n, 2))
         for i in range(n):
             o, V, lat, sL, sR = sensed[i] if sensed is not None else self._sense(i, eps[i], dist[i], F[i], int(round(TS / 1e-3)))
             eh[i], vh[i], gt[i], gp[i], tv[i] = o.strain_pct - self.prestrain, o.value, o.contact, o.gate_proba, V
+            lr[i] = sL, sR
             ch[i] = gt[i] or (self.use_teng and lat)
             if ch[i] and not gt[i]:               # TENG 만 접촉: 유전체 추정기 (ΔL → ε, ΔR 잔차 → F)
                 eh[i], vh[i] = self.diel.estimate(sL, sR)
@@ -281,7 +284,7 @@ class Plant:
             eh[i] = (eh[i] - self.cal["b"]) / self.cal["a"]
             if ch[i]:
                 vh[i] = vh[i] / self.fcal  # 힘 장착 보정 F = F̂/c (S8, B단계 R6)
-        return Obs(p_mon, eh, vh, ch.astype(int), gp, tv, gt.astype(int))
+        return Obs(p_mon, eh, vh, ch.astype(int), gp, tv, gt.astype(int), lr)
 
     def frames(self, cam="front", w=640, h=480):
         if self._renderer is None:

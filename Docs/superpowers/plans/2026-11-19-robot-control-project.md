@@ -519,3 +519,14 @@ def test_missing_value_cell_is_yellow(tmp_path):  # params에서 키 하나를 �
   - B단계에서 실측 데이터로 바꾸는 위치: `params.json`, `sysid.run_experiments`의 플랜트 팩토리를 실물 래퍼로 교체
 - [ ] `Docs/plan/연구계획.md` 6절 결정 기록에 S0 판정(flex/prbm, ε 프리스트레인)을 날짜와 함께 남긴다.
 - [ ] 사용자에게 커밋 여부를 묻는다(CLAUDE.md 규칙).
+
+### 후속 작업 (2026-11-26 추가)
+
+- [x] 상위 제어기 설명: 상태 머신 슬라이드(전이 조건 · 상태별 기준), 동작 예시(`out/upper_timeline.png`), 파라미터 표 (`slides_upper.py`).
+- [x] 대시보드 영상 A 망치 받기 · B 팔 오잡기 (`run_video.py` → `out/V_A.mp4`, `out/V_B.mp4`). A의 하중 이전은 근사(mocap 3 mm 처짐 + 손 소품만 물러남).
+- [x] 두괄식 요약 PPT (`build_summary_pptx.py` → `MEC799_Summary_두괄식.pptx`).
+- [ ] **(b) 하중 이전을 실제 물리로**: 사람이 손을 떼는 순간 망치를 mocap에서 자유 물체(freejoint, 질량 · 관성 · 중력)로 바꾸고, 패드–자루 마찰로만 버티게 한다.
+  - 바꿀 곳: `plant.py` 물체 생성(mocap ↔ freejoint 전환 또는 weld 제약 해제), 접촉 힘 · 거리 계산(물체 위치를 mocap_pos 대신 qpos에서).
+  - 새 가정값: 망치 질량(예 0.3–0.6 kg), 마찰계수 μ (실리콘–강철), 무게중심 위치. 노란 칸으로 표시.
+  - 새 지표: 미끄럼 거리 · 낙하 여부, 필요한 F_t ≥ m g / (2 μ) 와 비교, 손 뗀 뒤 F_ref 를 올려야 하는지(상위에 "하중 이전" 상태 추가 여부).
+  - 검증: 기존 테스트(소품 물리 불변, S7 · S10 결과) 유지, 자유 물체 낙하 시험 1개 추가.

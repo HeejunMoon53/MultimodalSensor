@@ -1,6 +1,6 @@
 """사진형 렌더용 소품 (보이기만 함: contype = conaffinity = 0, group 2 → 물리·근접 거리 불변, tests/test_photo.py).
 
-hammer: 사람이 쥔 망치의 금속 자루가 잡을 물체 (도체). 물리 원기둥(축 y, r 15 mm) = 자루 가운데.
+hammer: 사람이 쥔 망치의 금속 자루가 잡을 물체 (도체). 손 geom 이름 = hand* (HAND_GEOMS). 물리 원기둥(축 y, r 15 mm) = 자루 가운데.
 wrist : 망치를 쥔 사람의 손목이 잡을 물체 (인체). 물리 원기둥 = 손목, 손은 −y 쪽에서 망치를 세워 쥔다 (머리가 아래).
 """
 import numpy as np
@@ -55,4 +55,8 @@ def deco(kind):
                f'<geom type="cylinder" fromto="0.05 -0.08 -0.215 0.066 -0.08 -0.215" size="0.019" material="dark"{V}/>')
     else:
         raise ValueError(kind)
+    if kind == "hammer":  # 손·소매에 이름: 망치 받기 영상에서 손을 떼는 동작 (geom_pos 만 바꿈, 물리 불변)
+        parts = obj.split("<geom ")
+        obj = parts[0] + "".join(f'<geom name="hand{k}" ' + q if ('"skin"' in q or '"sleeve"' in q) else "<geom " + q
+                                 for k, q in enumerate(parts[1:]))
     return asset, visual, world, obj

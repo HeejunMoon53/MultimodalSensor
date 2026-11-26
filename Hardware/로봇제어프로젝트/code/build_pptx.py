@@ -246,23 +246,17 @@ def s_control_fig(s, P):
     panel(s, 3.6, 1.2, 6.4, 5.05, "(b) 하위 · STM32 + TDM: 내부 루프 100 Hz (자유 ε / 접촉 F) + 반사 1 kHz  [4–6절]", "EEF3FA", "3C6AA8")
     panel(s, 10.15, 1.2, 2.85, 5.05, "(c) 플랜트  (시뮬레이션)", "F3F3F3", "6B6B6B")
 
-    # (a) 상태 머신
-    for x, w, t in ((0.55, 0.8, "OPEN"), (1.5, 1.0, "APPROACH"), (2.65, 0.7, "GRASP")):
-        blk(s, x, 1.7, w, 0.32, [t], 8, "FFFFFF", shape=MSO_SHAPE.ROUNDED_RECTANGLE)
-    for x, t in ((0.55, "RELEASE"), (2.65, "SAFETY")):
-        blk(s, x, 2.3, 0.8 if t == "RELEASE" else 0.7, 0.32, [t], 8, "FBE3E3" if t == "SAFETY" else "FFFFFF", shape=MSO_SHAPE.ROUNDED_RECTANGLE)
-    wire(s, [(1.35, 1.86), (1.5, 1.86)]); wire(s, [(2.5, 1.86), (2.65, 1.86)])
-    wire(s, [(2.9, 2.02), (2.9, 2.3)]); wire(s, [(3.1, 2.3), (3.1, 2.02)]); wire(s, [(0.95, 2.3), (0.95, 2.02)])
-    sig(s, 1.42, 2.36, "release 명령 → RELEASE", 7, 1.2, color=MUTED, italic=False, font=FONT)
-    # (a) 기준 생성 블록 + 상태 선택기
-    for yy, ln in ((2.95, ["근접 스케줄 (APPROACH)", "$ε_{ref} = g(d̂)"]),
-                   (3.6, ["속도 제한", "$|ε̇_{ref}| ≤ v_{max},  t_c = d̂/(−ḋ̂)"]),
-                   (4.25, ["힘 기준 (GRASP)", "$F_{ref}: F̂ → F_t  (기울기 제한)"])):
-        blk(s, 0.55, yy, 2.3, 0.5, ln, 9)
-        wire(s, [(2.85, yy + 0.25), (3.0, yy + 0.25)])
-    blk(s, 3.0, 2.95, 0.22, 1.8, [""], 8, "3A3A3A")
-    wire(s, [(3.1, 2.62), (3.1, 2.95)], dash=True)
-    blk(s, 0.55, 5.05, 2.67, 0.8, ["재질 m ∈ {도체, 인체, 유전체}", "→ F_t, F_{max}, B_a, v_{max} (가정값)"], 9, YELLOW)
+    # (a) 상위 감독기: 상태 머신 하나가 상태별로 기준 하나를 고른다 (전이 조건은 다음 장)
+    blk(s, 0.55, 1.6, 2.67, 3.15, [""], 8)
+    sig(s, 0.6, 1.63, "상태 머신 → 기준 하나 선택", 9, 2.6, PP_ALIGN.CENTER, INK, False, FONT)
+    for k, (st, law) in enumerate((("OPEN", "u = 0 (배기)"), ("APPROACH", "$ε_{ref} = g(d̂),  속도 ≤ (g − ε)/t_c"),
+                                   ("GRASP", "$F_{ref}: F̂ → F_t  (경사)"), ("SAFETY", "u = 0 (배기)"), ("RELEASE", "$ε_{ref} → 0"))):
+        yy = 2.0 + k * 0.5
+        blk(s, 0.62, yy, 0.86, 0.3, [st], 7, STATE_FILL.get(st, "FFFFFF"), shape=MSO_SHAPE.ROUNDED_RECTANGLE)
+        m = law.startswith("$")
+        sig(s, 1.52, yy + 0.04, law.lstrip("$"), 7.5, 1.68, italic=m, font=MATH if m else FONT)
+    sig(s, 0.6, 4.48, "전이 조건 · 파라미터: 다음 장", 7, 2.6, PP_ALIGN.CENTER, MUTED, False, FONT)
+    blk(s, 0.55, 5.05, 2.67, 0.8, ["재질 m (시뮬: 정답 라벨)", "→ F_t, F_{max}, v_{max} (가정값)"], 9, YELLOW)
     wire(s, [(1.7, 5.05), (1.7, 4.75)])
 
     # (b) 내부 루프
@@ -993,22 +987,14 @@ def build(out_path=PROJECT / "MEC799_Project_PneuNet.pptx", params=None):
                                  "RLS 스케줄(C)은 k_eq가 공칭과 다를 때만 이득 (r25). 공칭 물체에선 F̂ 편향이 k̂을 끌어 오버슈트 증가.",
                                  "인체: 목표 힘보다 F̂ 오차가 커서 모든 제어기가 실패 (센서 한계). 전체 지표: out/S9_metrics.csv"], 10, bullet=True)
 
-    # 상위 루프
-    s = prs.slides.add_slide(blank); title(s, "상위 루프: 근접 · 속도 · 힘 기준 · 재질")
-    text(s, 0.5, 1.15, 6.3, 4.0, ["근접 스케줄: ε_ref = ε_open + (ε_pre − ε_open)·sat((d_far − d̂)/(d_far − d_near))",
-                                  "접촉 예상 시간 t_c = d̂/(−ḋ̂) → ε̇_ref = (g(d̂) − ε)/max(t_c, t_min), |ε̇_ref| ≤ v_max",
-                                  "GRASP (접촉 모드): F_ref 를 F̂(진입)에서 F_t 까지 기울기 제한 (F_t/0.5 s, 인체는 dF/dt 상한) → 내부 루프가 F 직접 추종",
-                                  "비교용 기존 방식: 어드미턴스 B_a·ε̇_ref = F_t − F̂, B_a = 4·τ_in·k_env (S9 A)",
-                                  "게이트(또는 TENG) 접촉 3 샘플 연속일 때만 GRASP (잡음 방지), 접촉이 사라지면 ε 모드로 무충격 복귀",
-                                  "SAFETY: F̂ > F_max 또는 ε > ε_max → ε 모드로 풀기, 힘이 F_t 아래면 힘 모드로 복귀"], 13, bullet=True)
-    from supervisor import MATERIAL
-    rows = [["재질", "F_t (×F_block)", "F_max", "B_a 배수", "v_max 배수", "F_block [N]", "k_env [N/%]"]]
-    for m, lab in (("conductor", "도체"), ("dielectric", "유전체"), ("human", "인체")):
-        c = ct.get(m, {})
-        rows.append([lab, *[f"(가정) {MATERIAL[m][k]}" for k in ("Ft", "Fmax", "Ba", "v")], fmt(c.get("F_block"), 3), fmt(c.get("k_env"), 3)])
-    table(s, 7.0, 1.2, 5.9, rows, [0.9, 0.95, 0.8, 0.8, 0.85, 0.8, 0.8], 10, 0.4)
-    text(s, 7.0, 3.0, 5.9, 2.0, ["속도를 넣는 이유: 닿는 순간 속도 = 충격력. 사람 손은 움직인다(ḋ). "
-                                 "pre-grasp는 t_c 안에 모양을 맞춰야 물체를 밀지 않는다."], 12)
+    # 상위 제어기: 상태 머신 · 동작 예시 · 파라미터 (slides_upper)
+    import slides_upper as su
+    s = prs.slides.add_slide(blank); title(s, "상위 제어기: 상태 머신 (전이 조건 · 상태별 기준)")
+    su.s_upper_fsm(s, P)
+    s = prs.slides.add_slide(blank); title(s, "상위 제어기 동작 예시: 입력 → 상태 → 기준 하나", True)
+    su.s_upper_timeline(s, P)
+    s = prs.slides.add_slide(blank); title(s, "상위 파라미터: 값 · 뜻 · 정한 근거")
+    su.s_upper_params(s, P)
 
     # 19 파지 시연
     s = prs.slides.add_slide(blank); title(s, "파지 시연 (S7): 근접 → 접촉 → 힘 추종 → 해제", True)
@@ -1080,6 +1066,9 @@ def build(out_path=PROJECT / "MEC799_Project_PneuNet.pptx", params=None):
                                  "상위 지연 20 ms는 ITV 지연(10 ms)·시정수(50 ms)와 비슷해 차이가 작다. 지연 100 ms 이상·두절에서 차이가 커진다.",
                                  "손 급이동의 첫 피크는 수동 충돌(제어로 못 줄임). 그 뒤 힘은 안전 동작이 ε 열기면 남고(약 3.7 N) 배기면 빠진다(0.6 N).",
                                  "결론: 안전 동작은 배기, 실행은 하위(TDM 주기)에서. 반사 문턱 F_max는 상위가 재질로 정해 내려보낸다."], 10, bullet=True)
+
+    s = prs.slides.add_slide(blank); title(s, "대시보드 영상: 망치 받기 · 팔 오잡기", True)
+    su.s_videos(s, P)
 
     # 20 게인 표
     s = prs.slides.add_slide(blank); title(s, "게인 표 (params.json에서 자동 생성)", True)
