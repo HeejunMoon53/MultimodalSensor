@@ -42,6 +42,7 @@ class Scenario:
     R_t_scale: float = 1.0
     fingers: int = 2
     obj_k_N_mm: object = "material"       # 물체 강성 [N/mm]: "material" = OBJ_K[재질], None = 강체
+    photo: Optional[str] = None           # 사진형 렌더 소품 (photo_scene.deco: "hammer" | "wrist"), 물리 불변
 
 
 @dataclass
@@ -135,10 +136,15 @@ class Plant:
             geom = (shp(r * 0.5, ' rgba="0.5 0.5 0.55 1" contype="0" conaffinity="0"/>')
                     + pad("padA", -1, f"0 {tr}") + pad("padB", 1, f"{-tr} 0"))
         x0 = np.array(s.obj_start_mm) * 1e-3
+        d_asset, d_vis, d_world, d_obj = ("",) * 4
+        if s.photo:
+            from photo_scene import deco
+            d_asset, d_vis, d_world, d_obj = deco(s.photo)
+            geom = geom + d_obj
         xml = (f'<mujoco><compiler angle="radian"/>'
                f'<option timestep="{self.dt}" gravity="0 0 -9.81" solver="Newton" integrator="discrete"/>'
-               f'<visual><global offwidth="960" offheight="720"/></visual>'
-               f'<worldbody><light pos="0 -0.4 0.3" dir="0 1 -0.6"/><light pos="0.3 0 0.3" dir="-1 0 -1"/>'
+               f'{d_asset}<visual><global offwidth="1280" offheight="960"/>{d_vis}</visual>'
+               f'<worldbody>{d_world}<light pos="0 -0.4 0.3" dir="0 1 -0.6"/><light pos="0.3 0 0.3" dir="-1 0 -1"/>'
                f'<camera name="front" pos="0 -0.38 -0.07" xyaxes="1 0 0 0 0 1"/>'
                f'<body name="hub" pos="0 0 0.008"><geom type="box" size="0.06 0.03 0.008" rgba="0.3 0.3 0.32 1" contype="0" conaffinity="0"/></body>'
                f'<body name="obj" mocap="true" pos="{x0[0]} {x0[1]} {x0[2]}">{geom}</body>'

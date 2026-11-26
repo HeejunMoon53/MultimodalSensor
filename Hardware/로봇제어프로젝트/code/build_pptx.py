@@ -339,6 +339,202 @@ def s_control_fig(s, P):
           "(c) 손가락마다 ITV 하나, 같은 설계. 노란 칸 = 가정값, 수치는 params.json에서 자동 기입.", 10, MUTED, MATH, False)
 
 
+def mat(s, x, y, name, M, nd=3, cw=0.62, size=10):
+    """수업식 행렬 표기: 'name =' + 대괄호 + 우측 정렬 원소. M 없으면 노란 '?'. 반환: 오른쪽 끝 x."""
+    sig(s, x, y, name + " =", size, 0.7)
+    x0 = x + 0.12 + 0.11 * len(name.replace("_", ""))
+    if M is None:
+        blk(s, x0, y - 0.02, 0.4, 0.26, ["?"], size, YELLOW)
+        return x0 + 0.45
+    M = [list(r) if isinstance(r, (list, tuple)) else [r] for r in M]
+    rows, cols, rh = len(M), len(M[0]), 0.23
+    top = y + 0.12 - rows * rh / 2
+    for side, xb in (("l", x0), ("r", x0 + 0.06 + cols * cw)):
+        b = s.shapes.add_shape(MSO_SHAPE.LEFT_BRACKET if side == "l" else MSO_SHAPE.RIGHT_BRACKET,
+                               Inches(xb), Inches(top), Inches(0.06), Inches(rows * rh))
+        b.line.color.rgb, b.line.width = LINE, Pt(1); b.fill.background()
+    for i, r in enumerate(M):
+        for j, v in enumerate(r):
+            sig(s, x0 + 0.04 + j * cw, top + i * rh, v if isinstance(v, str) else f"{float(v):.{nd}g}", size, cw - 0.04,
+                PP_ALIGN.RIGHT, italic=False)
+    return x0 + 0.14 + cols * cw
+
+
+def _diag(v):
+    return "diag(" + (", ".join(f"{x:.3g}" for x in v) if v else "?") + ")"
+
+
+def s_ss_fig(s, P, mode):
+    """수업(Lec8–9, P2_Lec1) 형식 이산 상태공간 블록도: 플랜트 z⁻¹ 루프 / 적분 서보 + LQR / 현재 추정 칼만.
+    mode = 'free' (ε 추종) | 'contact' (F 추종, RLS 게인 스케줄, 1 kHz 반사 스위치). 모든 신호는 동작점 편차."""
+    c = mode == "contact"
+    Y1, Yi, Yo, Ya, Yk = 2.3, 3.95, 5.0, 5.75, 6.3
+    panel(s, 0.3, 1.2, 3.95, 2.35, "제어기: 적분 서보 + LQR" + (" (게인 스케줄)" if c else ""), "EEF3FA", "3C6AA8")
+    panel(s, 4.4, 1.2, 4.7, 2.35, "플랜트 (식별 모델, 손가락 1개)", "F3F3F3", "6B6B6B")
+    panel(s, 0.3, 3.7, 8.8, 2.9, "칼만 필터", "FFF5EA", "B5762A")
+    r_ = "F_{ref}" if c else "ε_{ref}"
+    # 제어기
+    sig(s, 0.32, Y1 + 0.04, r_, 10, 0.5)
+    wire(s, [(0.35, Y1), (0.71, Y1)]); dot(s, 0.55, Y1)
+    sumj(s, 0.85, Y1, {"l": "+", "b": "−"})
+    wire(s, [(0.99, Y1), (1.1, Y1)])
+    blk(s, 1.1, Y1 - 0.22, 0.6, 0.44, ["$1/(z−1)"], 10)
+    wire(s, [(1.7, Y1), (2.0, Y1)]); sig(s, 1.73, Y1 - 0.27, "x_I", 10, 0.3)
+    blk(s, 2.0, Y1 - 0.22, 0.55, 0.44, ["$K_I(k̂)" if c else "$K_I"], 10)
+    wire(s, [(2.55, Y1), (2.86, Y1)])
+    sumj(s, 3.0, Y1, {"t": "+", "l": "−", "b": "−"})
+    wire(s, [(0.55, Y1), (0.55, 1.62), (1.25, 1.62)])
+    blk(s, 1.25, 1.45, 1.35, 0.34, ["$N_u + K N_x"], 10)
+    if c:
+        sig(s, 1.25, 1.83, "r = (F_{ref} − ĉ)/k̂", 8, 1.4, PP_ALIGN.CENTER, MUTED)
+    wire(s, [(2.6, 1.62), (3.0, 1.62), (3.0, Y1 - 0.14)])
+    if c:
+        wire(s, [(3.14, Y1), (3.3, Y1)])
+        blk(s, 3.3, Y1 - 0.25, 0.65, 0.5, ["반사 S", "1 kHz"], 8, "FBE3E3")
+        sig(s, 3.12, Y1 - 0.52, "F̂ > F_{max} 3샘플 → u = 0", 7, 1.3, color=MUTED, italic=False)
+        wire(s, [(3.95, Y1), (4.75, Y1)])
+    else:
+        wire(s, [(3.14, Y1), (4.75, Y1)])
+    sig(s, 4.15 if c else 3.3, Y1 - 0.27, "u", 11, 0.2); dot(s, 4.1, Y1)
+    # 플랜트: x(k+1) = A_d x + B_d u + w,  y = C x + v
+    blk(s, 4.75, Y1 - 0.2, 0.5, 0.4, ["$B_d"], 11)
+    wire(s, [(5.25, Y1), (5.51, Y1)])
+    sumj(s, 5.65, Y1, {"l": "+", "t": "+", "b": "+"})
+    wire(s, [(5.65, 1.55), (5.65, Y1 - 0.14)]); sig(s, 5.72, 1.5, "w(k)", 10, 0.5)
+    wire(s, [(5.79, Y1), (6.1, Y1)]); sig(s, 5.75, Y1 - 0.45, "x(k+1)", 9, 0.6)
+    blk(s, 6.1, Y1 - 0.22, 0.5, 0.44, ["$z⁻¹"], 11)
+    wire(s, [(6.6, Y1), (7.3, Y1)]); sig(s, 6.65, Y1 - 0.27, "x(k)", 10, 0.5); dot(s, 6.95, Y1)
+    blk(s, 7.3, Y1 - 0.2, 0.5, 0.4, ["$C_c" if c else "$C"], 11)
+    wire(s, [(7.8, Y1), (8.11, Y1)])
+    sumj(s, 8.25, Y1, {"l": "+", "t": "+"})
+    wire(s, [(8.25, 1.55), (8.25, Y1 - 0.14)]); sig(s, 8.32, 1.5, "v(k)", 10, 0.5)
+    wire(s, [(8.39, Y1), (8.9, Y1), (8.9, 3.75)] if c else [(8.39, Y1), (8.9, Y1), (8.9, Yi), (7.74, Yi)])
+    sig(s, 8.3, Y1 + 0.1, "y = [p, F, ε]" if c else "y = [p, ε]", 9, 0.8)
+    blk(s, 6.0, 2.88, 0.5, 0.36, ["$A_d"], 11)
+    wire(s, [(6.95, Y1), (6.95, 3.06), (6.5, 3.06)]); wire(s, [(6.0, 3.06), (5.65, 3.06), (5.65, Y1 + 0.14)])
+    # 적분 오차용 측정 버스
+    dot(s, 8.9, 3.62); wire(s, [(8.9, 3.62), (0.85, 3.62), (0.85, Y1 + 0.14)])
+    sig(s, 1.0, 3.33, "F̂ (MoE, TDM 1 kHz)" if c else "ε̂ = C_ε y (MoE)", 9, 2.2)
+    # 칼만: 예측 x̂⁻(k+1) = A_d x̂(k) + B_d u,  보정 x̂(k) = x̂⁻ + K_f (y − C x̂⁻)
+    if c:
+        blk(s, 8.05, 3.75, 1.0, 0.4, ["$ε̃_f = (F̂ − ĉ)/k̂"], 8)
+        wire(s, [(8.05, Yi), (7.74, Yi)])
+    wire(s, [(4.1, Y1), (4.1, Yo), (4.2, Yo)])
+    blk(s, 4.2, Yo - 0.2, 0.5, 0.4, ["$B_d"], 11)
+    wire(s, [(4.7, Yo), (4.96, Yo)])
+    sumj(s, 5.1, Yo, {"l": "+", "b": "+"})
+    wire(s, [(5.24, Yo), (5.5, Yo)])
+    blk(s, 5.5, Yo - 0.22, 0.5, 0.44, ["$z⁻¹"], 11)
+    wire(s, [(6.0, Yo), (7.46, Yo)]); sig(s, 6.5, Yo + 0.06, "x̂⁻(k)", 10, 0.6); dot(s, 6.4, Yo)
+    wire(s, [(6.4, Yo), (6.4, Yi), (6.6, Yi)])
+    blk(s, 6.6, Yi - 0.18, 0.5, 0.36, ["$C"], 11)
+    wire(s, [(7.1, Yi), (7.46, Yi)])
+    sumj(s, 7.6, Yi, {"l": "−", "r": "+"})
+    wire(s, [(7.6, Yi + 0.14), (7.6, 4.28)])
+    blk(s, 7.3, 4.28, 0.6, 0.34, ["$K_f"], 11)
+    wire(s, [(7.6, 4.62), (7.6, Yo - 0.14)])
+    sumj(s, 7.6, Yo, {"l": "+", "t": "+"})
+    wire(s, [(7.74, Yo), (8.3, Yo), (8.3, Yk)], head=False); dot(s, 8.3, Ya)
+    sig(s, 7.8, Yo + 0.06, "x̂(k)", 10, 0.5)
+    blk(s, 6.6, Ya - 0.18, 0.55, 0.36, ["$A_d"], 11)
+    wire(s, [(8.3, Ya), (7.15, Ya)]); wire(s, [(6.6, Ya), (5.1, Ya), (5.1, Yo + 0.14)])
+    blk(s, 4.6, Yk - 0.18, 0.6, 0.36, ["$K(k̂)" if c else "$K"], 11)
+    wire(s, [(8.3, Yk), (5.2, Yk)]); wire(s, [(4.6, Yk), (3.0, Yk), (3.0, Y1 + 0.14)])
+    if c:  # RLS → 게인 스케줄 (점선)
+        blk(s, 0.5, 4.15, 2.2, 0.85, ["RLS (λ = 0.999)", "$θ̂ = [k̂_{eq}, ĉ],  φ = [ε_{f,m}, 1]", "$F̂ = φᵀθ̂  → K(k̂), K_I(k̂), ε̃_f"], 8)
+        wire(s, [(2.27, 4.15), (2.27, Y1 + 0.22)], dash=True)
+        wire(s, [(2.7, 4.6), (3.3, 4.6), (3.3, 6.0), (4.9, 6.0), (4.9, Yk - 0.18)], dash=True)
+        sig(s, 0.5, 5.1, "ε_{f,m}: 측정 p 로 돌린 개루프 모델", 7, 2.4, color=MUTED, italic=False, font=FONT)
+    # 오른쪽: 수치 (params.json)
+    M, lq, st = get(P, "model") or {}, get(P, "det.lqr") or {}, get(P, "stoch") or {}
+    X, y = 9.3, 1.3
+    sig(s, X, y, "수치 (params.json, T_s = 10 ms)", 10, 3.8, color=MUTED, italic=False, font=FONT); y += 0.5
+    xe = mat(s, X, y, "A_d", M.get("Ad")); mat(s, xe + 0.1, y, "B_d", M.get("Bd"))
+    y += 0.6
+    if not c:
+        sig(s, X, y, "x = [p, ε_f],  u = ITV 지령,  C = I_2", 10, 3.8); y += 0.4
+        sig(s, X, y, f"Q = {_diag(lq.get('Q'))},  R = {fmt(lq.get('R'), 3)}", 9, 3.8); y += 0.45
+        K = lq.get("K")
+        xe = mat(s, X, y, "K", [K[0][:2]] if K else None)
+        mat(s, xe + 0.05, y, "K_I", None if lq.get("KI") is None else [[lq["KI"]]]); y += 0.45
+        sig(s, X, y, f"V = {_diag(st.get('V'))}", 9, 3.8); y += 0.3
+        sig(s, X, y, f"W = {_diag(st.get('W'))},  B_w = I", 9, 3.8); y += 0.55
+        mat(s, X, y, "K_f", st.get("Kf"), cw=0.7); y += 0.6
+        pl = lq.get("poles")
+        sig(s, X, y, "폐루프 극 |z| = " + (", ".join(f"{abs(complex(*q)):.3f}" for q in pl) if pl else "?"), 9, 3.8); y += 0.32
+        sig(s, X, y, f"GM {fmt(lq.get('gm_db'), 3)} dB · PM {fmt(lq.get('pm_deg'), 3)}°", 9, 3.8)
+    else:
+        cn = get(P, "contact.conductor") or {}
+        k, g = cn.get("k_eq"), cn.get("g")
+        sig(s, X, y, "x = [p, ε_f]  (자유 모드와 같음)", 10, 3.8); y += 0.6
+        mat(s, X, y, "C_c", None if k is None else [[1, 0], [0, k], [0, g]])
+        sig(s, X + 2.0, y - 0.1, "행 = p, F, ε", 8, 1.7, color=MUTED, italic=False, font=FONT)
+        sig(s, X + 2.0, y + 0.15, "도체 S8 값 (k_{eq}, g)", 8, 1.7, color=MUTED, italic=False, font=FONT); y += 0.55
+        sig(s, X, y, "x_I(k+1) = x_I(k) + F_{ref} − F̂", 9, 3.8); y += 0.3
+        sig(s, X, y, "Q = diag(1/15², 1/2², 1/(0.4·25)²),  R = 1/15²", 9, 3.8); y += 0.35
+        gains = get(P, "contact_design.gains") or {}
+        keys = sorted(gains, key=float)[::2]
+        rows = [["k̂ (격자)", "K", "적분 게인"]] + ([[k_, fmt(gains[k_]["K"], 3), fmt(gains[k_]["KI"], 3)] for k_ in keys] or [["?", "?", "?"]])
+        table(s, X, y, 3.8, rows, [0.7, 2.1, 1.0], 9, 0.27, font=MATH); y += 0.27 * len(rows) + 0.2
+        sig(s, X, y, "V = diag(V_p, V_F / k̂²)  (k̂ 따라 매 스텝)", 9, 3.8); y += 0.3
+        sig(s, X, y, "P_0 = diag(0.005, 5),  k̂ ∈ 격자,  ε̂_c ∈ 진입값 ± 4 %", 9, 3.8)
+    cap = s.shapes.add_textbox(Inches(0.3), Inches(6.68), Inches(12.8), Inches(0.7)).text_frame
+    cap.word_wrap = True
+    eq = ("x(k+1) = A_d x + B_d u + w,  y = C x + v,  u = −K(x̂ − N_x r) + N_u r − K_I x_I,  x_I += ε_{ref} − ε̂. "
+          "칼만: x̂⁻(k+1) = A_d x̂ + B_d u,  x̂ = x̂⁻ + K_f(y − C x̂⁻). 분리 원리로 K 와 K_f 를 따로 설계 (LQG).") if not c else \
+         ("상태 · A_d · B_d 는 자유 모드와 같고 출력만 C_c (F = k_{eq}(ε_f − ε_c)). 적분은 힘 오차, 게인은 RLS 의 k̂ 로 격자 DARE 를 보간. "
+          "칼만은 F̂ 를 ε̃_f 로 바꿔 C = I 로 쓴다. 반사 S 는 하위(STM32) 1 kHz 에서 u 를 끊는다 (상위 감독기를 기다리지 않음).")
+    _rich(cap.paragraphs[0], "모든 신호는 동작점 편차 (δx, δu). " + eq, 10, MUTED, MATH, False)
+
+
+def s_tf_fig(s, P):
+    """전달함수 관점 (자유 모드): u = F r − C_p p − C_ε ε, 플랜트 G_p · G_εp (design_tf.py, params tf)."""
+    t = get(P, "tf") or {}
+    Y = 2.05
+    sig(s, 0.3, Y + 0.04, "r = ε_{ref}", 10, 0.8)
+    wire(s, [(0.4, Y), (0.75, Y)])
+    blk(s, 0.75, Y - 0.22, 0.75, 0.44, ["$F(z)"], 11, "EEF3FA")
+    wire(s, [(1.5, Y), (1.96, Y)])
+    sumj(s, 2.1, Y, {"l": "+", "t": "−", "b": "−"})
+    wire(s, [(2.24, Y), (2.75, Y)]); sig(s, 2.45, Y - 0.32, "u", 11, 0.3)
+    blk(s, 2.75, Y - 0.22, 0.95, 0.44, ["$G_p(z)"], 11, "F3F3F3")
+    wire(s, [(3.7, Y), (4.6, Y)]); sig(s, 3.75, Y - 0.3, "p", 11, 0.3); dot(s, 4.1, Y)
+    blk(s, 4.6, Y - 0.22, 0.95, 0.44, ["$G_{εp}(z)"], 11, "F3F3F3")
+    wire(s, [(5.55, Y), (6.7, Y)]); sig(s, 6.45, Y - 0.3, "ε", 11, 0.3); dot(s, 6.1, Y)
+    # p 되먹임 (위), ε 되먹임 (아래): 둘 다 칼만 + LQR (+ 적분) 을 접은 것
+    wire(s, [(4.1, Y), (4.1, 1.4), (3.65, 1.4)])
+    blk(s, 2.75, 1.2, 0.9, 0.4, ["$C_p(z)"], 11, "EEF3FA")
+    wire(s, [(2.75, 1.4), (2.1, 1.4), (2.1, Y - 0.14)])
+    wire(s, [(6.1, Y), (6.1, 2.75), (3.7, 2.75)])
+    blk(s, 2.75, 2.55, 0.95, 0.4, ["$C_ε(z)"], 11, "EEF3FA")
+    wire(s, [(2.75, 2.75), (2.1, 2.75), (2.1, Y + 0.14)])
+    sig(s, 4.2, 2.8, "+ 측정 잡음 v (MoE 추정 ε)", 8, 1.9, color=MUTED, italic=False, font=FONT)
+    sig(s, 0.3, 3.05, "선형 구간만 (포화 · anti-windup 제외). F, C_p, C_ε 는 한 보상기: 같은 상태 (칼만 추정 + 적분) 를 공유.",
+        8, 6.9, color=MUTED, italic=False, font=FONT)
+    q = lambda k: t.get(k, "?")
+    rows = [["블록", "전달함수 (T_s = 10 ms)", "뜻"],
+            ["G_p = p/u", q("Gp"), "ITV 1차, 연속 " + q("Gp_s")],
+            ["G_εp = ε/p", q("Gep"), "손가락 굽힘, 연속 " + q("Ge_s")],
+            ["C_p", q("Cp"), "압력 되먹임 (적분 없음)"],
+            ["C_ε", q("Ce"), "z = 1 극 = 적분기"],
+            ["F", q("F"), "기준 경로 N_u + K N_x + 적분"],
+            ["T = ε/r", q("T"), "극 = LQR 극"]]
+    table(s, 0.3, 3.45, 7.0, rows, [1.05, 4.05, 1.9], 8, 0.36, font=MATH)
+    gm, pm, dl = t.get("gm_db"), t.get("pm_deg"), t.get("delay_pm_loss_deg")
+    if (OUT / "tf_bode.png").exists():
+        image(s, OUT / "tf_bode.png", 7.55, 1.15, w=5.5)
+    else:
+        blk(s, 7.55, 1.15, 5.5, 4.8, ["?  (design_tf.py 실행 필요)"], 12, "FFF2A8")
+    lines = [f"루프 L = C_p G_p + C_ε G_ε (u 에서 끊음): GM {fmt(gm, 3)} dB, PM {fmt(pm, 3)}°, ω_c {fmt(t.get('wc_rad_s'), 3)} rad/s",
+             f"모델에 없는 지연 θ_p + θ_ε 가 ω_c 에서 위상 약 {fmt(dl, 2)}° 를 더 깎는다 (추정, 시뮬레이션 모델)."]
+    sig(s, 7.55, 6.05, lines[0], 9, 5.6, italic=False); sig(s, 7.55, 6.35, lines[1], 9, 5.6, italic=False, color=MUTED)
+    cap = s.shapes.add_textbox(Inches(0.3), Inches(6.68), Inches(12.8), Inches(0.7)).text_frame
+    cap.word_wrap = True
+    _rich(cap.paragraphs[0], "LQG 는 상태공간에서 설계하지만, 정상상태 칼만 이득을 쓰면 선형 시불변 보상기라 전달함수와 똑같다 "
+          "(시간 응답 일치를 시험 코드로 확인). 폐루프 T 의 극은 LQR 극 0.962 · 0.864 · 0.722 이고, 칼만 극 0.718 · 0.312 는 "
+          "r → ε 에서 상쇄된다 (분리 원리). 접촉 모드는 같은 구조에 C_c 와 강성 추정값 스케줄 → 강성마다 다른 C(z).", 10, MUTED, MATH, False)
+
+
 def s_layers_fig(s):
     """상·하위 계층 개요: 상위 PC (시나리오·재질·상태 머신·기준) | UART | 하위 STM32 + TDM (1 kHz 측정·반사, 100 Hz 내부 루프) | 플랜트."""
     panel(s, 0.35, 1.15, 9.6, 1.75, "(a) 상위 제어기 · PC (20 Hz, 가정)", "FFF5EA", "B5762A")
@@ -395,6 +591,151 @@ def s_flow(s, y, stages):
                 MSO_SHAPE.CHEVRON if k else MSO_SHAPE.PENTAGON)
         b.line.fill.background()
         text(s, x + 0.1, y + 0.55, w - 0.15, 1.3, [f"신호: {sg}", f"상위: {up}", f"하위: {lo}"], 9, font=MATH)
+
+
+STATE_FILL = {"OPEN": "FFFFFF", "APPROACH": "DCE6F2", "GRASP": "D9EAD3", "SAFETY": "FBE3E3"}
+
+
+def _finger(s, xt, yt, ang, L=0.78, w=0.15):
+    """손가락: 위 끝 (xt, yt) 고정, ang° 시계 방향 회전 (+ = 아래 끝이 왼쪽). 반환: 손끝 좌표."""
+    import math
+    a = math.radians(ang)
+    cx, cy = xt - L / 2 * math.sin(a), yt + L / 2 * math.cos(a)
+    f = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(cx - w / 2), Inches(cy - L / 2), Inches(w), Inches(L))
+    f.rotation = ang
+    f.fill.solid(); f.fill.fore_color.rgb = RGBColor.from_string("9DC3E6")
+    f.line.color.rgb, f.line.width = RGBColor.from_string("2F5597"), Pt(1)
+    return xt - L * math.sin(a), yt + L * math.cos(a)
+
+
+def _obj(s, cx, cy, kind):
+    if kind == "도체":
+        o = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(cx - 0.27), Inches(cy - 0.27), Inches(0.54), Inches(0.54))
+        o.fill.solid(); o.fill.fore_color.rgb = RGBColor.from_string("BFBFBF")
+        o.line.color.rgb, o.line.width = RGBColor.from_string("595959"), Pt(1)
+        tf = o.text_frame; tf.word_wrap = False; tf.margin_left = tf.margin_right = 0
+        _run(tf.paragraphs[0], "금속", 8); tf.paragraphs[0].alignment = PP_ALIGN.CENTER
+    else:
+        o = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(cx - 0.3), Inches(cy - 0.24), Inches(0.6), Inches(0.62))
+        o.fill.solid(); o.fill.fore_color.rgb = RGBColor.from_string("F4C7A1")
+        o.line.color.rgb, o.line.width = RGBColor.from_string("A0522D"), Pt(1)
+        tf = o.text_frame; _run(tf.paragraphs[0], "손", 9); tf.paragraphs[0].alignment = PP_ALIGN.CENTER
+    return o
+
+
+def _mark(s, shape, x, y, w, h, fill, text_="", size=7, rot=0):
+    m = s.shapes.add_shape(shape, Inches(x), Inches(y), Inches(w), Inches(h))
+    m.rotation = rot
+    m.fill.solid(); m.fill.fore_color.rgb = RGBColor.from_string(fill); m.line.fill.background()
+    if text_:
+        tf = m.text_frame; tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
+        _run(tf.paragraphs[0], text_, size, True); tf.paragraphs[0].alignment = PP_ALIGN.CENTER
+    return m
+
+
+def s_photo(s, P):
+    """run_photo.py 렌더 사진 2행 × 4단계 (같은 폐루프, 소품만 다름) + 칸마다 실제 상태·시각·힘."""
+    heads = ("탐지 · 식별", "접근", "접촉", "파지 · 유지 | 상호작용")
+    rows = (("conductor", "도체: 금속 자루", "시나리오 1"), ("human", "인체: 손목", "시나리오 2"))
+    res = get(P, "results_photo") or {}
+    X0, W, PW, PH = 1.2, 3.0, 2.9, 2.175
+    for k, nm in enumerate(heads):
+        b = box(s, X0 + k * W, 1.05, W + 0.05, 0.36, nm, "DCE6F2" if k % 2 == 0 else "C9D8EC", 11, True,
+                MSO_SHAPE.CHEVRON if k else MSO_SHAPE.PENTAGON)
+        b.line.fill.background()
+    for r, (mat, lab, sc) in enumerate(rows):
+        y0 = 1.5 + r * 2.68
+        lb = box(s, 0.2, y0 + 0.6, 0.95, 1.0, f"{sc}\n{lab.split(':')[0]}", "FFF5EA" if r == 0 else "FCE4D6", 10, True)
+        lb.text_frame.word_wrap = False; lb.text_frame.margin_left = lb.text_frame.margin_right = 0
+        sig(s, 0.2, y0 + 1.65, lab.split(": ")[1], 9, 0.95, PP_ALIGN.CENTER, MUTED, False, FONT)
+        shots = (res.get(mat) or [{}] * 4) + [{}] * 4
+        for k in range(4):
+            x = X0 + k * W + 0.05
+            image(s, OUT / f"photo_{mat}_{k}.png", x, y0, w=PW, h=PH)
+            i = shots[k]
+            st = i.get("state", "?")
+            chip = box(s, x + 0.05, y0 + 0.05, 1.35 if "/" in st else 1.0, 0.25, st, STATE_FILL.get(st.split("/")[-1], "FFFFFF"), 8, True)
+            chip.line.color.rgb = RGBColor.from_string("7F7F7F")
+            ln = (f"t = {fmt(i.get('t'), 3)} s · d = {fmt(i.get('d_mm'), 3)} mm · F = {fmt(i.get('F_N'), 2)} N · u = {fmt(i.get('u_kPa'), 3)} kPa"
+                  if i else "?")
+            sig(s, x, y0 + PH + 0.03, ln, 8, PW, italic=False)
+    text(s, 0.3, 6.88, 12.8, 0.55, ["시뮬레이션 렌더 (MuJoCo, 같은 C F-LQG + RLS 폐루프 · TDM · MoE · TENG). 사람·망치는 보이기만 하는 소품이고 물리는 r 15 mm 원기둥 "
+                                    "(도체 = 강체, 인체 = 무른 패드). 아래 줄 = 그 순간의 상태 · 시각 · 거리 · 정답 힘 · 지령. "
+                                    "인체는 힘 추정 편향으로 GRASP ↔ SAFETY 를 반복하므로 마지막 칸은 반사·SAFETY 가 동작한 순간 (S11과 같은 한계)."], 9, color=MUTED)
+
+
+def s_story(s):
+    """시나리오 그림 (개념도): 행 = 도체 / 인체, 열 = 단계. 칸마다 손가락·물체 스케치 + 상태 칩 + 하위 제어기 + 신호."""
+    phases = ["탐지", "식별", "접근", "접촉", "파지 · 유지 | 상호작용"]
+    # (왼손가락 각도, 물체 y, 상태, 하위 제어기, 신호/규칙)
+    rows = {
+        "도체": [(22, 1.45, "OPEN", "자유 LQG: ε 유지 (열림)", "d̂ < 24 mm → 탐지"),
+                 (22, 1.45, "APPROACH", "자유 LQG", "ΔL 잔차 (−) → 도체\nF_t = 0.5·, F_{max} = 0.8·F_{block}"),
+                 (6, 1.33, "APPROACH", "자유 LQG: ε_{ref} = g(d̂)", "근접 스케줄 · 속도 제한"),
+                 (-11, 1.22, "GRASP", "자유 LQG → F-LQG (무충격)", "게이트 ∨ TENG 3샘플"),
+                 (-13, 1.22, "GRASP", "F-LQG + RLS, 반사 대기", "F_{ref} 경사 → F_t 유지")],
+        "인체": [(22, 1.45, "OPEN", "자유 LQG: ε 유지 (열림)", "d̂, ḋ̂ (움직이는 물체)"),
+                 (22, 1.45, "APPROACH", "자유 LQG, 반사 문턱 ↓", "인체 → F_t = 0.15·, F_{max} = 0.3·\n속도 × 0.4 (B단계 실측 필요)"),
+                 (8, 1.33, "APPROACH", "자유 LQG: 느린 pre-shape", "접촉 시각 t_c 맞춤"),
+                 (-11, 1.22, "GRASP", "F-LQG (dF/dt 상한)", "게이트 ∨ TENG"),
+                 (-9, 1.22, "SAFETY", "반사 1 kHz: F̂ > F_{max} → 배기", "(a) 약한 힘 유지 (b) 어드미턴스 따라가기")],
+    }
+    X0, W, H = 1.15, 2.4, 2.75
+    for k, nm in enumerate(phases):
+        b = box(s, X0 + k * W, 1.1, W + 0.05, 0.36, nm, "DCE6F2" if k % 2 == 0 else "C9D8EC", 11, True,
+                MSO_SHAPE.CHEVRON if k else MSO_SHAPE.PENTAGON)
+        b.line.fill.background()
+    for r, (kind, cells) in enumerate(rows.items()):
+        y0 = 1.55 + r * H
+        lab = box(s, 0.25, y0 + 0.4, 0.85, 1.3, f"시나리오 {r + 1}\n{kind}", "FFF5EA" if r == 0 else "FCE4D6", 10, True)
+        lab.text_frame.word_wrap = False
+        lab.text_frame.margin_left = lab.text_frame.margin_right = 0
+        for k, (ang, oy, st, lo, sg) in enumerate(cells):
+            x = X0 + k * W
+            fr = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x + 0.05), Inches(y0), Inches(W - 0.1), Inches(1.95))
+            fr.fill.solid(); fr.fill.fore_color.rgb = RGBColor.from_string("FAFAFA")
+            fr.line.color.rgb, fr.line.width = RGBColor.from_string("BFBFBF"), Pt(0.75)
+            cx = x + W / 2 - 0.25
+            palm = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(cx - 0.45), Inches(y0 + 0.12), Inches(0.9), Inches(0.16))
+            palm.fill.solid(); palm.fill.fore_color.rgb = RGBColor.from_string("595959"); palm.line.fill.background()
+            tl = _finger(s, cx - 0.33, y0 + 0.24, ang)
+            tr = _finger(s, cx + 0.33, y0 + 0.24, -ang)
+            oy_ = y0 + oy if k < 4 or kind == "도체" else y0 + oy + 0.0
+            _obj(s, cx, oy_, kind)
+            if k == 0:  # 근접장: 점선 원
+                for rr in (0.38, 0.5):
+                    c = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(cx - rr), Inches(oy_ - rr), Inches(2 * rr), Inches(2 * rr))
+                    c.fill.background(); c.line.color.rgb = RGBColor.from_string("FF8C00"); c.line.width = Pt(1)
+                    c.line.dash_style = MSO_LINE_DASH_STYLE.DASH
+                sig(s, cx + 0.5, y0 + 0.75, "d̂ (L)", 9, 0.6, color=RGBColor.from_string("C55A11"))
+            if k == 1:
+                _mark(s, MSO_SHAPE.ROUNDED_RECTANGLE, cx + 0.38, oy_ - 0.5, 0.55, 0.3, "FFF2CC" if kind == "인체" else "E2EFDA",
+                      "도체" if kind == "도체" else "인체", 8)
+            if k == 2:
+                wire(s, [(cx + 0.62, y0 + 0.55), (cx + 0.62, y0 + 0.95)]); sig(s, cx + 0.66, y0 + 0.62, "ε_{ref}↑", 9, 0.6)
+            if k == 3:
+                for px in (tl[0], tr[0]):
+                    _mark(s, MSO_SHAPE.STAR_8_POINT, px - 0.12, tl[1] - 0.12, 0.24, 0.24, "1F77B4")
+                sig(s, cx + 0.55, y0 + 0.95, "TENG", 9, 0.6, color=RGBColor.from_string("1F77B4"), italic=False)
+            if k == 4:
+                _mark(s, MSO_SHAPE.RIGHT_ARROW, tl[0] - 0.42, tl[1] - 0.09, 0.32, 0.18, "2CA02C")
+                _mark(s, MSO_SHAPE.LEFT_ARROW, tr[0] + 0.1, tr[1] - 0.09, 0.32, 0.18, "2CA02C")
+                if kind == "인체":
+                    _mark(s, MSO_SHAPE.UP_DOWN_ARROW, cx + 0.55, y0 + 1.05, 0.16, 0.6, "A0522D")
+                    _mark(s, MSO_SHAPE.LIGHTNING_BOLT, cx + 0.72, y0 + 0.3, 0.32, 0.45, "C00000")
+                    sig(s, cx + 0.72, y0 + 0.78, "반사", 8, 0.4, color=RGBColor.from_string("C00000"), italic=False, font=FONT)
+                else:
+                    sig(s, cx + 0.62, y0 + 0.85, "F̂ → F_t", 9, 0.7, color=RGBColor.from_string("2CA02C"))
+            # 아래: 상태 칩 + 하위 + 신호
+            chip = box(s, x + W - 1.1, y0 + 1.62, 0.98, 0.27, st, STATE_FILL[st], 8, True)
+            chip.line.color.rgb = RGBColor.from_string("7F7F7F")
+            for j, ln in enumerate([f"하위: {lo}", *sg.split("\n")]):
+                sig(s, x + 0.12, y0 + 2.0 + j * 0.22, ln, 8, W - 0.2, italic=False)
+    cap = s.shapes.add_textbox(Inches(0.3), Inches(7.05), Inches(12.8), Inches(0.35)).text_frame
+    cap.word_wrap = True
+    _rich(cap.paragraphs[0], "개념도 (시뮬레이션 상황 묘사). 상위(PC 20 Hz)는 상태 칩과 기준(ε_{ref}, F_{ref}, F_{max})을 바꾸고, "
+          "하위(STM32 + TDM)는 매 칸의 루프와 1 kHz 반사를 돌린다. 주황 점선 = 인덕턴스 L 근접장, 파랑 별 = TENG 접촉, 초록 화살표 = 파지력. "
+          "식별은 시뮬에서 정답 라벨 (ΔL 잔차 판별기는 도체 · 유전체만 가름).", 9, MUTED, MATH, False)
 
 
 # ---------------- 슬라이드 ----------------
@@ -499,6 +840,12 @@ def build(out_path=PROJECT / "MEC799_Project_PneuNet.pptx", params=None):
     s_layers_fig(s)
     s = prs.slides.add_slide(blank); title(s, "제어 구조 상세: 상위 감독기 + 하위 내부 루프 (과제 2–6절)")
     s_control_fig(s, P)
+    s = prs.slides.add_slide(blank); title(s, "상태공간 블록도 ① 자유 모드: LQG + 적분 서보 (Lec8–9, P2_Lec1)")
+    s_ss_fig(s, P, "free")
+    s = prs.slides.add_slide(blank); title(s, "상태공간 블록도 ② 접촉 모드: F-LQG + RLS 게인 스케줄 + 반사")
+    s_ss_fig(s, P, "contact")
+    s = prs.slides.add_slide(blank); title(s, "전달함수 블록도: G(z) 와 LQG 등가 보상기 (자유 모드)", True)
+    s_tf_fig(s, P)
 
     # 6 과제 ↔ 강의 대응표
     s = prs.slides.add_slide(blank); title(s, "과제 절 ↔ 강의 대응")
@@ -639,6 +986,10 @@ def build(out_path=PROJECT / "MEC799_Project_PneuNet.pptx", params=None):
                                   "인체: F_max 이하(최대 1.5 N)지만 유지 힘이 목표의 절반 이하. F̂ 오차(접촉 중 약 +1.5 N)가 목표 0.93 N보다 커서 SAFETY가 반복 (센서 한계). 도체 유지 힘이 목표보다 큰 것도 F̂ 편향 (−0.5 N 내외)"], 11, bullet=True)
 
     # 시나리오 1: 도체
+    s = prs.slides.add_slide(blank); title(s, "시나리오 그림: 도체 파지 vs 인체 상호작용 (단계별 상태 · 제어기)")
+    s_story(s)
+    s = prs.slides.add_slide(blank); title(s, "사진 비교: 망치를 든 손 — 자루(도체) vs 손목(인체)", True)
+    s_photo(s, P)
     s = prs.slides.add_slide(blank); title(s, "시나리오 1 (도체): 탐지 → 접근 → 접촉 → 파지 · 유지", True)
     s_flow(s, 1.15, [("탐지", "근접 d̂ < 24 mm", "OPEN → APPROACH", "TDM·MoE 1 kHz"),
                      ("식별", "ΔL 잔차 부호 (−: 도체)", "재질 → F_t 0.5·, F_max 0.8·F_block", "—"),
