@@ -30,7 +30,6 @@ CROP = A / "crops"
 
 FONT = "Arial"
 INK, MUTED, EDGE = "222222", "666666", "8C8C8C"
-COLOR_L, COLOR_R, COLOR_TENG = "FF8C00", "2CA02C", "1F77B4"   # CLAUDE.md 신호 색
 AFF, EFF = "1F77B4", "C0392B"                                  # 구심 (감각) · 원심 (운동)
 HUMAN_BG, WORK_BG, BEYOND_BG = "FBF1EA", "EEF3F8", "FFF6D6"
 LEAD = "7A7A7A"
@@ -48,7 +47,31 @@ def prep():
     px = np.array(src.crop((int(0.06 * W), int(0.04 * H), W, int(0.76 * H))).convert("RGBA"))
     px[px[..., :3].min(axis=2) > 242, 3] = 0                                # 흰 배경 → 투명
     Image.fromarray(px).save(CROP / "pcb.png")
-    Image.open(SV / "Systeme_nerveux.png").crop((0, 0, 501, BODY_H)).save(CROP / "body.png")   # 뇌 · 척수 · 말초신경 한 장 (머리 – 허벅지)
+    clean_body(Image.open(SV / "Systeme_nerveux.png").crop((0, 0, 501, BODY_H))).save(CROP / "body.png")   # 머리 – 허벅지
+
+
+def clean_body(im, fill=(222, 232, 240), edge=(70, 110, 150), fade=110):
+    """신경계 인체를 도식형으로: 피부 → 단색, 안쪽 선 (젖꼭지 · 배꼽 · 얼굴 · 사타구니) 제거, 바깥 윤곽만, 아랫단은 흐리게.
+    신경 (노랑) · 뇌 (회색) · 소뇌 (보라) 는 원래 색 그대로."""
+    from scipy import ndimage
+    a = np.array(im.convert("RGBA")).astype(int)
+    r, g, b, al = (a[..., i] for i in range(4))
+    body = al > 0
+    nerve = (r > 190) & (g > 120) & (g < 225) & (b < 120)
+    brain_box = np.zeros_like(body); brain_box[12:120, 188:316] = True                  # 대뇌 영역
+    cereb_box = np.zeros_like(body); cereb_box[85:120, 195:260] = True                  # 소뇌 영역 (보라: 눈썹과 색이 비슷해 좁게)
+    brain = body & ~nerve & ((brain_box & (b >= r - 2) & (r > 120)) | (cereb_box & (r > g + 15) & (b > g + 5) & (r < 230)))
+    rim = body & ndimage.binary_dilation(~body, iterations=4)                          # 바깥 윤곽 띠
+    out = np.zeros_like(a)
+    out[body] = (*fill, 255)
+    out[rim] = (*edge, 255)
+    dark = a[..., :3].max(axis=2) < 140
+    eye = np.zeros_like(body); eye[60:110, 296:340] = True                             # 눈 · 눈썹 선은 지움
+    keep = (nerve | brain | (brain_box & dark & ~eye)) & ~rim                                # 뇌 주름 윤곽선은 남김
+    out[keep] = a[keep]
+    h = out.shape[0]
+    out[h - fade:, :, 3] = (out[h - fade:, :, 3] * np.linspace(1, 0, fade)[:, None]).astype(int)   # 잘린 아랫단 흐리게
+    return Image.fromarray(out.astype(np.uint8))
 
 
 def place(s, path, x, y, w=None, h=None, trim=True):
@@ -138,12 +161,6 @@ def tag(s, x, y, w, t, fill):
     text(s, x, y + 0.01, w, 0.2, t, 8, INK, True, PP_ALIGN.CENTER)
 
 
-def chip(s, x, y, w, label, sub, color):
-    shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, x, y, w, 0.22, color, None)
-    text(s, x, y + 0.01, w, 0.2, [[(label, {"bold": True, "color": "FFFFFF", "size": 8}),
-                                     (sub, {"bold": True, "color": "FFFFFF", "size": 8, "sub": True})]], align=PP_ALIGN.CENTER)
-
-
 def field(s, x, y, w, h):
     for k in range(2):
         shape(s, MSO_SHAPE.OVAL, x - 0.07 - k * 0.09, y - 0.06 - k * 0.07, w + 0.14 + k * 0.18, h + 0.12 + k * 0.14, None, "7F8C8D", 0.6, dash=True)
@@ -176,16 +193,19 @@ def panel_a(s):
     for name, w in cols:
         text(s, x, y0, w, 0.22, name, 8.5, INK, True, PP_ALIGN.CENTER); x += w
     line(s, [(X0, y0 + 0.26), (X0 + W, y0 + 0.26)], EDGE, 0.75)
-    rows = [("Bras.png", "muscle spindle", "Proprioception", "stretch", [("R", "DC", COLOR_R)], [("strain ", {}), ("ε", {"italic": True})]),
-            ("Main.png", "Merkel, Ruffini", "Pressure", "force", [("L", "", COLOR_L), ("R", "DC", COLOR_R)], [("force ", {}), ("F", {"italic": True})]),
-            ("Integumentary-system-1.png", "Meissner, Pacinian", "Touch", "contact", [("V", "TENG", COLOR_TENG)], [("contact event", {})]),
-            ("poisson.png", "electric fish: electrolocation", "Proximity", "pre-contact", [("L", "", COLOR_L)], [("distance ", {}), ("d", {"italic": True})]),
-            ("poisson.png", "electric fish: impedance sensing", "Material", "conductor / dielectric", [("L", "", COLOR_L), ("V", "TENG", COLOR_TENG)],
-             [("object identity", {})])]
+    # 이 연구 열: 장면 렌더 + "→ 쓰임새" (감각별 색) + 한 줄 설명 (세미나 S05 형식, 신호 기호 없이)
+    G = lambda n: A / f"{n}.png"
+    rows = [("Bras.png", "muscle spindle", "Proprioception", "stretch", [G("gripper")], "3A9A5B", "self-shape awareness", "finger bending, body state"),
+            ("Main.png", "Merkel, Ruffini", "Pressure", "force", [G("grip_egg")], "E8731A", "force-feedback grasp", "grip force on fragile objects"),
+            ("Integumentary-system-1.png", "Meissner, Pacinian", "Touch", "contact", [G("grip_touch")], "1E8A8A", "contact detection", "contact onset and release"),
+            ("poisson.png", "electric fish: electrolocation", "Proximity", "pre-contact", [G("grip_near")], "1F77B4", "pre-grasp, collision avoidance",
+             "detects objects before contact"),
+            ("poisson.png", "electric fish: impedance sensing", "Material", "conductor / dielectric", [G("grip_near"), SV / "Main.png"], "7B3F98",
+             "human / conductor discrimination", "tells a hand from a metal object")]
     ys = y0 + 0.32
     shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, X0 - 0.03, ys + 3 * rh - 0.03, W + 0.06, 2 * rh, BEYOND_BG, None)
     text(s, X0 + W - 1.2, ys + 3 * rh - 0.01, 1.18, 0.18, "beyond human", 7, "B7950B", True, PP_ALIGN.RIGHT, italic=True)
-    for i, (img, note, m, m2, sig, out) in enumerate(rows):
+    for i, (img, note, m, m2, pics, col, use, desc) in enumerate(rows):
         y = ys + i * rh
         if img == "poisson.png":
             field(s, X0 + 0.12, y + 0.17, 0.5, 0.17)
@@ -201,17 +221,13 @@ def panel_a(s):
             text(s, X0 + 0.75, y + 0.22, 1.0, 0.3, note, 7, MUTED, italic=True)
         mx = X0 + cols[0][1]
         text(s, mx, y + 0.12, cols[1][1], 0.45, [[(m, {"bold": True})], [(m2, {"color": MUTED, "size": 6.5})]], 8, INK, align=PP_ALIGN.CENTER)
-        wx = mx + cols[1][1] + 0.08
-        for lab, sub, c in sig:
-            ww = 0.58 if sub else 0.3
-            chip(s, wx, y + 0.2, ww, lab, sub, c); wx += ww + 0.05
-        line(s, [(wx + 0.02, y + 0.31), (wx + 0.22, y + 0.31)], MUTED, 0.75, head=True)
-        text(s, wx + 0.25, y + 0.2, 1.3, 0.25, [out], 8, INK)
+        wx = mx + cols[1][1] + 0.05
+        for q in pics:                                                        # 렌더 (시뮬레이션 그림) — 높이 0.6 에 맞춤
+            wx = sum(place(s, q, wx, y + 0.05, h=0.6)[::2]) + 0.04
+        text(s, wx, y + 0.1, X0 + W - wx, 0.5, [[("→ " + use, {"bold": True, "color": col, "size": 7.5})], [(desc, {"color": MUTED, "size": 7})]], 7.5)
         if i < len(rows) - 1:
             line(s, [(X0, y + rh), (X0 + W, y + rh)], "DDDDDD", 0.5)
-    text(s, X0, ys + 5 * rh + 0.04, W, 0.3, [[("One two-wire electrode, three signals (", {}), ("L", {"italic": True}), (", ", {}),
-                                               ("R", {"italic": True}), ("DC", {"sub": True}), (", ", {}), ("V", {"italic": True}),
-                                               ("TENG", {"sub": True}), (") time-multiplexed every 1 ms", {})]], 7.5, INK, align=PP_ALIGN.CENTER)
+    text(s, X0, ys + 5 * rh + 0.04, W, 0.3, "All five modalities from one two-wire soft electrode, every 1 ms", 7.5, INK, align=PP_ALIGN.CENTER)
 
 
 # ---------------- b 공통: 신경계 인체 (Servier Systeme_nerveux, 앞모습) ----------------

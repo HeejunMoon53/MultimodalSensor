@@ -1,4 +1,4 @@
 Human illustrations: Servier Medical Art (https://smart.servier.com), licensed under CC BY 4.0
-(https://creativecommons.org/licenses/by/4.0/). Downloaded 2026-11-26. Modifications: cropping only.
+(https://creativecommons.org/licenses/by/4.0/). Downloaded 2026-11-26. Modifications: cropping; Systeme_nerveux skin recoloured to a flat tone with inner lines removed (nerves and brain unchanged).
 Figure caption must credit: "Illustrations adapted from Servier Medical Art (CC BY 4.0)."
 Used: Integumentary-system(-1), Bras, Main, poisson, Systeme_nerveux (cropped head to thigh).

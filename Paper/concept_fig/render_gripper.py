@@ -3,10 +3,12 @@
 손가락 형상 = Hardware/pneunet_gripper CAD (STEP → assets/cad/*.stl, build123d 로 변환).
 손가락 로컬 좌표: X = 길이 (0 = 뿌리), Y = 폭, Z = 두께 (바닥층 −4..0 = 물체 쪽, 몸체 0..20).
 SimpleDeform BEND 로 바닥층 쪽으로 굽힌다 (공기를 넣은 모습, 그림용). 센서 = 바닥층 물체 쪽 면의 패드 + 스파이럴.
-실행: "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b -P Paper/concept_fig/render_gripper.py
-→ Paper/concept_fig/assets/gripper.png
+실행: "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b -P Paper/concept_fig/render_gripper.py -- [장면]
+장면 (VARIANTS): gripper (기본, 물체 없음) · grip_egg (달걀 파지) · grip_touch (금속 블록에 닿음) · grip_near (금속 블록 접근)
+→ Paper/concept_fig/assets/<장면>.png
 """
 import math
+import sys
 from pathlib import Path
 
 import bpy
@@ -14,7 +16,6 @@ from mathutils import Vector
 
 HERE = Path(__file__).resolve().parent
 CAD = HERE / "assets" / "cad"
-OUT = HERE / "assets" / "gripper.png"
 GAP = 48.0          # 손가락 바닥층 사이 반간격 [mm]
 BEND = 50.0         # 굽힘 각 [°]
 
@@ -90,7 +91,7 @@ def spiral(x0, x1, y0, y1, z, turns, pitch):
     return pts
 
 
-def finger(mats, sign):
+def finger(mats, sign, bend=BEND):
     """한 손가락 (로컬) → 굽힘 → 세계 배치. sign = +1 (x > 0 쪽) / −1."""
     parts = [stl("finger_body_silicone", mats["body"]), stl("finger_base_silicone", mats["base"])]
     for o in parts:
@@ -114,7 +115,7 @@ def finger(mats, sign):
     pivot.location = (0, 0, -4.7)
     pivot.rotation_euler = (math.radians(90), 0, 0)                            # 굽힘 축 = 로컬 Y
     d = o.modifiers.new("bend", "SIMPLE_DEFORM")
-    d.deform_method, d.angle, d.origin, d.deform_axis = "BEND", math.radians(-BEND), pivot, "Z"
+    d.deform_method, d.angle, d.origin, d.deform_axis = "BEND", math.radians(-bend), pivot, "Z"
     bpy.ops.object.modifier_apply(modifier="bend")
     # 로컬 → 세계: X → −Z (매달림), Z → +x·sign (등은 바깥, 바닥층은 가운데를 봄)
     o.rotation_euler = (0, math.radians(90), 0 if sign > 0 else math.radians(180))
@@ -122,7 +123,14 @@ def finger(mats, sign):
     bpy.data.objects.remove(pivot)
 
 
+# 장면: 굽힘 각 [°], 물체 (종류, 중심 z [mm])
+VARIANTS = {"gripper": (BEND, None), "grip_egg": (40.0, ("egg", -82.0)),
+            "grip_touch": (12.0, ("block", -126.0)), "grip_near": (12.0, ("block", -158.0))}
+
+
 def main():
+    name = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else "gripper"
+    bend, obj = VARIANTS[name]
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sc = bpy.context.scene
     mats = dict(body=mat("body", (0.93, 0.93, 0.91), rough=0.45, sss=0.15),
@@ -131,8 +139,15 @@ def main():
                 egain=mat("egain", (0.86, 0.87, 0.90), metal=1.0, rough=0.22),
                 lead=mat("lead", (0.85, 0.62, 0.25), metal=1.0, rough=0.3),
                 palm=mat("palm", (0.18, 0.19, 0.21), rough=0.5),
-                hose=mat("hose", (0.20, 0.45, 0.80), rough=0.35))
-    finger(mats, +1); finger(mats, -1)
+                hose=mat("hose", (0.20, 0.45, 0.80), rough=0.35),
+                egg=mat("egg", (0.93, 0.80, 0.62), rough=0.55),
+                metal=mat("metal", (0.70, 0.72, 0.76), metal=1.0, rough=0.25))
+    finger(mats, +1, bend); finger(mats, -1, bend)
+    if obj and obj[0] == "egg":
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=22, location=(0, 0, obj[1]), segments=64, ring_count=32)
+        e = bpy.context.object; e.scale = (1, 1, 1.28); e.data.materials.append(mats["egg"]); bpy.ops.object.shade_smooth()
+    elif obj:
+        box(-75, 75, -28, 28, obj[1] - 12, obj[1] + 12, mats["metal"])          # 금속 블록 (도체)
     box(-74, 74, -24, 24, 0, 14, mats["palm"])                                 # 손바닥
     for sx in (+1, -1):                                                        # 공압 튜브
         tube([(sx * 55, 0, 14), (sx * 55, 0, 40), (sx * 80, 0, 70)], 2.2, mats["hose"])
@@ -140,7 +155,7 @@ def main():
     sc.collection.objects.link(cam)
     cam.location = (-150, -230, -10)
     cam.data.lens = 36
-    cam.rotation_euler = (Vector((0, 0, -55)) - cam.location).to_track_quat("-Z", "Y").to_euler()
+    cam.rotation_euler = (Vector((0, 0, -72)) - cam.location).to_track_quat("-Z", "Y").to_euler()
     sc.camera = cam
     for loc, e in (((150, -200, 200), 1.2e6), ((-250, -100, 50), 5e5), ((0, 250, 150), 4e5)):
         L = bpy.data.objects.new("L", bpy.data.lights.new("L", "AREA"))
@@ -157,7 +172,7 @@ def main():
     sc.render.film_transparent = True
     sc.view_settings.view_transform = "Standard"
     sc.render.resolution_x, sc.render.resolution_y = 1200, 1500
-    sc.render.filepath = str(OUT)
+    sc.render.filepath = str(HERE / "assets" / f"{name}.png")
     bpy.ops.render.render(write_still=True)
 
 
