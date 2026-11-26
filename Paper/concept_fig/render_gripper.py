@@ -4,7 +4,8 @@
 손가락 로컬 좌표: X = 길이 (0 = 뿌리), Y = 폭, Z = 두께 (바닥층 −4..0 = 물체 쪽, 몸체 0..20).
 SimpleDeform BEND 로 바닥층 쪽으로 굽힌다 (공기를 넣은 모습, 그림용). 센서 = 바닥층 물체 쪽 면의 패드 + 스파이럴.
 실행: "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b -P Paper/concept_fig/render_gripper.py -- [장면]
-장면 (VARIANTS): gripper (기본, 물체 없음) · grip_egg (달걀 파지) · grip_touch (금속 블록에 닿음) · grip_near (금속 블록 접근)
+장면 (VARIANTS): gripper (기본, 물체 없음) · grip_egg (달걀 파지) · grip_touch (금속 봉이 두 패드에 닿음)
+                 · grip_near (가는 금속 봉이 손가락 사이, 비접촉) · grip_human (손목이 두 패드에 닿음)
 → Paper/concept_fig/assets/<장면>.png
 """
 import math
@@ -123,9 +124,10 @@ def finger(mats, sign, bend=BEND):
     bpy.data.objects.remove(pivot)
 
 
-# 장면: 굽힘 각 [°], 물체 (종류, 중심 z [mm])
-VARIANTS = {"gripper": (BEND, None), "grip_egg": (40.0, ("egg", -82.0)),
-            "grip_touch": (12.0, ("block", -126.0)), "grip_near": (12.0, ("block", -158.0))}
+# 장면: 굽힘 각 [°], 물체 (종류, 중심 z [mm], 반지름 [mm]). 봉 · 손목 축 = y (손가락 면에 평행), 패드 면 x ≈ ±47
+VARIANTS = {"gripper": (BEND, None), "grip_egg": (40.0, ("egg", -82.0, 22.0)),
+            "grip_touch": (8.0, ("rod", -70.0, 45.5)), "grip_near": (8.0, ("rod", -70.0, 28.0)),
+            "grip_human": (8.0, ("wrist", -70.0, 45.5))}
 
 
 def main():
@@ -141,19 +143,34 @@ def main():
                 palm=mat("palm", (0.18, 0.19, 0.21), rough=0.5),
                 hose=mat("hose", (0.20, 0.45, 0.80), rough=0.35),
                 egg=mat("egg", (0.93, 0.80, 0.62), rough=0.55),
-                metal=mat("metal", (0.70, 0.72, 0.76), metal=1.0, rough=0.25))
+                metal=mat("metal", (0.62, 0.64, 0.68), metal=1.0, rough=0.38),
+                skin=mat("skin", (0.88, 0.66, 0.55), rough=0.5, sss=0.2))
     finger(mats, +1, bend); finger(mats, -1, bend)
     if obj and obj[0] == "egg":
-        bpy.ops.mesh.primitive_uv_sphere_add(radius=22, location=(0, 0, obj[1]), segments=64, ring_count=32)
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=obj[2], location=(0, 0, obj[1]), segments=64, ring_count=32)
         e = bpy.context.object; e.scale = (1, 1, 1.28); e.data.materials.append(mats["egg"]); bpy.ops.object.shade_smooth()
     elif obj:
-        box(-75, 75, -28, 28, obj[1] - 12, obj[1] + 12, mats["metal"])          # 금속 블록 (도체)
+        kind, z, r = obj
+        m = mats["metal"] if kind == "rod" else mats["skin"]
+        y0, y1 = (-45, 45) if kind == "rod" else (-38, 230)                   # 봉: 손가락 폭보다 조금 길게. 손목: 팔은 뒤로
+        if kind == "rod":
+            bpy.ops.mesh.primitive_cylinder_add(radius=r, depth=y1 - y0, location=(0, (y0 + y1) / 2, z), rotation=(math.radians(90), 0, 0), vertices=96)
+        else:                                                                 # 팔: 손목 (앞) 쪽이 가는 원뿔
+            bpy.ops.mesh.primitive_cone_add(radius1=r, radius2=r * 1.25, depth=y1 - y0, location=(0, (y0 + y1) / 2, z),
+                                            rotation=(math.radians(-90), 0, 0), vertices=96)
+        c = bpy.context.object; c.data.materials.append(m); bpy.ops.object.shade_smooth()
+        if kind == "wrist":                                                   # 주먹 (손가락 바로 앞) + 엄지
+            bpy.ops.mesh.primitive_uv_sphere_add(radius=r, location=(0, y0 - r * 0.6, z - r * 0.1), segments=64, ring_count=32)
+            f = bpy.context.object; f.scale = (0.85, 0.72, 1.12); f.data.materials.append(m); bpy.ops.object.shade_smooth()
+            bpy.ops.mesh.primitive_cylinder_add(radius=r * 0.27, depth=r * 1.0, location=(-r * 0.55, y0 - r * 0.85, z + r * 0.55),
+                                                rotation=(math.radians(70), 0, math.radians(-20)), vertices=48)
+            t = bpy.context.object; t.data.materials.append(m); bpy.ops.object.shade_smooth()
     box(-74, 74, -24, 24, 0, 14, mats["palm"])                                 # 손바닥
     for sx in (+1, -1):                                                        # 공압 튜브
         tube([(sx * 55, 0, 14), (sx * 55, 0, 40), (sx * 80, 0, 70)], 2.2, mats["hose"])
     cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam"))
     sc.collection.objects.link(cam)
-    cam.location = (-150, -230, -10)
+    cam.location = (-215, -195, 0) if obj and obj[0] in ("rod", "wrist") else (-150, -230, -10)   # 봉 · 손목: 옆에서 (축이 가로로)
     cam.data.lens = 36
     cam.rotation_euler = (Vector((0, 0, -72)) - cam.location).to_track_quat("-Z", "Y").to_euler()
     sc.camera = cam

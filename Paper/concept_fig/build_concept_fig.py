@@ -200,7 +200,7 @@ def panel_a(s):
             ("Integumentary-system-1.png", "Meissner, Pacinian", "Touch", "contact", [G("grip_touch")], "1E8A8A", "contact detection", "contact onset and release"),
             ("poisson.png", "electric fish: electrolocation", "Proximity", "pre-contact", [G("grip_near")], "1F77B4", "pre-grasp, collision avoidance",
              "detects objects before contact"),
-            ("poisson.png", "electric fish: impedance sensing", "Material", "conductor / dielectric", [G("grip_near"), SV / "Main.png"], "7B3F98",
+            ("poisson.png", "electric fish: impedance sensing", "Material", "conductor / dielectric", [G("grip_touch"), G("grip_human")], "7B3F98",
              "human / conductor discrimination", "tells a hand from a metal object")]
     ys = y0 + 0.32
     shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, X0 - 0.03, ys + 3 * rh - 0.03, W + 0.06, 2 * rh, BEYOND_BG, None)
